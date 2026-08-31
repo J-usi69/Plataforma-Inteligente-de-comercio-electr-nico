@@ -1,0 +1,16 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: fashionstore-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: fashionstore
+      POSTGRES_PASSWORD: fashionstore
+      POSTGRES_DB: fashionstore
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:
