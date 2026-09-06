@@ -83,7 +83,29 @@ docker-compose.yml                           # backend + frontend (conectados a 
 
 ### 1. Variables de entorno
 
-Pide el archivo `.env` real por WhatsApp/Drive (no está en el repo por seguridad — el repo es público y contiene la contraseña de la base de datos compartida). Colócalo en la **raíz del repositorio**, al lado de `docker-compose.yml`. `.env.example` muestra qué variables lleva.
+Crea un archivo `.env` en la **raíz del repositorio** (al lado de `docker-compose.yml`, no se sube a git) con este contenido:
+
+```env
+# --- Base de datos (Supabase Postgres, via Session Pooler - IPv4 compatible) ---
+DATABASE_URL=postgresql://postgres.hypxydlpejdvlaqoiagj:Antonio1305%7C00%7C@aws-0-sa-east-1.pooler.supabase.com:5432/postgres
+
+# --- Supabase API ---
+SUPABASE_URL=https://hypxydlpejdvlaqoiagj.supabase.co
+SUPABASE_ANON_KEY=
+SUPABASE_SERVICE_ROLE_KEY=
+
+# --- Backend FastAPI ---
+JWT_SECRET_KEY=cambia-esto-por-una-clave-larga-y-aleatoria
+ENVIRONMENT=development
+
+# --- Pasarela de pago (completar cuando se integre) ---
+PAYMENT_GATEWAY_API_KEY=
+
+# --- IA (completar cuando se integre) ---
+AI_API_KEY=
+```
+
+`.env.example` tiene la misma plantilla sin valores reales, por si se pierde este archivo.
 
 ### 2. Levantar todo con Docker (recomendado)
 
@@ -153,7 +175,7 @@ rol:        Administrador
   ```bash
   docker compose --profile local-db up -d postgres
   ```
-  Se levanta en `localhost:5433` con usuario/clave/DB `fashionstore` y corre automáticamente `database/schema.sql` + `database/init-seeds.sql` al crearse por primera vez.
+  Se levanta en `localhost:5433` con usuario/clave/DB `fashionstore` / `fashionstore` / `fashionstore` (mismo valor los tres, definido en `docker-compose.yml`) y corre automáticamente `database/schema.sql` + `database/init-seeds.sql` al crearse por primera vez.
 - `database/schema.sql` es la referencia histórica del diseño original — el esquema real y vivo se gestiona desde `backend/app/models/` + Alembic.
 
 ## Ramas
