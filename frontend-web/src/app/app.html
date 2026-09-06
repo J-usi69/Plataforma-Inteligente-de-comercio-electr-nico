@@ -1,1 +1,71 @@
-<router-outlet />
+<header class="navbar">
+  <a routerLink="/" class="brand">
+    <div class="brand-icon">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/>
+        <path d="M3 6h18"/>
+        <path d="M16 10a4 4 0 0 1-8 0"/>
+      </svg>
+    </div>
+    <div style="display: flex; flex-direction: column;">
+      <div style="display: flex; align-items: center; gap: 0.5rem;">
+        <span>FashionStore</span>
+        <span class="brand-tag">Online</span>
+      </div>
+      <span style="font-size: 0.68rem; color: #64748b; font-weight: 500; letter-spacing: -0.01em;">Moda & Realidad Aumentada</span>
+    </div>
+  </a>
+
+  <nav class="nav-links">
+    <a routerLink="/catalogo" routerLinkActive="active">
+      Catálogo
+    </a>
+    <a *ngIf="authService.isAdmin()" routerLink="/admin" routerLinkActive="active">
+      Panel de Administración
+    </a>
+  </nav>
+
+  <div class="user-badge">
+    <ng-container *ngIf="authService.isLoggedIn(); else noAuth">
+      <div class="user-info">
+        <span class="user-email">{{ authService.currentUser()?.correo }}</span>
+        <span class="role-chip">{{ authService.currentUser()?.roles?.[0] || 'Cliente' }}</span>
+      </div>
+      <button class="btn btn-secondary btn-sm" (click)="onLogout()">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+          <polyline points="16 17 21 12 16 7"/>
+          <line x1="21" y1="12" x2="9" y2="12"/>
+        </svg>
+        Salir
+      </button>
+    </ng-container>
+
+    <ng-template #noAuth>
+      <a routerLink="/login" class="btn btn-primary btn-sm">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/>
+          <polyline points="10 17 15 12 10 7"/>
+          <line x1="15" y1="12" x2="3" y2="12"/>
+        </svg>
+        Iniciar Sesión
+      </a>
+    </ng-template>
+  </div>
+</header>
+
+<main>
+  <router-outlet></router-outlet>
+</main>
+
+<footer class="footer">
+  <div style="max-width: 1200px; margin: 0 auto; display: flex; flex-direction: column; align-items: center; gap: 0.5rem;">
+    <div style="font-weight: 700; color: #0f172a; font-size: 0.95rem;">FashionStore — Plataforma Inteligente de Comercio Electrónico</div>
+    <div style="font-size: 0.8rem; color: #64748b;">
+      Experiencia Omnicanal de Moda y Realidad Aumentada · Santa Cruz, Bolivia
+    </div>
+    <div style="font-size: 0.75rem; color: #94a3b8; margin-top: 0.25rem;">
+      Todos los derechos reservados &copy; 2026 FashionStore
+    </div>
+  </div>
+</footer>

@@ -4,13 +4,59 @@ services:
     container_name: fashionstore-postgres
     restart: unless-stopped
     environment:
-      POSTGRES_USER: fashionstore
-      POSTGRES_PASSWORD: fashionstore
-      POSTGRES_DB: fashionstore
+      POSTGRES_USER: ${POSTGRES_USER:-fashionstore}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-fashionstore}
+      POSTGRES_DB: ${POSTGRES_DB:-fashionstore}
     ports:
-      - "5432:5432"
+      - "${POSTGRES_PORT:-5433}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./database/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ./database/init-seeds.sql:/docker-entrypoint-initdb.d/02-seeds.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-fashionstore} -d ${POSTGRES_DB:-fashionstore}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - fashionstore-network
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: fashionstore-backend
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-fashionstore}:${POSTGRES_PASSWORD:-fashionstore}@postgres:5432/${POSTGRES_DB:-fashionstore}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-fashionstore_super_secret_jwt_key_2026_sistema_de_informacion_2}
+      ENVIRONMENT: ${ENVIRONMENT:-development}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - fashionstore-network
+
+  frontend:
+    build:
+      context: ./frontend-web
+      dockerfile: Dockerfile
+    container_name: fashionstore-frontend
+    restart: unless-stopped
+    ports:
+      - "4200:80"
+    depends_on:
+      - backend
+    networks:
+      - fashionstore-network
+
+networks:
+  fashionstore-network:
+    driver: bridge
 
 volumes:
   postgres_data:

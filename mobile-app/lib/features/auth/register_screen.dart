@@ -2,17 +2,18 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/services/api_service.dart';
 
-class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+class RegisterScreen extends StatefulWidget {
+  const RegisterScreen({super.key});
 
   @override
-  State<LoginScreen> createState() => _LoginScreenState();
+  State<RegisterScreen> createState() => _RegisterScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
+class _RegisterScreenState extends State<RegisterScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _loginController = TextEditingController(text: 'admin@fashionstore.com');
-  final _passwordController = TextEditingController(text: 'Admin123*');
+  final _emailController = TextEditingController();
+  final _phoneController = TextEditingController();
+  final _passwordController = TextEditingController();
   final _apiService = ApiService();
 
   bool _isLoading = false;
@@ -20,12 +21,13 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   void dispose() {
-    _loginController.dispose();
+    _emailController.dispose();
+    _phoneController.dispose();
     _passwordController.dispose();
     super.dispose();
   }
 
-  Future<void> _handleLogin() async {
+  Future<void> _handleRegister() async {
     if (!_formKey.currentState!.validate()) return;
 
     setState(() {
@@ -34,19 +36,20 @@ class _LoginScreenState extends State<LoginScreen> {
     });
 
     try {
-      final res = await _apiService.login(
-        login: _loginController.text.trim(),
+      await _apiService.register(
+        correo: _emailController.text.trim(),
         password: _passwordController.text,
+        celular: _phoneController.text.trim(),
       );
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Bienvenido ${res['usuario']['correo']}'),
+        const SnackBar(
+          content: Text('¡Cuenta creada con éxito! Inicie sesión.'),
           backgroundColor: Colors.green,
         ),
       );
-      context.go('/catalogo');
+      context.pop();
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -65,38 +68,26 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Iniciar Sesión'),
-        centerTitle: true,
+        title: const Text('Crear Cuenta'),
       ),
       body: Center(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
+          padding: const EdgeInsets.all(24.0),
           child: Form(
             key: _formKey,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Icon(
-                  Icons.shopping_bag_outlined,
-                  size: 72,
-                  color: Colors.indigo,
-                ),
-                const SizedBox(height: 12),
                 const Text(
-                  'FashionStore',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 26,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.indigo,
-                  ),
+                  'Registro de Cliente',
+                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
                 ),
+                const SizedBox(height: 8),
                 const Text(
-                  'Plataforma Inteligente de Moda',
-                  textAlign: TextAlign.center,
+                  'Crea tu cuenta personal para reservar prendas y probarlas con Realidad Aumentada.',
                   style: TextStyle(fontSize: 14, color: Colors.black54),
                 ),
-                const SizedBox(height: 32),
+                const SizedBox(height: 24),
                 if (_errorMessage != null)
                   Container(
                     padding: const EdgeInsets.all(12),
@@ -106,53 +97,56 @@ class _LoginScreenState extends State<LoginScreen> {
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(color: Colors.red.shade200),
                     ),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.error_outline, color: Colors.red),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            _errorMessage!,
-                            style: const TextStyle(color: Colors.red, fontSize: 13),
-                          ),
-                        ),
-                      ],
+                    child: Text(
+                      _errorMessage!,
+                      style: const TextStyle(color: Colors.red),
                     ),
                   ),
                 TextFormField(
-                  controller: _loginController,
+                  controller: _emailController,
                   decoration: const InputDecoration(
-                    labelText: 'Correo electrónico o celular',
-                    prefixIcon: Icon(Icons.person_outline),
+                    labelText: 'Correo electrónico *',
+                    prefixIcon: Icon(Icons.email_outlined),
                     border: OutlineInputBorder(),
                   ),
                   keyboardType: TextInputType.emailAddress,
                   validator: (val) {
                     if (val == null || val.trim().isEmpty) {
-                      return 'Ingrese su correo o celular';
+                      return 'Ingrese su correo';
                     }
+                    if (!val.contains('@')) return 'Correo no válido';
                     return null;
                   },
                 ),
                 const SizedBox(height: 16),
                 TextFormField(
+                  controller: _phoneController,
+                  decoration: const InputDecoration(
+                    labelText: 'Número de celular',
+                    prefixIcon: Icon(Icons.phone_android_outlined),
+                    border: OutlineInputBorder(),
+                  ),
+                  keyboardType: TextInputType.phone,
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
                   controller: _passwordController,
                   decoration: const InputDecoration(
-                    labelText: 'Contraseña',
+                    labelText: 'Contraseña *',
                     prefixIcon: Icon(Icons.lock_outline),
                     border: OutlineInputBorder(),
                   ),
                   obscureText: true,
                   validator: (val) {
-                    if (val == null || val.isEmpty) {
-                      return 'Ingrese su contraseña';
+                    if (val == null || val.length < 6) {
+                      return 'Mínimo 6 caracteres';
                     }
                     return null;
                   },
                 ),
                 const SizedBox(height: 24),
                 ElevatedButton(
-                  onPressed: _isLoading ? null : _handleLogin,
+                  onPressed: _isLoading ? null : _handleRegister,
                   style: ElevatedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     backgroundColor: Colors.indigo,
@@ -171,20 +165,9 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                         )
                       : const Text(
-                          'INGRESAR',
+                          'REGISTRARSE',
                           style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                         ),
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Text('¿No tienes una cuenta?'),
-                    TextButton(
-                      onPressed: () => context.push('/register'),
-                      child: const Text('Regístrate aquí'),
-                    ),
-                  ],
                 ),
               ],
             ),
@@ -194,3 +177,4 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 }
+

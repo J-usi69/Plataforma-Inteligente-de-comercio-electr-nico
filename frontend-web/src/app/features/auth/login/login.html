@@ -1,1 +1,185 @@
-<h2>Login</h2><p>CU-02 Iniciar sesion (pendiente)</p>
+<div class="split-layout">
+  <!-- Brand Showcase Side -->
+  <div class="brand-side">
+    <div>
+      <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1.5rem;">
+        <div style="width: 44px; height: 44px; background: rgba(255,255,255,0.15); border-radius: 12px; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(8px);">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/>
+            <path d="M3 6h18"/>
+            <path d="M16 10a4 4 0 0 1-8 0"/>
+          </svg>
+        </div>
+        <span style="font-size: 1.5rem; font-weight: 800; letter-spacing: -0.02em;">FashionStore</span>
+      </div>
+
+      <h2 style="color: #ffffff; font-size: 1.85rem; line-height: 1.25; margin-bottom: 0.75rem;">
+        La nueva era de la moda inteligente y omnicanal
+      </h2>
+      <p style="color: #cbd5e1; font-size: 0.95rem; line-height: 1.6;">
+        Combina la experiencia digital de exploración y realidad aumentada con la prueba presencial en nuestras sucursales físicas.
+      </p>
+
+      <div class="feature-list">
+        <div class="feature-item">
+          <div class="feature-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+              <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
+              <line x1="12" y1="22.08" x2="12" y2="12"/>
+            </svg>
+          </div>
+          <div class="feature-text">
+            <h4>Vestidores Virtuales RA</h4>
+            <p>Pruébate las prendas antes de comprarlas mediante Realidad Aumentada desde el móvil.</p>
+          </div>
+        </div>
+
+        <div class="feature-item">
+          <div class="feature-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+              <polyline points="9 22 9 12 15 12 15 22"/>
+            </svg>
+          </div>
+          <div class="feature-text">
+            <h4>Reserva & Prueba en Sucursales</h4>
+            <p>Reserva tus prendas favoritas y pruébatelas directamente en el probador físico.</p>
+          </div>
+        </div>
+
+        <div class="feature-item">
+          <div class="feature-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
+              <line x1="8" y1="21" x2="16" y2="21"/>
+              <line x1="12" y1="17" x2="12" y2="21"/>
+            </svg>
+          </div>
+          <div class="feature-text">
+            <h4>Gestión Centralizada</h4>
+            <p>Control de inventario en tiempo real, catálogo sincronizado y auditoría de eventos.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div style="font-size: 0.8rem; color: #94a3b8;">
+      © 2026 FashionStore · Todos los derechos reservados
+    </div>
+  </div>
+
+  <!-- Form Side -->
+  <div class="form-side">
+    <div class="segmented-control">
+      <button
+        type="button"
+        [class.active]="!isRegisterMode()"
+        (click)="toggleMode(false)"
+      >
+        Iniciar Sesión
+      </button>
+      <button
+        type="button"
+        [class.active]="isRegisterMode()"
+        (click)="toggleMode(true)"
+      >
+        Crear Cuenta
+      </button>
+    </div>
+
+    <div *ngIf="errorMessage()" class="alert alert-danger">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+      </svg>
+      <span>{{ errorMessage() }}</span>
+    </div>
+
+    <div *ngIf="successMessage()" class="alert alert-success">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
+      </svg>
+      <span>{{ successMessage() }}</span>
+    </div>
+
+    <!-- LOGIN FORM -->
+    <form *ngIf="!isRegisterMode()" (ngSubmit)="onLogin()">
+      <div style="margin-bottom: 1.5rem;">
+        <h3 style="font-size: 1.4rem;">Bienvenido</h3>
+        <p style="font-size: 0.88rem;">Ingresa tus credenciales para acceder a la plataforma</p>
+      </div>
+
+      <div class="form-group">
+        <label>Correo Electrónico o Celular</label>
+        <input
+          type="text"
+          [(ngModel)]="loginInput"
+          name="login"
+          placeholder="ejemplo@fashionstore.com o número de celular"
+          required
+        />
+      </div>
+
+      <div class="form-group">
+        <label>Contraseña</label>
+        <input
+          type="password"
+          [(ngModel)]="passwordInput"
+          name="password"
+          placeholder="••••••••"
+          required
+        />
+      </div>
+
+      <button type="submit" class="btn btn-primary" style="width: 100%; padding: 0.85rem; font-size: 0.95rem; margin-top: 0.5rem;" [disabled]="isLoading()">
+        <span *ngIf="!isLoading()">Ingresar a la Plataforma</span>
+        <span *ngIf="isLoading()">Iniciando sesión...</span>
+      </button>
+    </form>
+
+    <!-- REGISTER FORM -->
+    <form *ngIf="isRegisterMode()" (ngSubmit)="onRegister()">
+      <div style="margin-bottom: 1.5rem;">
+        <h3 style="font-size: 1.4rem;">Crea tu cuenta de Cliente</h3>
+        <p style="font-size: 0.88rem;">Disfruta de reservas y probadores virtuales de moda</p>
+      </div>
+
+      <div class="form-group">
+        <label>Correo Electrónico *</label>
+        <input
+          type="email"
+          [(ngModel)]="regCorreo"
+          name="regCorreo"
+          placeholder="tu.correo@ejemplo.com"
+          required
+        />
+      </div>
+
+      <div class="form-group">
+        <label>Número de Celular</label>
+        <input
+          type="tel"
+          [(ngModel)]="regCelular"
+          name="regCelular"
+          placeholder="ej. 78901234"
+        />
+      </div>
+
+      <div class="form-group">
+        <label>Contraseña *</label>
+        <input
+          type="password"
+          [(ngModel)]="regPassword"
+          name="regPassword"
+          placeholder="Mínimo 6 caracteres"
+          required
+        />
+      </div>
+
+      <button type="submit" class="btn btn-primary" style="width: 100%; padding: 0.85rem; font-size: 0.95rem; margin-top: 0.5rem;" [disabled]="isLoading()">
+        <span *ngIf="!isLoading()">Crear Cuenta</span>
+        <span *ngIf="isLoading()">Creando cuenta...</span>
+      </button>
+    </form>
+  </div>
+</div>

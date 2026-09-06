@@ -1,1 +1,156 @@
-<h2>Catalogo</h2><p>CU-12 Consultar catalogo de prendas (pendiente)</p>
+<div class="container">
+  <!-- Hero Banner -->
+  <div class="hero-banner">
+    <div class="hero-content">
+      <div class="hero-pill">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+        </svg>
+        <span>Temporada 2026 · Moda Inteligente</span>
+      </div>
+      <h1>Tu estilo, ahora con Realidad Aumentada</h1>
+      <p>
+        Descubre las prendas más exclusivas, visualízalas en 3D superpuestas en tu cuerpo y resérvalas para probártelas en tu sucursal más cercana.
+      </p>
+    </div>
+  </div>
+
+  <!-- Filters & Search Bar -->
+  <div class="filters-section">
+    <div class="category-chips">
+      <button
+        class="chip-btn"
+        [class.active]="categoriaSeleccionada() === null"
+        (click)="filtrarPorCategoria(null)"
+      >
+        Todas las Categorías
+      </button>
+      <button
+        *ngFor="let cat of categorias()"
+        class="chip-btn"
+        [class.active]="categoriaSeleccionada() === cat.id"
+        (click)="filtrarPorCategoria(cat.id)"
+      >
+        {{ cat.nombre }}
+      </button>
+    </div>
+
+    <div class="search-input-wrapper">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+      </svg>
+      <input
+        type="text"
+        [(ngModel)]="busqueda"
+        placeholder="Buscar por nombre o descripción..."
+      />
+    </div>
+  </div>
+
+  <!-- Loading State -->
+  <div *ngIf="isLoading()" style="text-align: center; padding: 4rem 0;">
+    <div style="font-size: 1.1rem; font-weight: 600; color: #4f46e5; margin-bottom: 0.5rem;">Cargando catálogo...</div>
+    <p style="font-size: 0.85rem;">Conectando con el inventario de sucursales</p>
+  </div>
+
+  <!-- Product Grid -->
+  <div *ngIf="!isLoading()" class="product-grid">
+    <div *ngFor="let p of prendasFiltradas()" class="product-card">
+      <div class="product-banner">
+        <span *ngIf="p.modelo_3d_url" class="ar-badge">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+          </svg>
+          Vestidor RA
+        </span>
+        <div class="icon-box">
+          👗
+        </div>
+      </div>
+
+      <div class="product-info">
+        <div class="brand-category">
+          {{ p.categoria_nombre }} · {{ p.coleccion_nombre || 'Colección General' }}
+        </div>
+        <h4 class="product-title">{{ p.nombre }}</h4>
+        <p class="product-desc">
+          {{ p.descripcion || 'Prenda confeccionada con tejidos de alta calidad para máxima durabilidad y estilo contemporáneo.' }}
+        </p>
+
+        <div class="product-footer">
+          <div>
+            <span class="price-label">Precio Retail</span>
+            <span class="price-val">Bs. {{ p.precio_base }}</span>
+          </div>
+          <button class="btn btn-secondary btn-sm" (click)="verPrenda(p)">
+            Detalles
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Empty state -->
+  <div *ngIf="!isLoading() && !prendasFiltradas().length" style="text-align: center; padding: 4rem 1rem; background: #ffffff; border-radius: 16px; border: 1px dashed #cbd5e1; margin-top: 1rem;">
+    <div style="font-size: 3rem; margin-bottom: 0.5rem;">🔍</div>
+    <h3>No se encontraron prendas</h3>
+    <p style="margin-top: 0.5rem;">Intenta con otro término de búsqueda o selecciona otra categoría.</p>
+  </div>
+</div>
+
+<!-- Modal Detalle Prenda / RA -->
+<div *ngIf="prendaModal()" class="modal-overlay">
+  <div class="modal-content">
+    <div class="modal-header">
+      <div>
+        <span style="font-size: 0.75rem; font-weight: 700; color: #4f46e5; text-transform: uppercase;">
+          {{ prendaModal()?.categoria_nombre }}
+        </span>
+        <h3 style="margin-top: 0.2rem;">{{ prendaModal()?.nombre }}</h3>
+      </div>
+      <button class="btn btn-secondary btn-icon" (click)="cerrarModalPrenda()">✕</button>
+    </div>
+
+    <div style="margin-bottom: 1.5rem;">
+      <p style="font-size: 0.95rem; color: #475569; line-height: 1.6;">
+        {{ prendaModal()?.descripcion }}
+      </p>
+    </div>
+
+    <div class="grid-2" style="background: #f8fafc; padding: 1.25rem; border-radius: 12px; margin-bottom: 1.5rem; border: 1px solid #e2e8f0;">
+      <div>
+        <span style="font-size: 0.75rem; color: #94a3b8; display: block;">Colección:</span>
+        <strong>{{ prendaModal()?.coleccion_nombre || 'Línea Continua' }}</strong>
+      </div>
+      <div>
+        <span style="font-size: 0.75rem; color: #94a3b8; display: block;">Proveedor:</span>
+        <strong>{{ prendaModal()?.proveedor_nombre || 'Distribución Oficial' }}</strong>
+      </div>
+      <div>
+        <span style="font-size: 0.75rem; color: #94a3b8; display: block;">Precio Oficial:</span>
+        <strong style="color: #0f172a; font-size: 1.25rem;">Bs. {{ prendaModal()?.precio_base }}</strong>
+      </div>
+      <div>
+        <span style="font-size: 0.75rem; color: #94a3b8; display: block;">Modelo 3D Vestidor RA:</span>
+        <span *ngIf="prendaModal()?.modelo_3d_url" class="badge badge-success">Configurado</span>
+        <span *ngIf="!prendaModal()?.modelo_3d_url" class="badge badge-warning">No asignado</span>
+      </div>
+    </div>
+
+    <div *ngIf="prendaModal()?.modelo_3d_url" style="background: #eef2ff; border: 1px solid #c7d2fe; border-radius: 12px; padding: 1rem; margin-bottom: 1.5rem;">
+      <div style="font-weight: 700; color: #3730a3; font-size: 0.85rem; margin-bottom: 0.25rem;">
+        📱 Disponible en la App Móvil FashionStore
+      </div>
+      <div style="font-size: 0.8rem; color: #4338ca;">
+        Abre tu cámara en la app Flutter para superponer esta prenda en Realidad Aumentada con el archivo:
+        <code style="display: block; margin-top: 0.4rem; background: #ffffff; padding: 0.25rem 0.5rem; border-radius: 4px; word-break: break-all;">
+          {{ prendaModal()?.modelo_3d_url }}
+        </code>
+      </div>
+    </div>
+
+    <div style="display: flex; justify-content: flex-end; gap: 0.75rem;">
+      <button class="btn btn-secondary" (click)="cerrarModalPrenda()">Cerrar</button>
+    </div>
+  </div>
+</div>

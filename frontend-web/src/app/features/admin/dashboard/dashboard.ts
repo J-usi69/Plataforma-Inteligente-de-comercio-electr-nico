@@ -1,9 +1,606 @@
-import { Component } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { FormsModule } from '@angular/forms';
+import {
+  Bitacora,
+  Categoria,
+  Ciudad,
+  Coleccion,
+  Permiso,
+  Personal,
+  Prenda,
+  Proveedor,
+  Rol,
+  Sucursal,
+} from '../../../core/models/user.model';
+import { AuthService } from '../../../core/services/auth.service';
+import { BusinessService } from '../../../core/services/business.service';
 
 @Component({
-  imports: [],
   selector: 'app-dashboard',
-  styles: ``,
+  standalone: true,
+  imports: [CommonModule, FormsModule],
   templateUrl: './dashboard.html',
+  styles: [`
+    .admin-hero {
+      background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+      border-radius: 16px;
+      padding: 2.25rem;
+      color: #ffffff;
+      margin-bottom: 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.15);
+
+      h2 { color: #ffffff; font-size: 1.85rem; margin-bottom: 0.35rem; }
+      p { color: #94a3b8; font-size: 0.9rem; }
+    }
+
+    .admin-nav-bar {
+      display: flex;
+      gap: 0.5rem;
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 6px;
+      margin-bottom: 2rem;
+      overflow-x: auto;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+    }
+
+    .nav-pill-btn {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      padding: 0.65rem 1.15rem;
+      background: none;
+      border: none;
+      font-weight: 600;
+      font-size: 0.85rem;
+      color: #64748b;
+      border-radius: 8px;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.2s;
+
+      svg {
+        transition: transform 0.2s;
+      }
+
+      &:hover {
+        color: #0f172a;
+        background: #f1f5f9;
+      }
+
+      &.active {
+        background: #4f46e5;
+        color: #ffffff;
+        box-shadow: 0 4px 10px rgba(79, 70, 229, 0.25);
+
+        svg {
+          transform: scale(1.1);
+        }
+      }
+    }
+
+    .action-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 1rem;
+      margin-bottom: 1.25rem;
+      flex-wrap: wrap;
+
+      .header-title-box {
+        display: flex;
+        flex-direction: column;
+      }
+    }
+
+    .search-filter-box {
+      position: relative;
+      min-width: 260px;
+
+      input {
+        width: 100%;
+        padding: 0.55rem 0.85rem 0.55rem 2.25rem;
+        border-radius: 8px;
+        border: 1px solid #e2e8f0;
+        font-size: 0.85rem;
+        outline: none;
+        transition: all 0.2s;
+
+        &:focus {
+          border-color: #4f46e5;
+          box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15);
+        }
+      }
+
+      svg {
+        position: absolute;
+        left: 0.75rem;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #94a3b8;
+      }
+    }
+
+    .avatar-badge {
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%);
+      color: #3730a3;
+      font-weight: 700;
+      font-size: 0.78rem;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      margin-right: 0.75rem;
+    }
+  `],
 })
-export class Dashboard {}
+export class Dashboard implements OnInit {
+  private readonly business = inject(BusinessService);
+  readonly authService = inject(AuthService);
+
+  activeTab = signal<'roles' | 'personal' | 'sucursales' | 'proveedores' | 'prendas' | 'bitacora'>('roles');
+  isLoading = signal(false);
+  filtroTexto = signal('');
+  alertMessage = signal<{ type: 'success' | 'danger'; text: string } | null>(null);
+
+  // Datos
+  roles = signal<Rol[]>([]);
+  permisos = signal<Permiso[]>([]);
+  personal = signal<Personal[]>([]);
+  sucursales = signal<Sucursal[]>([]);
+  ciudades = signal<Ciudad[]>([]);
+  proveedores = signal<Proveedor[]>([]);
+  prendas = signal<Prenda[]>([]);
+  categorias = signal<Categoria[]>([]);
+  colecciones = signal<Coleccion[]>([]);
+  bitacora = signal<Bitacora[]>([]);
+
+  // Computed KPIs
+  totalSucursales = computed(() => this.sucursales().length);
+  totalPrendas = computed(() => this.prendas().length);
+  totalPersonal = computed(() => this.personal().length);
+  totalRoles = computed(() => this.roles().length);
+  totalProveedores = computed(() => this.proveedores().length);
+
+  // Modales
+  showModal = signal<string | null>(null);
+
+  // Form states
+  rolForm = { id: 0, nombre: '', descripcion: '', permiso_ids: [] as number[] };
+  personalForm = {
+    id: 0,
+    nombres: '',
+    apellidos: '',
+    cargo: 'Encargado',
+    sucursal_id: null as number | null,
+    correo: '',
+    celular: '',
+    password: '',
+  };
+  sucursalForm = {
+    id: 0,
+    nombre: '',
+    ciudad_id: 1,
+    direccion: '',
+    telefono: '',
+    hora_inicio: '09:00',
+    hora_fin: '21:00',
+  };
+  nuevaCiudadNombre = '';
+  proveedorForm = { id: 0, nombre_empresa: '', contacto: '' };
+  prendaForm = {
+    id: 0,
+    nombre: '',
+    descripcion: '',
+    categoria_id: 1,
+    coleccion_id: null as number | null,
+    proveedor_id: null as number | null,
+    precio_base: 150.0,
+    modelo_3d_url: '',
+  };
+
+  // Filtrados reactivos
+  rolesFiltrados = computed(() => {
+    const q = this.filtroTexto().toLowerCase().trim();
+    if (!q) return this.roles();
+    return this.roles().filter((r) => r.nombre.toLowerCase().includes(q) || (r.descripcion && r.descripcion.toLowerCase().includes(q)));
+  });
+
+  personalFiltrado = computed(() => {
+    const q = this.filtroTexto().toLowerCase().trim();
+    if (!q) return this.personal();
+    return this.personal().filter((p) =>
+      p.nombres.toLowerCase().includes(q) ||
+      p.apellidos.toLowerCase().includes(q) ||
+      (p.correo && p.correo.toLowerCase().includes(q)) ||
+      p.cargo.toLowerCase().includes(q)
+    );
+  });
+
+  sucursalesFiltradas = computed(() => {
+    const q = this.filtroTexto().toLowerCase().trim();
+    if (!q) return this.sucursales();
+    return this.sucursales().filter((s) => s.nombre.toLowerCase().includes(q) || (s.ciudad_nombre && s.ciudad_nombre.toLowerCase().includes(q)));
+  });
+
+  proveedoresFiltrados = computed(() => {
+    const q = this.filtroTexto().toLowerCase().trim();
+    if (!q) return this.proveedores();
+    return this.proveedores().filter((pr) => pr.nombre_empresa.toLowerCase().includes(q));
+  });
+
+  prendasFiltradas = computed(() => {
+    const q = this.filtroTexto().toLowerCase().trim();
+    if (!q) return this.prendas();
+    return this.prendas().filter((p) => p.nombre.toLowerCase().includes(q) || (p.categoria_nombre && p.categoria_nombre.toLowerCase().includes(q)));
+  });
+
+  ngOnInit(): void {
+    this.cargarDatosIniciales();
+  }
+
+  cargarDatosIniciales(): void {
+    this.isLoading.set(true);
+    // Carga paralela de KPIs para el resumen superior
+    this.business.getPermisos().subscribe((data) => this.permisos.set(data));
+    this.business.getCiudades().subscribe((data) => this.ciudades.set(data));
+    this.business.getCategorias().subscribe((data) => this.categorias.set(data));
+    this.business.getColecciones().subscribe((data) => this.colecciones.set(data));
+    this.business.getSucursales().subscribe((data) => this.sucursales.set(data));
+    this.business.getPersonal().subscribe((data) => this.personal.set(data));
+    this.business.getProveedores().subscribe((data) => this.proveedores.set(data));
+    this.business.getPrendas().subscribe((data) => this.prendas.set(data));
+    this.cambiarTab(this.activeTab());
+  }
+
+  cambiarTab(tab: 'roles' | 'personal' | 'sucursales' | 'proveedores' | 'prendas' | 'bitacora'): void {
+    this.activeTab.set(tab);
+    this.alertMessage.set(null);
+    this.filtroTexto.set('');
+    this.isLoading.set(true);
+
+    if (tab === 'roles') {
+      this.business.getRoles().subscribe({
+        next: (data) => { this.roles.set(data); this.isLoading.set(false); },
+        error: () => this.isLoading.set(false),
+      });
+    } else if (tab === 'personal') {
+      this.business.getPersonal().subscribe({
+        next: (data) => { this.personal.set(data); this.isLoading.set(false); },
+        error: () => this.isLoading.set(false),
+      });
+    } else if (tab === 'sucursales') {
+      this.business.getSucursales().subscribe({
+        next: (data) => { this.sucursales.set(data); this.isLoading.set(false); },
+        error: () => this.isLoading.set(false),
+      });
+    } else if (tab === 'proveedores') {
+      this.business.getProveedores().subscribe({
+        next: (data) => { this.proveedores.set(data); this.isLoading.set(false); },
+        error: () => this.isLoading.set(false),
+      });
+    } else if (tab === 'prendas') {
+      this.business.getPrendas().subscribe({
+        next: (data) => { this.prendas.set(data); this.isLoading.set(false); },
+        error: () => this.isLoading.set(false),
+      });
+    } else if (tab === 'bitacora') {
+      this.business.getBitacora().subscribe({
+        next: (data) => { this.bitacora.set(data); this.isLoading.set(false); },
+        error: () => this.isLoading.set(false),
+      });
+    }
+  }
+
+  mostrarAlerta(type: 'success' | 'danger', text: string): void {
+    this.alertMessage.set({ type, text });
+    setTimeout(() => {
+      if (this.alertMessage()?.text === text) this.alertMessage.set(null);
+    }, 6000);
+  }
+
+  cerrarModal(): void {
+    this.showModal.set(null);
+  }
+
+  // --- CU-04 Roles ---
+  abrirModalRol(rol?: Rol): void {
+    if (rol) {
+      this.rolForm = {
+        id: rol.id,
+        nombre: rol.nombre,
+        descripcion: rol.descripcion || '',
+        permiso_ids: rol.permisos.map((p) => p.id),
+      };
+    } else {
+      this.rolForm = { id: 0, nombre: '', descripcion: '', permiso_ids: [] };
+    }
+    this.showModal.set('rol');
+  }
+
+  togglePermiso(id: number): void {
+    const idx = this.rolForm.permiso_ids.indexOf(id);
+    if (idx > -1) {
+      this.rolForm.permiso_ids.splice(idx, 1);
+    } else {
+      this.rolForm.permiso_ids.push(id);
+    }
+  }
+
+  guardarRol(): void {
+    if (!this.rolForm.nombre) return;
+    if (this.rolForm.id === 0) {
+      this.business.createRol(this.rolForm).subscribe({
+        next: () => {
+          this.mostrarAlerta('success', 'Rol creado exitosamente');
+          this.cerrarModal();
+          this.cambiarTab('roles');
+        },
+        error: (err) => this.mostrarAlerta('danger', err.error?.detail || 'Error al crear rol'),
+      });
+    } else {
+      this.business.updateRol(this.rolForm.id, this.rolForm).subscribe({
+        next: () => {
+          this.mostrarAlerta('success', 'Rol actualizado exitosamente');
+          this.cerrarModal();
+          this.cambiarTab('roles');
+        },
+        error: (err) => this.mostrarAlerta('danger', err.error?.detail || 'Error al actualizar rol'),
+      });
+    }
+  }
+
+  eliminarRol(id: number): void {
+    if (!confirm('¿Está seguro de desactivar este rol?')) return;
+    this.business.deleteRol(id).subscribe({
+      next: () => {
+        this.mostrarAlerta('success', 'Rol desactivado');
+        this.cambiarTab('roles');
+      },
+      error: (err) => this.mostrarAlerta('danger', err.error?.detail || 'Error al eliminar rol'),
+    });
+  }
+
+  // --- CU-05 Personal ---
+  abrirModalPersonal(p?: Personal): void {
+    if (p) {
+      this.personalForm = {
+        id: p.id,
+        nombres: p.nombres,
+        apellidos: p.apellidos,
+        cargo: p.cargo,
+        sucursal_id: p.sucursal_id || null,
+        correo: p.correo || '',
+        celular: p.celular || '',
+        password: '',
+      };
+    } else {
+      this.personalForm = {
+        id: 0,
+        nombres: '',
+        apellidos: '',
+        cargo: 'Encargado',
+        sucursal_id: this.sucursales().length ? this.sucursales()[0].id : null,
+        correo: '',
+        celular: '',
+        password: '',
+      };
+    }
+    this.showModal.set('personal');
+  }
+
+  guardarPersonal(): void {
+    if (this.personalForm.id === 0) {
+      this.business.createPersonal(this.personalForm).subscribe({
+        next: () => {
+          this.mostrarAlerta('success', 'Personal registrado correctamente');
+          this.cerrarModal();
+          this.cambiarTab('personal');
+        },
+        error: (err) => this.mostrarAlerta('danger', err.error?.detail || 'Error al registrar personal'),
+      });
+    } else {
+      this.business.updatePersonal(this.personalForm.id, this.personalForm).subscribe({
+        next: () => {
+          this.mostrarAlerta('success', 'Datos del personal actualizados');
+          this.cerrarModal();
+          this.cambiarTab('personal');
+        },
+        error: (err) => this.mostrarAlerta('danger', err.error?.detail || 'Error al actualizar personal'),
+      });
+    }
+  }
+
+  eliminarPersonal(id: number): void {
+    if (!confirm('¿Está seguro de desactivar a este empleado?')) return;
+    this.business.deletePersonal(id).subscribe({
+      next: () => {
+        this.mostrarAlerta('success', 'Personal desactivado');
+        this.cambiarTab('personal');
+      },
+      error: (err) => this.mostrarAlerta('danger', err.error?.detail || 'Error al eliminar personal'),
+    });
+  }
+
+  // --- CU-06 Sucursales ---
+  abrirModalSucursal(s?: Sucursal): void {
+    if (s) {
+      this.sucursalForm = {
+        id: s.id,
+        nombre: s.nombre,
+        ciudad_id: s.ciudad_id,
+        direccion: s.direccion,
+        telefono: s.telefono || '',
+        hora_inicio: (s.hora_inicio as string) || '09:00',
+        hora_fin: (s.hora_fin as string) || '21:00',
+      };
+    } else {
+      this.sucursalForm = {
+        id: 0,
+        nombre: '',
+        ciudad_id: this.ciudades().length ? this.ciudades()[0].id : 1,
+        direccion: '',
+        telefono: '',
+        hora_inicio: '09:00',
+        hora_fin: '21:00',
+      };
+    }
+    this.showModal.set('sucursal');
+  }
+
+  guardarSucursal(): void {
+    if (this.sucursalForm.id === 0) {
+      this.business.createSucursal(this.sucursalForm).subscribe({
+        next: () => {
+          this.mostrarAlerta('success', 'Sucursal creada exitosamente');
+          this.cerrarModal();
+          this.cambiarTab('sucursales');
+        },
+        error: (err) => this.mostrarAlerta('danger', err.error?.detail || 'Error al crear sucursal'),
+      });
+    } else {
+      this.business.updateSucursal(this.sucursalForm.id, this.sucursalForm).subscribe({
+        next: () => {
+          this.mostrarAlerta('success', 'Sucursal actualizada');
+          this.cerrarModal();
+          this.cambiarTab('sucursales');
+        },
+        error: (err) => this.mostrarAlerta('danger', err.error?.detail || 'Error al actualizar sucursal'),
+      });
+    }
+  }
+
+  eliminarSucursal(id: number): void {
+    if (!confirm('¿Está seguro de desactivar esta sucursal?')) return;
+    this.business.deleteSucursal(id).subscribe({
+      next: () => {
+        this.mostrarAlerta('success', 'Sucursal desactivada');
+        this.cambiarTab('sucursales');
+      },
+      error: (err) => this.mostrarAlerta('danger', err.error?.detail || 'Error al desactivar sucursal'),
+    });
+  }
+
+  agregarCiudad(): void {
+    if (!this.nuevaCiudadNombre) return;
+    this.business.createCiudad(this.nuevaCiudadNombre).subscribe({
+      next: (nueva) => {
+        this.ciudades.update((prev) => [...prev, nueva]);
+        this.nuevaCiudadNombre = '';
+        this.mostrarAlerta('success', 'Ciudad añadida');
+      },
+      error: (err) => this.mostrarAlerta('danger', err.error?.detail || 'Error al crear ciudad'),
+    });
+  }
+
+  // --- CU-07 Proveedores ---
+  abrirModalProveedor(p?: Proveedor): void {
+    if (p) {
+      this.proveedorForm = { id: p.id, nombre_empresa: p.nombre_empresa, contacto: p.contacto || '' };
+    } else {
+      this.proveedorForm = { id: 0, nombre_empresa: '', contacto: '' };
+    }
+    this.showModal.set('proveedor');
+  }
+
+  guardarProveedor(): void {
+    if (this.proveedorForm.id === 0) {
+      this.business.createProveedor(this.proveedorForm).subscribe({
+        next: () => {
+          this.mostrarAlerta('success', 'Proveedor registrado correctamente');
+          this.cerrarModal();
+          this.cambiarTab('proveedores');
+        },
+        error: (err) => this.mostrarAlerta('danger', err.error?.detail || 'Error al registrar proveedor'),
+      });
+    } else {
+      this.business.updateProveedor(this.proveedorForm.id, this.proveedorForm).subscribe({
+        next: () => {
+          this.mostrarAlerta('success', 'Proveedor actualizado');
+          this.cerrarModal();
+          this.cambiarTab('proveedores');
+        },
+        error: (err) => this.mostrarAlerta('danger', err.error?.detail || 'Error al actualizar proveedor'),
+      });
+    }
+  }
+
+  eliminarProveedor(id: number): void {
+    if (!confirm('¿Está seguro de desactivar este proveedor?')) return;
+    this.business.deleteProveedor(id).subscribe({
+      next: () => {
+        this.mostrarAlerta('success', 'Proveedor desactivado');
+        this.cambiarTab('proveedores');
+      },
+      error: (err) => this.mostrarAlerta('danger', err.error?.detail || 'Error al eliminar proveedor'),
+    });
+  }
+
+  // --- CU-08 Catálogo de Prendas ---
+  abrirModalPrenda(p?: Prenda): void {
+    if (p) {
+      this.prendaForm = {
+        id: p.id,
+        nombre: p.nombre,
+        descripcion: p.descripcion || '',
+        categoria_id: p.categoria_id,
+        coleccion_id: p.coleccion_id || null,
+        proveedor_id: p.proveedor_id || null,
+        precio_base: p.precio_base,
+        modelo_3d_url: p.modelo_3d_url || '',
+      };
+    } else {
+      this.prendaForm = {
+        id: 0,
+        nombre: '',
+        descripcion: '',
+        categoria_id: this.categorias().length ? this.categorias()[0].id : 1,
+        coleccion_id: this.colecciones().length ? this.colecciones()[0].id : null,
+        proveedor_id: this.proveedores().length ? this.proveedores()[0].id : null,
+        precio_base: 150.0,
+        modelo_3d_url: '',
+      };
+    }
+    this.showModal.set('prenda');
+  }
+
+  guardarPrenda(): void {
+    if (this.prendaForm.id === 0) {
+      this.business.createPrenda(this.prendaForm).subscribe({
+        next: () => {
+          this.mostrarAlerta('success', 'Prenda agregada al catálogo');
+          this.cerrarModal();
+          this.cambiarTab('prendas');
+        },
+        error: (err) => this.mostrarAlerta('danger', err.error?.detail || 'Error al guardar prenda'),
+      });
+    } else {
+      this.business.updatePrenda(this.prendaForm.id, this.prendaForm).subscribe({
+        next: () => {
+          this.mostrarAlerta('success', 'Prenda actualizada');
+          this.cerrarModal();
+          this.cambiarTab('prendas');
+        },
+        error: (err) => this.mostrarAlerta('danger', err.error?.detail || 'Error al actualizar prenda'),
+      });
+    }
+  }
+
+  eliminarPrenda(id: number): void {
+    if (!confirm('¿Está seguro de desactivar esta prenda del catálogo?')) return;
+    this.business.deletePrenda(id).subscribe({
+      next: () => {
+        this.mostrarAlerta('success', 'Prenda desactivada');
+        this.cambiarTab('prendas');
+      },
+      error: (err) => this.mostrarAlerta('danger', err.error?.detail || 'Error al eliminar prenda'),
+    });
+  }
+}
