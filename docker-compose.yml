@@ -1,8 +1,13 @@
 services:
+  # Postgres LOCAL: sandbox opcional y aislado, NO se usa por defecto.
+  # El backend se conecta directo a Supabase (via .env, ver servicio "backend").
+  # Levantarlo solo si necesitas probar algo destructivo sin tocar la BD compartida:
+  #   docker compose --profile local-db up -d postgres
   postgres:
     image: postgres:16
     container_name: fashionstore-postgres
     restart: unless-stopped
+    profiles: ["local-db"]
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-fashionstore}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-fashionstore}
@@ -31,13 +36,8 @@ services:
       - "8000:8000"
     volumes:
       - ./backend:/app
-    environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER:-fashionstore}:${POSTGRES_PASSWORD:-fashionstore}@postgres:5432/${POSTGRES_DB:-fashionstore}
-      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-fashionstore_super_secret_jwt_key_2026_sistema_de_informacion_2}
-      ENVIRONMENT: ${ENVIRONMENT:-development}
-    depends_on:
-      postgres:
-        condition: service_healthy
+    env_file:
+      - ./.env
     networks:
       - fashionstore-network
 

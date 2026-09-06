@@ -76,4 +76,14 @@ alembic downgrade -1       # Revertir la última migración (con cuidado, es una
 
 - **Nunca edites una migración ya aplicada en Supabase** (ya la corrió alguien más) — crea una nueva migración para corregir.
 - **Avisa al equipo antes de correr `alembic upgrade head`** con cambios grandes, porque afecta la base compartida en tiempo real.
-- Si en algún momento quieren una base local aparte para probar algo destructivo sin afectar al otro, pueden levantar el `docker-compose.yml` de la raíz y apuntar su `.env` local a `postgresql://fashionstore:fashionstore@localhost:5432/fashionstore`, corriendo ahí `alembic upgrade head` desde cero (sí ejecuta el baseline completo porque parte de una base vacía).
+- Si en algún momento quieren una base local aparte para probar algo destructivo sin afectar al otro, levanten el Postgres local opcional con `docker compose --profile local-db up -d postgres` (no se levanta con `docker compose up` normal) y apunten su `.env` local a `postgresql://fashionstore:fashionstore@localhost:5433/fashionstore`, corriendo ahí `alembic upgrade head` desde cero (sí ejecuta el baseline completo porque parte de una base vacía).
+
+## Levantar todo con Docker (backend + frontend, conectado a Supabase)
+
+Con el `.env` real ya copiado en la raíz del repo (paso 1 de arriba):
+
+```bash
+docker compose up -d --build
+```
+
+Esto levanta `backend` (puerto 8000) y `frontend` (puerto 4200), ambos leyendo el `.env` de la raíz — el backend se conecta directo a la Supabase compartida, **no** al Postgres local (ese solo se levanta a propósito con `--profile local-db`, ver nota de arriba).
