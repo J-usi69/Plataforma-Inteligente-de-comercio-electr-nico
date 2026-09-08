@@ -30,9 +30,13 @@ Esquema completo (25 tablas) ya aplicado en Supabase: usuarios/personal separado
 - **CU-09**: catálogos maestros — categorías, tallas y colores.
 - **CU-10**: temporadas y colecciones (con validación de coherencia de fechas).
 - **CU-11**: variantes de prenda (talla + color, con generación automática de código de barras).
+- **CU-12**: consulta de catálogo por parte del cliente, con filtros por categoría, colección, temporada, talla y color.
+- **CU-13**: consultar disponibilidad de stock de una variante por sucursal (agrupable por ciudad).
 - **CU-14**: vestidor virtual — el cliente sube una foto y el backend genera una imagen suya "probándose" la prenda usando IA (Replicate, modelo `prunaai/p-image-try-on`). Requiere que la prenda tenga `imagen_url` cargada y `REPLICATE_API_TOKEN` configurado en el `.env` (ver sección de credenciales).
+- **CU-15**: reservar una o varias prendas en una sucursal, con validación de stock disponible y actualización automática de `inventario_sucursal` (descuenta `stock_disponible`, incrementa `stock_reservado`).
+- **CU-16**: consultar y cancelar reservas propias (libera el stock reservado; no permite cancelar una reserva que ya no está pendiente).
 
-Pendiente: CU-12, CU-13, CU-15, CU-16 (consulta de catálogo cliente, disponibilidad por sucursal, reservar/consultar/cancelar reserva) y en adelante (ventas, pagos, IA de recomendación/reportes, reportes).
+Pendiente: CU-17 en adelante (gestión de reservas recibidas por sucursal, ventas, pagos, IA de recomendación/reportes).
 
 ### Frontend web (Angular)
 Login/registro funcionales contra la API real, interceptor de autenticación JWT, dashboard administrativo con listados (roles, personal, sucursales, proveedores, catálogo), servicios `AuthService`/`ApiService`/`BusinessService`.
