@@ -139,12 +139,23 @@ async def crear_generacion(
     except Exception as exc:
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
-            detail="No se pudo generar la imagen del vestidor virtual",
+            detail=f"No se pudo generar la imagen del vestidor virtual: {_replicate_error_detail(exc)}",
         ) from exc
     finally:
         person_file.close()
 
     return _prediction_to_out(prediction)
+
+
+def _replicate_error_detail(exc: Exception) -> str:
+    try:
+        from replicate.exceptions import ReplicateError
+    except ImportError:
+        return str(exc)
+
+    if isinstance(exc, ReplicateError):
+        return getattr(exc, "detail", None) or str(exc)
+    return str(exc)
 
 
 @router.get("/jobs/{job_id}", response_model=TryOnJobOut)
@@ -156,7 +167,7 @@ def consultar_generacion(job_id: str):
     except Exception as exc:
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
-            detail="No se pudo consultar el estado de la generación",
+            detail=f"No se pudo consultar el estado de la generación: {_replicate_error_detail(exc)}",
         ) from exc
 
     return _prediction_to_out(prediction)
