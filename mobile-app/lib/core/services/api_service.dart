@@ -152,12 +152,14 @@ class ApiService {
     return res is List ? res : [];
   }
 
-  // CU-08: Catálogo de Prendas
-  Future<List<dynamic>> getPrendas({int? categoriaId}) async {
-    final path = categoriaId != null
-        ? '/api/v1/prendas?categoria_id=$categoriaId'
-        : '/api/v1/prendas';
-    final res = await get(path);
+  // CU-08 / CU-12: Catálogo de Prendas (con filtros)
+  Future<List<dynamic>> getPrendas({int? categoriaId, int? tallaId, int? colorId}) async {
+    final params = <String, String>{};
+    if (categoriaId != null) params['categoria_id'] = '$categoriaId';
+    if (tallaId != null) params['talla_id'] = '$tallaId';
+    if (colorId != null) params['color_id'] = '$colorId';
+    final query = params.isEmpty ? '' : '?${Uri(queryParameters: params).query}';
+    final res = await get('/api/v1/prendas$query');
     return res is List ? res : [];
   }
 
@@ -196,6 +198,58 @@ class ApiService {
   // CU-14: Consultar estado de una generación del vestidor virtual
   Future<Map<String, dynamic>> getTryOnJob(String jobId) async {
     final res = await get('/api/v1/vestidor-ar/jobs/$jobId');
+    return Map<String, dynamic>.from(res);
+  }
+
+  // CU-09: Tallas y colores (para filtros del catálogo)
+  Future<List<dynamic>> getTallas() async {
+    final res = await get('/api/v1/catalogo-maestro/tallas');
+    return res is List ? res : [];
+  }
+
+  Future<List<dynamic>> getColores() async {
+    final res = await get('/api/v1/catalogo-maestro/colores');
+    return res is List ? res : [];
+  }
+
+  // CU-11: Variantes de una prenda (talla + color)
+  Future<List<dynamic>> getVariantes(int prendaId) async {
+    final res = await get('/api/v1/prendas/$prendaId/variantes');
+    return res is List ? res : [];
+  }
+
+  // CU-13: Disponibilidad de una variante por sucursal
+  Future<List<dynamic>> getDisponibilidad(int varianteId) async {
+    final res = await get('/api/v1/inventario/disponibilidad/$varianteId');
+    return res is List ? res : [];
+  }
+
+  // CU-15: Crear una reserva
+  Future<Map<String, dynamic>> crearReserva({
+    required int sucursalId,
+    required int varianteId,
+    required int cantidad,
+    String? horarioAtencion,
+  }) async {
+    final res = await post('/api/v1/reservas', {
+      'sucursal_id': sucursalId,
+      if (horarioAtencion != null && horarioAtencion.isNotEmpty) 'horario_atencion': horarioAtencion,
+      'detalles': [
+        {'variante_id': varianteId, 'cantidad': cantidad},
+      ],
+    });
+    return Map<String, dynamic>.from(res);
+  }
+
+  // CU-16: Consultar mis reservas
+  Future<List<dynamic>> getMisReservas() async {
+    final res = await get('/api/v1/reservas');
+    return res is List ? res : [];
+  }
+
+  // CU-16: Cancelar una reserva
+  Future<Map<String, dynamic>> cancelarReserva(int reservaId) async {
+    final res = await post('/api/v1/reservas/$reservaId/cancelar', {});
     return Map<String, dynamic>.from(res);
   }
 }

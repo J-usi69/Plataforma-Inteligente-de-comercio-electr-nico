@@ -6,12 +6,17 @@ import {
   Categoria,
   Ciudad,
   Coleccion,
+  Color,
+  DisponibilidadSucursal,
   Permiso,
   Personal,
   Prenda,
   Proveedor,
+  Reserva,
   Rol,
   Sucursal,
+  Talla,
+  VariantePrenda,
 } from '../models/user.model';
 
 @Injectable({ providedIn: 'root' })
@@ -129,10 +134,24 @@ export class BusinessService {
     return this.http.delete<{ message: string }>(`${this.apiBase}/proveedores/${id}`);
   }
 
-  // --- CU-08: Catálogo de Prendas, Categorías y Colecciones ---
-  getPrendas(categoriaId?: number): Observable<Prenda[]> {
-    const url = categoriaId ? `${this.apiBase}/prendas?categoria_id=${categoriaId}` : `${this.apiBase}/prendas`;
-    return this.http.get<Prenda[]>(url);
+  // --- CU-08 / CU-12: Catálogo de Prendas, Categorías y Colecciones ---
+  getPrendas(filtros?: {
+    categoriaId?: number;
+    coleccionId?: number;
+    temporadaId?: number;
+    tallaId?: number;
+    colorId?: number;
+    buscar?: string;
+  }): Observable<Prenda[]> {
+    const params = new URLSearchParams();
+    if (filtros?.categoriaId) params.set('categoria_id', String(filtros.categoriaId));
+    if (filtros?.coleccionId) params.set('coleccion_id', String(filtros.coleccionId));
+    if (filtros?.temporadaId) params.set('temporada_id', String(filtros.temporadaId));
+    if (filtros?.tallaId) params.set('talla_id', String(filtros.tallaId));
+    if (filtros?.colorId) params.set('color_id', String(filtros.colorId));
+    if (filtros?.buscar) params.set('buscar', filtros.buscar);
+    const query = params.toString();
+    return this.http.get<Prenda[]>(`${this.apiBase}/prendas${query ? '?' + query : ''}`);
   }
 
   getCategorias(): Observable<Categoria[]> {
@@ -141,6 +160,42 @@ export class BusinessService {
 
   getColecciones(): Observable<Coleccion[]> {
     return this.http.get<Coleccion[]>(`${this.apiBase}/prendas/colecciones`);
+  }
+
+  // --- CU-09: Catálogos maestros (Tallas y Colores) ---
+  getTallas(): Observable<Talla[]> {
+    return this.http.get<Talla[]>(`${this.apiBase}/catalogo-maestro/tallas`);
+  }
+
+  getColores(): Observable<Color[]> {
+    return this.http.get<Color[]>(`${this.apiBase}/catalogo-maestro/colores`);
+  }
+
+  // --- CU-11: Variantes de prenda ---
+  getVariantes(prendaId: number): Observable<VariantePrenda[]> {
+    return this.http.get<VariantePrenda[]>(`${this.apiBase}/prendas/${prendaId}/variantes`);
+  }
+
+  // --- CU-13: Disponibilidad por sucursal ---
+  getDisponibilidad(varianteId: number): Observable<DisponibilidadSucursal[]> {
+    return this.http.get<DisponibilidadSucursal[]>(`${this.apiBase}/inventario/disponibilidad/${varianteId}`);
+  }
+
+  // --- CU-15 / CU-16: Reservas ---
+  getMisReservas(): Observable<Reserva[]> {
+    return this.http.get<Reserva[]>(`${this.apiBase}/reservas`);
+  }
+
+  crearReserva(datos: {
+    sucursal_id: number;
+    horario_atencion?: string;
+    detalles: { variante_id: number; cantidad: number }[];
+  }): Observable<Reserva> {
+    return this.http.post<Reserva>(`${this.apiBase}/reservas`, datos);
+  }
+
+  cancelarReserva(id: number): Observable<Reserva> {
+    return this.http.post<Reserva>(`${this.apiBase}/reservas/${id}/cancelar`, {});
   }
 
   createPrenda(prenda: {

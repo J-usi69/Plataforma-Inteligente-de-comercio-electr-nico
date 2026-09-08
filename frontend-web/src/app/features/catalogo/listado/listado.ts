@@ -1,13 +1,22 @@
 import { CommonModule } from '@angular/common';
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { Categoria, Prenda } from '../../../core/models/user.model';
+import { RouterModule } from '@angular/router';
+import {
+  Categoria,
+  Color,
+  DisponibilidadSucursal,
+  Prenda,
+  Talla,
+  VariantePrenda,
+} from '../../../core/models/user.model';
+import { AuthService } from '../../../core/services/auth.service';
 import { BusinessService } from '../../../core/services/business.service';
 
 @Component({
   selector: 'app-listado',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, RouterModule],
   templateUrl: './listado.html',
   styles: [`
     .hero-banner {
@@ -249,14 +258,33 @@ import { BusinessService } from '../../../core/services/business.service';
 })
 export class Listado implements OnInit {
   private readonly business = inject(BusinessService);
+  private readonly auth = inject(AuthService);
+
+  isLoggedIn = this.auth.isLoggedIn;
 
   prendas = signal<Prenda[]>([]);
   categorias = signal<Categoria[]>([]);
+  tallas = signal<Talla[]>([]);
+  colores = signal<Color[]>([]);
   categoriaSeleccionada = signal<number | null>(null);
+  tallaSeleccionada = signal<number | null>(null);
+  colorSeleccionado = signal<number | null>(null);
   busqueda = signal('');
   isLoading = signal(true);
 
   prendaModal = signal<Prenda | null>(null);
+
+  // --- CU-15: Flujo de reserva ---
+  reservaPrenda = signal<Prenda | null>(null);
+  reservaVariantes = signal<VariantePrenda[]>([]);
+  reservaVarianteId = signal<number | null>(null);
+  reservaDisponibilidad = signal<DisponibilidadSucursal[]>([]);
+  reservaSucursalId = signal<number | null>(null);
+  reservaCantidad = signal(1);
+  reservaHorario = signal('');
+  reservaEnviando = signal(false);
+  reservaError = signal<string | null>(null);
+  reservaExito = signal(false);
 
   prendasFiltradas = computed(() => {
     let list = this.prendas();
@@ -271,29 +299,51 @@ export class Listado implements OnInit {
     return list;
   });
 
+  sucursalSeleccionadaInfo = computed(
+    () => this.reservaDisponibilidad().find((d) => d.sucursal_id === this.reservaSucursalId()) ?? null
+  );
+
   ngOnInit(): void {
     this.cargarCategorias();
     this.cargarPrendas();
+    this.business.getTallas().subscribe((data) => this.tallas.set(data));
+    this.business.getColores().subscribe((data) => this.colores.set(data));
   }
 
   cargarCategorias(): void {
     this.business.getCategorias().subscribe((data) => this.categorias.set(data));
   }
 
-  cargarPrendas(categoriaId?: number): void {
+  cargarPrendas(): void {
     this.isLoading.set(true);
-    this.business.getPrendas(categoriaId).subscribe({
-      next: (data) => {
-        this.prendas.set(data);
-        this.isLoading.set(false);
-      },
-      error: () => this.isLoading.set(false),
-    });
+    this.business
+      .getPrendas({
+        categoriaId: this.categoriaSeleccionada() ?? undefined,
+        tallaId: this.tallaSeleccionada() ?? undefined,
+        colorId: this.colorSeleccionado() ?? undefined,
+      })
+      .subscribe({
+        next: (data) => {
+          this.prendas.set(data);
+          this.isLoading.set(false);
+        },
+        error: () => this.isLoading.set(false),
+      });
   }
 
   filtrarPorCategoria(id: number | null): void {
     this.categoriaSeleccionada.set(id);
-    this.cargarPrendas(id || undefined);
+    this.cargarPrendas();
+  }
+
+  filtrarPorTalla(id: number | null): void {
+    this.tallaSeleccionada.set(this.tallaSeleccionada() === id ? null : id);
+    this.cargarPrendas();
+  }
+
+  filtrarPorColor(id: number | null): void {
+    this.colorSeleccionado.set(this.colorSeleccionado() === id ? null : id);
+    this.cargarPrendas();
   }
 
   verPrenda(p: Prenda): void {
@@ -302,5 +352,63 @@ export class Listado implements OnInit {
 
   cerrarModalPrenda(): void {
     this.prendaModal.set(null);
+  }
+
+  // --- CU-15: Reservar prendas ---
+  abrirReserva(p: Prenda): void {
+    this.prendaModal.set(null);
+    this.reservaPrenda.set(p);
+    this.reservaVariantes.set([]);
+    this.reservaVarianteId.set(null);
+    this.reservaDisponibilidad.set([]);
+    this.reservaSucursalId.set(null);
+    this.reservaCantidad.set(1);
+    this.reservaHorario.set('');
+    this.reservaError.set(null);
+    this.reservaExito.set(false);
+
+    this.business.getVariantes(p.id).subscribe((data) => this.reservaVariantes.set(data.filter((v) => v.estado)));
+  }
+
+  seleccionarVariante(varianteId: number): void {
+    this.reservaVarianteId.set(varianteId);
+    this.reservaSucursalId.set(null);
+    this.reservaDisponibilidad.set([]);
+    this.business.getDisponibilidad(varianteId).subscribe((data) => this.reservaDisponibilidad.set(data));
+  }
+
+  seleccionarSucursal(sucursalId: number): void {
+    this.reservaSucursalId.set(sucursalId);
+    this.reservaCantidad.set(1);
+  }
+
+  confirmarReserva(): void {
+    const varianteId = this.reservaVarianteId();
+    const sucursalId = this.reservaSucursalId();
+    if (!varianteId || !sucursalId) return;
+
+    this.reservaEnviando.set(true);
+    this.reservaError.set(null);
+
+    this.business
+      .crearReserva({
+        sucursal_id: sucursalId,
+        horario_atencion: this.reservaHorario() || undefined,
+        detalles: [{ variante_id: varianteId, cantidad: this.reservaCantidad() }],
+      })
+      .subscribe({
+        next: () => {
+          this.reservaEnviando.set(false);
+          this.reservaExito.set(true);
+        },
+        error: (err) => {
+          this.reservaEnviando.set(false);
+          this.reservaError.set(err?.error?.detail ?? 'No se pudo crear la reserva.');
+        },
+      });
+  }
+
+  cerrarModalReserva(): void {
+    this.reservaPrenda.set(null);
   }
 }

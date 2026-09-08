@@ -47,6 +47,33 @@
     </div>
   </div>
 
+  <!-- Filtros de Talla y Color (CU-12) -->
+  <div class="filters-section" style="margin-top: -1rem;">
+    <div class="category-chips">
+      <span style="font-size: 0.8rem; font-weight: 700; color: #94a3b8; align-self: center;">Talla:</span>
+      <button
+        *ngFor="let t of tallas()"
+        class="chip-btn"
+        [class.active]="tallaSeleccionada() === t.id"
+        (click)="filtrarPorTalla(t.id)"
+      >
+        {{ t.nombre }}
+      </button>
+    </div>
+
+    <div class="category-chips">
+      <span style="font-size: 0.8rem; font-weight: 700; color: #94a3b8; align-self: center;">Color:</span>
+      <button
+        *ngFor="let c of colores()"
+        class="chip-btn"
+        [class.active]="colorSeleccionado() === c.id"
+        (click)="filtrarPorColor(c.id)"
+      >
+        {{ c.nombre }}
+      </button>
+    </div>
+  </div>
+
   <!-- Loading State -->
   <div *ngIf="isLoading()" style="text-align: center; padding: 4rem 0;">
     <div style="font-size: 1.1rem; font-weight: 600; color: #4f46e5; margin-bottom: 0.5rem;">Cargando catálogo...</div>
@@ -151,6 +178,97 @@
 
     <div style="display: flex; justify-content: flex-end; gap: 0.75rem;">
       <button class="btn btn-secondary" (click)="cerrarModalPrenda()">Cerrar</button>
+      <button *ngIf="isLoggedIn()" class="btn btn-primary" (click)="abrirReserva(prendaModal()!)">
+        Reservar para probar en sucursal
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Reservar Prenda (CU-15) -->
+<div *ngIf="reservaPrenda()" class="modal-overlay">
+  <div class="modal-content">
+    <div class="modal-header">
+      <div>
+        <span style="font-size: 0.75rem; font-weight: 700; color: #4f46e5; text-transform: uppercase;">Reservar prenda</span>
+        <h3 style="margin-top: 0.2rem;">{{ reservaPrenda()?.nombre }}</h3>
+      </div>
+      <button class="btn btn-secondary btn-icon" (click)="cerrarModalReserva()">✕</button>
+    </div>
+
+    <!-- Confirmación de éxito -->
+    <div *ngIf="reservaExito()">
+      <div style="text-align: center; padding: 1.5rem 0;">
+        <div style="font-size: 3rem; margin-bottom: 0.75rem;">✅</div>
+        <h3>¡Reserva creada!</h3>
+        <p style="margin-top: 0.5rem;">
+          Preséntate en la sucursal seleccionada para probarte la prenda. Puedes ver el estado en "Mis Reservas".
+        </p>
+      </div>
+      <div style="display: flex; justify-content: flex-end; gap: 0.75rem;">
+        <button class="btn btn-secondary" (click)="cerrarModalReserva()">Cerrar</button>
+        <a class="btn btn-primary" routerLink="/reservas" (click)="cerrarModalReserva()">Ver mis reservas</a>
+      </div>
+    </div>
+
+    <!-- Formulario de reserva -->
+    <div *ngIf="!reservaExito()">
+      <div *ngIf="reservaError()" class="badge badge-danger" style="display: flex; margin-bottom: 1rem;">
+        {{ reservaError() }}
+      </div>
+
+      <div class="form-group">
+        <label>1. Elige talla y color</label>
+        <select [(ngModel)]="reservaVarianteId" (ngModelChange)="seleccionarVariante($event)">
+          <option [ngValue]="null" disabled>Selecciona una variante</option>
+          <option *ngFor="let v of reservaVariantes()" [ngValue]="v.id">
+            {{ v.talla_nombre }} · {{ v.color_nombre }}
+          </option>
+        </select>
+        <p *ngIf="!reservaVariantes().length" style="font-size: 0.8rem; margin-top: 0.4rem;">
+          Esta prenda todavía no tiene variantes (talla/color) registradas.
+        </p>
+      </div>
+
+      <div class="form-group" *ngIf="reservaVarianteId()">
+        <label>2. Elige sucursal (con stock disponible)</label>
+        <select [(ngModel)]="reservaSucursalId" (ngModelChange)="seleccionarSucursal($event)">
+          <option [ngValue]="null" disabled>Selecciona una sucursal</option>
+          <option *ngFor="let d of reservaDisponibilidad()" [ngValue]="d.sucursal_id">
+            {{ d.sucursal_nombre }} — {{ d.ciudad_nombre }} ({{ d.stock_disponible }} disponibles)
+          </option>
+        </select>
+        <p *ngIf="reservaVarianteId() && !reservaDisponibilidad().length" style="font-size: 0.8rem; margin-top: 0.4rem;">
+          No hay stock disponible de esta variante en ninguna sucursal.
+        </p>
+      </div>
+
+      <div class="grid-2" *ngIf="reservaSucursalId()">
+        <div class="form-group">
+          <label>3. Cantidad</label>
+          <input
+            type="number"
+            min="1"
+            [max]="sucursalSeleccionadaInfo()?.stock_disponible ?? 1"
+            [(ngModel)]="reservaCantidad"
+          />
+        </div>
+        <div class="form-group">
+          <label>4. Horario de atención (opcional)</label>
+          <input type="time" [(ngModel)]="reservaHorario" />
+        </div>
+      </div>
+
+      <div style="display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 1rem;">
+        <button class="btn btn-secondary" (click)="cerrarModalReserva()">Cancelar</button>
+        <button
+          class="btn btn-primary"
+          [disabled]="!reservaVarianteId() || !reservaSucursalId() || reservaEnviando()"
+          (click)="confirmarReserva()"
+        >
+          {{ reservaEnviando() ? 'Enviando...' : 'Confirmar reserva' }}
+        </button>
+      </div>
     </div>
   </div>
 </div>

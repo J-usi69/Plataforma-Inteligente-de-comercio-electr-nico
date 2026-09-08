@@ -53,6 +53,12 @@ class _CatalogoScreenState extends State<CatalogoScreen> {
             tooltip: 'Ver Sucursales',
             onPressed: () => context.push('/sucursales'),
           ),
+          if (_apiService.isLoggedIn)
+            IconButton(
+              icon: const Icon(Icons.event_note_outlined),
+              tooltip: 'Mis Reservas',
+              onPressed: () => context.push('/reservas'),
+            ),
           IconButton(
             icon: Icon(
               _apiService.isLoggedIn ? Icons.account_circle : Icons.login,
@@ -205,21 +211,38 @@ class _CatalogoScreenState extends State<CatalogoScreen> {
                                           ),
                                         ],
                                         const SizedBox(height: 12),
+                                        Text(
+                                          'Bs. ${p['precio_base']}',
+                                          style: const TextStyle(
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.w800,
+                                            color: Colors.indigo,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 10),
                                         Row(
-                                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                          mainAxisAlignment: MainAxisAlignment.end,
                                           children: [
-                                            Text(
-                                              'Bs. ${p['precio_base']}',
-                                              style: const TextStyle(
-                                                fontSize: 18,
-                                                fontWeight: FontWeight.w800,
-                                                color: Colors.indigo,
-                                              ),
-                                            ),
                                             OutlinedButton.icon(
                                               onPressed: () => context.push('/vestidor-ar', extra: p),
                                               icon: const Icon(Icons.view_in_ar, size: 16),
                                               label: const Text('Probar con RA'),
+                                            ),
+                                            const SizedBox(width: 8),
+                                            ElevatedButton.icon(
+                                              onPressed: () {
+                                                if (_apiService.isLoggedIn) {
+                                                  context.push('/reservar', extra: p);
+                                                } else {
+                                                  context.push('/login');
+                                                }
+                                              },
+                                              icon: const Icon(Icons.event_available, size: 16),
+                                              label: const Text('Reservar'),
+                                              style: ElevatedButton.styleFrom(
+                                                backgroundColor: Colors.indigo,
+                                                foregroundColor: Colors.white,
+                                              ),
                                             ),
                                           ],
                                         ),

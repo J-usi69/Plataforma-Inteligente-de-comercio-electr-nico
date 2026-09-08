@@ -106,3 +106,56 @@ export interface Bitacora {
   fecha: string;
 }
 
+export interface Talla {
+  id: number;
+  nombre: string;
+}
+
+export interface Color {
+  id: number;
+  nombre: string;
+  hex?: string | null;
+}
+
+export interface VariantePrenda {
+  id: number;
+  prenda_id: number;
+  talla_id: number;
+  color_id: number;
+  codigo_barras: string;
+  estado: boolean;
+  talla_nombre?: string | null;
+  color_nombre?: string | null;
+}
+
+export interface DisponibilidadSucursal {
+  sucursal_id: number;
+  sucursal_nombre: string;
+  ciudad_id: number;
+  ciudad_nombre: string;
+  direccion: string;
+  stock_disponible: number;
+}
+
+export interface DetalleReserva {
+  id: number;
+  variante_id: number;
+  cantidad: number;
+  prenda_nombre?: string | null;
+  talla_nombre?: string | null;
+  color_nombre?: string | null;
+  codigo_barras?: string | null;
+}
+
+export interface Reserva {
+  id: number;
+  usuario_id: number;
+  sucursal_id: number;
+  sucursal_nombre?: string | null;
+  personal_id?: number | null;
+  fecha_reserva: string;
+  horario_atencion?: string | null;
+  estado: 'pendiente' | 'confirmada' | 'atendida' | 'cancelada' | 'expirada';
+  detalles: DetalleReserva[];
+}
+
