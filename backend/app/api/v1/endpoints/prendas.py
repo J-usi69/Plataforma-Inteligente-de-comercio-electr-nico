@@ -4,7 +4,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_db, require_roles
-from app.models.catalogo import Categoria, Coleccion, Prenda, Proveedor
+from app.models.catalogo import Categoria, Coleccion, Prenda, Proveedor, VariantePrenda
 from app.models.seguridad import Usuario
 from app.schemas.catalogo import (
     CategoriaOut,
@@ -37,17 +37,29 @@ def listar_colecciones(db: Session = Depends(get_db)):
 def listar_prendas(
     categoria_id: Optional[int] = None,
     coleccion_id: Optional[int] = None,
+    temporada_id: Optional[int] = None,
+    talla_id: Optional[int] = None,
+    color_id: Optional[int] = None,
     buscar: Optional[str] = None,
     db: Session = Depends(get_db),
 ):
-    """CU-08: Consultar listado de prendas del catálogo (público / cliente / admin)"""
+    """CU-08 / CU-12: Consultar y filtrar el catálogo de prendas (público / cliente / admin)"""
     stmt = select(Prenda).where(Prenda.estado.is_(True))
     if categoria_id:
         stmt = stmt.where(Prenda.categoria_id == categoria_id)
     if coleccion_id:
         stmt = stmt.where(Prenda.coleccion_id == coleccion_id)
+    if temporada_id:
+        stmt = stmt.join(Coleccion, Coleccion.id == Prenda.coleccion_id).where(Coleccion.temporada_id == temporada_id)
     if buscar:
         stmt = stmt.where(Prenda.nombre.ilike(f"%{buscar}%"))
+    if talla_id or color_id:
+        variante_filtro = select(VariantePrenda.prenda_id).where(VariantePrenda.estado.is_(True))
+        if talla_id:
+            variante_filtro = variante_filtro.where(VariantePrenda.talla_id == talla_id)
+        if color_id:
+            variante_filtro = variante_filtro.where(VariantePrenda.color_id == color_id)
+        stmt = stmt.where(Prenda.id.in_(variante_filtro))
 
     prendas = db.scalars(stmt.order_by(Prenda.id.desc())).all()
     resultado = []
