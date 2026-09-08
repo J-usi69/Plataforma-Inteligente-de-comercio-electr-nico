@@ -19,6 +19,11 @@ final GoRouter appRouter = GoRouter(
     GoRoute(path: '/sucursales', builder: (context, state) => const SucursalesScreen()),
     GoRoute(path: '/reservas', builder: (context, state) => const ReservasScreen()),
     GoRoute(path: '/carrito', builder: (context, state) => const CarritoScreen()),
-    GoRoute(path: '/vestidor-ar', builder: (context, state) => const VestidorArScreen()),
+    GoRoute(
+      path: '/vestidor-ar',
+      builder: (context, state) => VestidorArScreen(
+        prenda: state.extra as Map<String, dynamic>?,
+      ),
+    ),
   ],
 );

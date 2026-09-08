@@ -76,6 +76,7 @@ class Prenda(Base):
     proveedor_id: Mapped[int | None] = mapped_column(ForeignKey("proveedor.id"))
     precio_base: Mapped[float] = mapped_column(Numeric(10, 2))
     modelo_3d_url: Mapped[str | None] = mapped_column(String(500))
+    imagen_url: Mapped[str | None] = mapped_column(String(500))
     estado: Mapped[bool] = mapped_column(Boolean, default=True)
 
     variantes: Mapped[list["VariantePrenda"]] = relationship(back_populates="prenda")

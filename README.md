@@ -30,8 +30,9 @@ Esquema completo (25 tablas) ya aplicado en Supabase: usuarios/personal separado
 - **CU-09**: catálogos maestros — categorías, tallas y colores.
 - **CU-10**: temporadas y colecciones (con validación de coherencia de fechas).
 - **CU-11**: variantes de prenda (talla + color, con generación automática de código de barras).
+- **CU-14**: vestidor virtual — el cliente sube una foto y el backend genera una imagen suya "probándose" la prenda usando IA (Replicate, modelo `prunaai/p-image-try-on`). Requiere que la prenda tenga `imagen_url` cargada y `REPLICATE_API_TOKEN` configurado en el `.env` (ver sección de credenciales).
 
-Pendiente: CU-12 a CU-16 (consulta de catálogo cliente, disponibilidad por sucursal, vestidor virtual RA, reservar/consultar/cancelar reserva) y en adelante (ventas, pagos, IA, reportes).
+Pendiente: CU-12, CU-13, CU-15, CU-16 (consulta de catálogo cliente, disponibilidad por sucursal, reservar/consultar/cancelar reserva) y en adelante (ventas, pagos, IA de recomendación/reportes, reportes).
 
 ### Frontend web (Angular)
 Login/registro funcionales contra la API real, interceptor de autenticación JWT, dashboard administrativo con listados (roles, personal, sucursales, proveedores, catálogo), servicios `AuthService`/`ApiService`/`BusinessService`.
@@ -103,9 +104,16 @@ PAYMENT_GATEWAY_API_KEY=
 
 # --- IA (completar cuando se integre) ---
 AI_API_KEY=
+
+# --- Vestidor virtual / Try-On con IA (CU-14) ---
+# Token de Replicate: https://replicate.com/account/api-tokens (cada integrante debe generar el suyo)
+REPLICATE_API_TOKEN=
+TRYON_REPLICATE_MODEL=prunaai/p-image-try-on
 ```
 
 `.env.example` tiene la misma plantilla sin valores reales, por si se pierde este archivo.
+
+**`REPLICATE_API_TOKEN` queda vacío a propósito** — es una clave personal de facturación por uso, cada integrante debe crear su propia cuenta gratuita en [replicate.com](https://replicate.com) y generar su token. Sin ese token, todo el resto del sistema funciona normal; solo el vestidor virtual (CU-14) responde "no configurado".
 
 ### 2. Levantar todo con Docker (recomendado)
 

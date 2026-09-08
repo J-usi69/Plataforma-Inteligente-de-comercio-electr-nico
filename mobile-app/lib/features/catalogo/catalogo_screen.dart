@@ -216,12 +216,11 @@ class _CatalogoScreenState extends State<CatalogoScreen> {
                                                 color: Colors.indigo,
                                               ),
                                             ),
-                                            if (has3D)
-                                              OutlinedButton.icon(
-                                                onPressed: () => context.push('/vestidor-ar'),
-                                                icon: const Icon(Icons.view_in_ar, size: 16),
-                                                label: const Text('Probar con RA'),
-                                              ),
+                                            OutlinedButton.icon(
+                                              onPressed: () => context.push('/vestidor-ar', extra: p),
+                                              icon: const Icon(Icons.view_in_ar, size: 16),
+                                              label: const Text('Probar con RA'),
+                                            ),
                                           ],
                                         ),
                                       ],

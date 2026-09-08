@@ -166,4 +166,36 @@ class ApiService {
     final res = await get('/api/v1/prendas/categorias');
     return res is List ? res : [];
   }
+
+  // CU-14: Vestidor virtual (RA) - capacidades del servidor
+  Future<Map<String, dynamic>> getTryOnCapabilities() async {
+    final res = await get('/api/v1/vestidor-ar/capabilities');
+    return Map<String, dynamic>.from(res);
+  }
+
+  // CU-14: Crear generación del vestidor virtual (foto de la persona + prenda)
+  Future<Map<String, dynamic>> createTryOnJob({
+    required int prendaId,
+    required List<int> personaBytes,
+    required String personaFilename,
+  }) async {
+    final request = http.MultipartRequest('POST', _uri('/api/v1/vestidor-ar/jobs'));
+    if (token != null) {
+      request.headers['Authorization'] = 'Bearer $token';
+    }
+    request.fields['prenda_id'] = prendaId.toString();
+    request.files.add(
+      http.MultipartFile.fromBytes('persona', personaBytes, filename: personaFilename),
+    );
+
+    final streamedResponse = await request.send();
+    final response = await http.Response.fromStream(streamedResponse);
+    return Map<String, dynamic>.from(_decode(response) as Map);
+  }
+
+  // CU-14: Consultar estado de una generación del vestidor virtual
+  Future<Map<String, dynamic>> getTryOnJob(String jobId) async {
+    final res = await get('/api/v1/vestidor-ar/jobs/$jobId');
+    return Map<String, dynamic>.from(res);
+  }
 }

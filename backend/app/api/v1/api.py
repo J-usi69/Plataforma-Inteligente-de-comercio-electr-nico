@@ -10,6 +10,7 @@ from app.api.v1.endpoints import (
     sucursales,
     temporadas,
     variantes,
+    vestidor_ar,
 )
 
 api_router = APIRouter()
@@ -23,4 +24,5 @@ api_router.include_router(prendas.router, prefix="/prendas", tags=["Catálogo de
 api_router.include_router(catalogo_maestro.router, prefix="/catalogo-maestro", tags=["Categorías, Tallas y Colores (CU-09)"])
 api_router.include_router(temporadas.router, tags=["Temporadas y Colecciones (CU-10)"])
 api_router.include_router(variantes.router, prefix="/prendas", tags=["Variantes de Prenda (CU-11)"])
+api_router.include_router(vestidor_ar.router, prefix="/vestidor-ar", tags=["Vestidor Virtual RA (CU-14)"])
 

@@ -11,6 +11,8 @@ class Settings(BaseSettings):
     environment: str = "development"
     payment_gateway_api_key: str = ""
     ai_api_key: str = ""
+    replicate_api_token: str = ""
+    tryon_replicate_model: str = "prunaai/p-image-try-on"
 
     model_config = SettingsConfigDict(
         env_file=find_dotenv(usecwd=True),

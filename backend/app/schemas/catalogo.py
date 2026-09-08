@@ -121,6 +121,7 @@ class PrendaCreate(BaseModel):
     proveedor_id: Optional[int] = None
     precio_base: float
     modelo_3d_url: Optional[str] = None
+    imagen_url: Optional[str] = None
 
 
 class PrendaUpdate(BaseModel):
@@ -131,6 +132,7 @@ class PrendaUpdate(BaseModel):
     proveedor_id: Optional[int] = None
     precio_base: Optional[float] = None
     modelo_3d_url: Optional[str] = None
+    imagen_url: Optional[str] = None
     estado: Optional[bool] = None
 
 
@@ -143,6 +145,7 @@ class PrendaOut(BaseModel):
     proveedor_id: Optional[int] = None
     precio_base: float
     modelo_3d_url: Optional[str] = None
+    imagen_url: Optional[str] = None
     estado: bool
     categoria_nombre: Optional[str] = None
     coleccion_nombre: Optional[str] = None

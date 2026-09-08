@@ -65,6 +65,7 @@ def listar_prendas(
                 proveedor_id=p.proveedor_id,
                 precio_base=float(p.precio_base),
                 modelo_3d_url=p.modelo_3d_url,
+                imagen_url=p.imagen_url,
                 estado=p.estado,
                 categoria_nombre=cat.nombre if cat else None,
                 coleccion_nombre=col.nombre if col else None,
@@ -94,6 +95,7 @@ def obtener_prenda(prenda_id: int, db: Session = Depends(get_db)):
         proveedor_id=prenda.proveedor_id,
         precio_base=float(prenda.precio_base),
         modelo_3d_url=prenda.modelo_3d_url,
+        imagen_url=prenda.imagen_url,
         estado=prenda.estado,
         categoria_nombre=cat.nombre if cat else None,
         coleccion_nombre=col.nombre if col else None,
@@ -143,6 +145,7 @@ def crear_prenda(
         proveedor_id=datos.proveedor_id,
         precio_base=datos.precio_base,
         modelo_3d_url=datos.modelo_3d_url,
+        imagen_url=datos.imagen_url,
         estado=True,
     )
     db.add(nueva_prenda)
@@ -161,6 +164,7 @@ def crear_prenda(
         proveedor_id=nueva_prenda.proveedor_id,
         precio_base=float(nueva_prenda.precio_base),
         modelo_3d_url=nueva_prenda.modelo_3d_url,
+        imagen_url=nueva_prenda.imagen_url,
         estado=nueva_prenda.estado,
         categoria_nombre=categoria.nombre,
         coleccion_nombre=col.nombre if col else None,
@@ -206,6 +210,8 @@ def actualizar_prenda(
         prenda.precio_base = datos.precio_base
     if datos.modelo_3d_url is not None:
         prenda.modelo_3d_url = datos.modelo_3d_url
+    if datos.imagen_url is not None:
+        prenda.imagen_url = datos.imagen_url
     if datos.estado is not None:
         prenda.estado = datos.estado
 
@@ -225,6 +231,7 @@ def actualizar_prenda(
         proveedor_id=prenda.proveedor_id,
         precio_base=float(prenda.precio_base),
         modelo_3d_url=prenda.modelo_3d_url,
+        imagen_url=prenda.imagen_url,
         estado=prenda.estado,
         categoria_nombre=cat.nombre if cat else None,
         coleccion_nombre=col.nombre if col else None,
