@@ -523,18 +523,15 @@
 
       <div class="form-group">
         <label>Permisos Asignados:</label>
-        <div style="max-height: 220px; overflow-y: auto; border: 1px solid #e2e8f0; padding: 0.85rem; border-radius: 8px; background: #f8fafc;">
-          <div *ngFor="let p of permisos()" style="display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.5rem;">
+        <div class="permisos-box">
+          <label class="permiso-item" *ngFor="let p of permisos()">
             <input
               type="checkbox"
-              [id]="'perm_' + p.id"
               [checked]="rolForm.permiso_ids.includes(p.id)"
               (change)="togglePermiso(p.id)"
             />
-            <label [for]="'perm_' + p.id" style="margin: 0; font-weight: normal; cursor: pointer; font-size: 0.85rem;">
-              <code>{{ p.codigo }}</code> — {{ p.descripcion }}
-            </label>
-          </div>
+            <span><code>{{ p.codigo }}</code> — {{ p.descripcion }}</span>
+          </label>
         </div>
       </div>
 

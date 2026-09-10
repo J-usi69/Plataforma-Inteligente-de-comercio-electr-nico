@@ -375,6 +375,47 @@ p { color: var(--text-muted); }
   }
 }
 
+/* Lista de permisos (checkboxes) */
+.permisos-box {
+  max-height: 220px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: #f8fafc;
+  padding: 0.5rem;
+}
+
+.permiso-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  padding: 0.55rem 0.6rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 400;
+  color: var(--text-main);
+
+  &:hover {
+    background: #eef2ff;
+  }
+
+  input[type='checkbox'] {
+    width: auto;
+    flex-shrink: 0;
+    margin-top: 0.15rem;
+    accent-color: var(--primary);
+    cursor: pointer;
+  }
+
+  code {
+    background: #e2e8f0;
+    padding: 0.1rem 0.4rem;
+    border-radius: 4px;
+    font-size: 0.8rem;
+  }
+}
+
 /* Modern Tables */
 .table-responsive {
   overflow-x: auto;

@@ -167,17 +167,27 @@ flutter run
 
 Por defecto apunta a `http://10.0.2.2:8000` (así el emulador de Android ve el backend corriendo en tu máquina). Para apuntar a otra URL: `flutter run --dart-define=API_URL=http://tu-ip:8000`.
 
-### Credenciales de prueba (usuario admin sembrado)
+### Credenciales de prueba
 
-Válidas contra la Supabase compartida (creadas al aplicar el baseline / seeds):
+Válidas contra la Supabase compartida. Úsalas contra `POST /api/v1/auth/login` (body `{"login": "...", "password": "..."}`) para obtener un token y probar los endpoints protegidos desde `/docs`, o directamente desde el login de la web/app móvil:
 
-```
-correo:     admin@fashionstore.com
-contraseña: Admin123*
-rol:        Administrador
-```
+| Rol | Correo | Contraseña | Para probar |
+|---|---|---|---|
+| Administrador | `admin@fashionstore.com` | `Admin123*` | Dashboard admin completo: roles/permisos, personal, sucursales, proveedores, catálogo maestro (categorías/tallas/colores/temporadas/colecciones), prendas y variantes. |
+| Cliente | `cliente@fashionstore.com` | `Cliente123*` | Catálogo público, filtros por talla/color/temporada, reservar prenda en sucursal, ver/cancelar "Mis Reservas", vestidor virtual con IA. |
+| Encargado | `encargado@fashionstore.com` | `Encargado123*` | Vinculado como personal de "Sucursal Central Equipetrol" (`id=1`). Pensado para cuando se implemente CU-17 (gestión de reservas recibidas por sucursal) — todavía no tiene pantallas propias. |
+| Cajero | `cajero@fashionstore.com` | `Cajero123*` | Vinculado a la misma sucursal. Pensado para el módulo de ventas/POS (todavía no implementado). |
 
-Úsalas contra `POST /api/v1/auth/login` para obtener un token y probar los endpoints protegidos desde `/docs`.
+### Cómo probar el flujo completo (guía rápida para Jhonny)
+
+1. `git pull` sobre `main`, luego `docker compose up -d --build` (ver sección 2 más arriba). Backend en `http://localhost:8000`, web en `http://localhost:4200`, ambos contra la Supabase compartida — no necesitas tocar nada de datos, ya está todo sembrado.
+2. **Como Cliente** (`cliente@fashionstore.com` / `Cliente123*`):
+   - En la web, entra al catálogo (ya hay 5 prendas de ejemplo con imagen, una por categoría) y prueba los filtros de categoría/talla/color.
+   - Abre una prenda → botón **"Reservar para probar en sucursal"** → elige variante (talla/color) → elige sucursal (te muestra el stock disponible real) → confirma. Luego revisa **"Mis Reservas"** y prueba cancelarla.
+   - El mismo flujo de catálogo + reserva funciona igual en la app móvil (Flutter), con el botón **"Reservar"** en cada tarjeta.
+3. **Vestidor virtual con IA (CU-14) — solo disponible en la app móvil por ahora**, no en la web (la web solo muestra un aviso). Desde el catálogo en Flutter, botón **"Probar con RA"** → toma una foto con la cámara → el backend llama a Replicate (modelo `prunaai/p-image-try-on`) y devuelve la imagen generada. **Importante:** cada integrante necesita su propio `REPLICATE_API_TOKEN` en su `.env` local (ver sección 1) y crédito cargado en su cuenta de Replicate (https://replicate.com/account/billing) — sin crédito, el job falla con "Insufficient credit" (no es un bug, es facturación).
+4. **Como Administrador**, revisa el módulo de Roles y Permisos (`admin@fashionstore.com`) — el modal de edición de rol ahora se ve bien alineado (checkboxes + descripción de cada permiso).
+5. Si necesitas resetear o agregar más datos de catálogo para tus propias pruebas, hazlo con `INSERT`/`UPDATE` normales sobre `prenda`, `variante_prenda` e `inventario_sucursal` (o pídeme que te pase el script) — evita usar el Postgres local para esto porque entonces no lo ves reflejado en la web/app que sí apunta a Supabase.
 
 ## Base de datos compartida — cosas a tener en cuenta
 
