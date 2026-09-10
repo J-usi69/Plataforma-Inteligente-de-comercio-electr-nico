@@ -36,13 +36,24 @@ Esquema completo (25 tablas) ya aplicado en Supabase: usuarios/personal separado
 - **CU-15**: reservar una o varias prendas en una sucursal, con validación de stock disponible y actualización automática de `inventario_sucursal` (descuenta `stock_disponible`, incrementa `stock_reservado`).
 - **CU-16**: consultar y cancelar reservas propias (libera el stock reservado; no permite cancelar una reserva que ya no está pendiente).
 
-Pendiente: CU-17 en adelante (gestión de reservas recibidas por sucursal, ventas, pagos, IA de recomendación/reportes).
+Pendiente: **CU-17 al CU-24** (gestión de reservas recibidas por sucursal, confirmación de recepción del cliente, ventas presenciales/digitales, pagos, IA de recomendación/reportes) — **a cargo de Jhonny**.
+
+### Flujo actual por rol de usuario
+
+El sistema ya diferencia el rol en el login, pero solo dos flujos están construidos hasta CU-16; el resto ve el catálogo genérico porque sus pantallas propias todavía no existen (son justamente CU-17 en adelante).
+
+- **Administrador** (`admin@fashionstore.com`): al loguearse entra directo al **Dashboard admin** (`/admin`) — ahí gestiona roles y permisos, personal, sucursales, proveedores y todo el catálogo maestro (categorías, tallas, colores, temporadas, colecciones, prendas y variantes).
+- **Cliente** (`cliente@fashionstore.com`): al loguearse cae en el **catálogo público** (`/catalogo`, misma pantalla que ve un visitante sin cuenta) y desde ahí puede filtrar prendas, reservar una variante en la sucursal con stock disponible, ver/cancelar sus reservas (`/reservas`) y usar el vestidor virtual con IA (**solo disponible en la app móvil por ahora**, no en la web).
+- **Encargado** (`encargado@fashionstore.com`, vinculado como personal de la Sucursal Central Equipetrol): ya existe el usuario y su registro en `personal`, pero **no tiene pantalla propia todavía** — al loguearse cae en el mismo catálogo que un cliente. Su flujo real (ver reservas entrantes de su sucursal, confirmar que el cliente se presentó) es **CU-17**.
+- **Cajero** (`cajero@fashionstore.com`, misma sucursal): igual que Encargado, el usuario y su registro de personal ya existen, pero **no tiene pantalla propia**. Su flujo real (registrar venta presencial o de una reserva confirmada, cobro) corresponde al módulo de ventas/POS, dentro del rango CU-17–CU-24. La ruta `/carrito` en la web ya está creada mas es solo un placeholder vacío (`Carrito` component sin lógica), pensada como punto de partida para ese trabajo.
+
+Ambos roles (Encargado, Cajero) ya tienen usuario, rol asignado y registro en `personal` con su sucursal — lo único que falta es construir la interfaz y los endpoints de su flujo (ver credenciales en la sección más abajo).
 
 ### Frontend web (Angular)
 Login/registro funcionales contra la API real, interceptor de autenticación JWT, dashboard administrativo con listados (roles, personal, sucursales, proveedores, catálogo), servicios `AuthService`/`ApiService`/`BusinessService`.
 
 ### App móvil (Flutter)
-Login/registro/perfil funcionales contra la API real, listado de sucursales, catálogo de prendas con indicador de modelo 3D disponible, pantalla base del vestidor virtual AR (`/vestidor-ar`, pendiente de integrar la lógica de RA).
+Login/registro/perfil funcionales contra la API real, listado de sucursales, catálogo de prendas con filtros por talla/color, reserva de variante en sucursal (`/reservar`) y gestión de "Mis Reservas" (`/reservas`), y vestidor virtual con IA funcional (`/vestidor-ar` — cámara + Replicate, único lugar donde el CU-14 está integrado por ahora).
 
 ### Diagramas y documentación
 - `docs/diseno_logico.md` — diseño lógico de las 25 tablas en formato visual (header + PK + FKs).
