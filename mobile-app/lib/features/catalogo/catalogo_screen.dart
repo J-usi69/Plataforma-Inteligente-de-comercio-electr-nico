@@ -59,6 +59,12 @@ class _CatalogoScreenState extends State<CatalogoScreen> {
               tooltip: 'Mis Reservas',
               onPressed: () => context.push('/reservas'),
             ),
+          if (_apiService.isLoggedIn)
+            IconButton(
+              icon: const Icon(Icons.shopping_cart_outlined),
+              tooltip: 'Carrito',
+              onPressed: () => context.push('/carrito'),
+            ),
           IconButton(
             icon: Icon(
               _apiService.isLoggedIn ? Icons.account_circle : Icons.login,
