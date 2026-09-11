@@ -48,35 +48,60 @@ class _CatalogoScreenState extends State<CatalogoScreen> {
         title: const Text('Catálogo FashionStore'),
         centerTitle: false,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.storefront_outlined),
-            tooltip: 'Ver Sucursales',
-            onPressed: () => context.push('/sucursales'),
-          ),
-          if (_apiService.isLoggedIn)
-            IconButton(
-              icon: const Icon(Icons.event_note_outlined),
-              tooltip: 'Mis Reservas',
-              onPressed: () => context.push('/reservas'),
-            ),
           if (_apiService.isLoggedIn)
             IconButton(
               icon: const Icon(Icons.shopping_cart_outlined),
               tooltip: 'Carrito',
               onPressed: () => context.push('/carrito'),
             ),
-          IconButton(
-            icon: Icon(
-              _apiService.isLoggedIn ? Icons.account_circle : Icons.login,
-            ),
-            tooltip: _apiService.isLoggedIn ? 'Mi Perfil' : 'Iniciar Sesión',
-            onPressed: () {
-              if (_apiService.isLoggedIn) {
-                context.push('/perfil');
-              } else {
-                context.push('/login');
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.menu),
+            tooltip: 'Menú',
+            onSelected: (value) {
+              switch (value) {
+                case 'sucursales':
+                  context.push('/sucursales');
+                case 'reservas':
+                  context.push('/reservas');
+                case 'perfil':
+                  context.push('/perfil');
+                case 'login':
+                  context.push('/login');
               }
             },
+            itemBuilder: (context) => [
+              const PopupMenuItem(
+                value: 'sucursales',
+                child: ListTile(
+                  leading: Icon(Icons.storefront_outlined),
+                  title: Text('Ver Sucursales'),
+                ),
+              ),
+              if (_apiService.isLoggedIn)
+                const PopupMenuItem(
+                  value: 'reservas',
+                  child: ListTile(
+                    leading: Icon(Icons.event_note_outlined),
+                    title: Text('Mis Reservas'),
+                  ),
+                ),
+              if (_apiService.isLoggedIn)
+                const PopupMenuItem(
+                  value: 'perfil',
+                  child: ListTile(
+                    leading: Icon(Icons.account_circle),
+                    title: Text('Mi Perfil'),
+                  ),
+                )
+              else
+                const PopupMenuItem(
+                  value: 'login',
+                  child: ListTile(
+                    leading: Icon(Icons.login),
+                    title: Text('Iniciar Sesión'),
+                  ),
+                ),
+            ],
           ),
         ],
       ),

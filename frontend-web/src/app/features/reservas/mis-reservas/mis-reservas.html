@@ -1,82 +1,54 @@
 <div class="container">
-  <h2>Mi Perfil</h2>
-  <p>Revisa tus reservas y el estado de tu carrito de compras.</p>
+  <h2>Mis Reservas</h2>
+  <p>Aquí puedes ver el estado de tus reservas y cancelar las que sigan pendientes.</p>
 
-  <div class="profile-tabs">
-    <button
-      class="profile-tab"
-      [class.active]="tabActiva() === 'reservas'"
-      (click)="tabActiva.set('reservas')"
-    >
-      📋 Mis Reservas
-    </button>
-    <button
-      class="profile-tab"
-      [class.active]="tabActiva() === 'carrito'"
-      (click)="tabActiva.set('carrito')"
-    >
-      🛒 Carrito
-    </button>
+  <div *ngIf="isLoading()" style="text-align: center; padding: 3rem 0;">
+    <div style="font-size: 1.1rem; font-weight: 600; color: #4f46e5;">Cargando tus reservas...</div>
   </div>
 
-  <div *ngIf="tabActiva() === 'reservas'">
-    <div *ngIf="isLoading()" style="text-align: center; padding: 3rem 0;">
-      <div style="font-size: 1.1rem; font-weight: 600; color: #4f46e5;">Cargando tus reservas...</div>
-    </div>
-
-    <div *ngIf="!isLoading() && !reservas().length" style="text-align: center; padding: 3rem 1rem; background: #ffffff; border-radius: 16px; border: 1px dashed #cbd5e1; margin-top: 1rem;">
-      <div style="font-size: 3rem; margin-bottom: 0.5rem;">📋</div>
-      <h3>Todavía no tienes reservas</h3>
-      <p style="margin-top: 0.5rem;">Ve al catálogo y reserva una prenda para probártela en sucursal.</p>
-    </div>
-
-    <div *ngIf="!isLoading() && reservas().length" class="table-responsive" style="margin-top: 1.5rem;">
-      <table class="table">
-        <thead>
-          <tr>
-            <th>Reserva</th>
-            <th>Sucursal</th>
-            <th>Fecha</th>
-            <th>Horario</th>
-            <th>Prendas</th>
-            <th>Estado</th>
-            <th>Acciones</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr *ngFor="let r of reservas()">
-            <td>#{{ r.id }}</td>
-            <td>{{ r.sucursal_nombre }}</td>
-            <td>{{ r.fecha_reserva | date: 'short' }}</td>
-            <td>{{ r.horario_atencion || '—' }}</td>
-            <td>
-              <div *ngFor="let d of r.detalles" style="font-size: 0.85rem; margin-bottom: 0.2rem;">
-                {{ d.prenda_nombre }} ({{ d.talla_nombre }} / {{ d.color_nombre }}) × {{ d.cantidad }}
-              </div>
-            </td>
-            <td><span class="badge" [ngClass]="badgeClase(r.estado)">{{ r.estado }}</span></td>
-            <td>
-              <button
-                *ngIf="r.estado === 'pendiente'"
-                class="btn btn-danger btn-sm"
-                [disabled]="cancelandoId() === r.id"
-                (click)="cancelar(r)"
-              >
-                {{ cancelandoId() === r.id ? 'Cancelando...' : 'Cancelar' }}
-              </button>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
+  <div *ngIf="!isLoading() && !reservas().length" style="text-align: center; padding: 3rem 1rem; background: #ffffff; border-radius: 16px; border: 1px dashed #cbd5e1; margin-top: 1rem;">
+    <div style="font-size: 3rem; margin-bottom: 0.5rem;">📋</div>
+    <h3>Todavía no tienes reservas</h3>
+    <p style="margin-top: 0.5rem;">Ve al catálogo y reserva una prenda para probártela en sucursal.</p>
   </div>
 
-  <div *ngIf="tabActiva() === 'carrito'" style="text-align: center; padding: 3rem 1rem; background: #ffffff; border-radius: 16px; border: 1px dashed #cbd5e1; margin-top: 1rem;">
-    <div style="font-size: 3rem; margin-bottom: 0.5rem;">🛒</div>
-    <h3>Carrito de compras</h3>
-    <p style="margin-top: 0.5rem;">
-      El flujo de compra en línea (agregar al carrito, checkout y pago) es parte de los
-      casos de uso CU-17 al CU-24, en desarrollo.
-    </p>
+  <div *ngIf="!isLoading() && reservas().length" class="table-responsive" style="margin-top: 1.5rem;">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Reserva</th>
+          <th>Sucursal</th>
+          <th>Fecha</th>
+          <th>Horario</th>
+          <th>Prendas</th>
+          <th>Estado</th>
+          <th>Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let r of reservas()">
+          <td>#{{ r.id }}</td>
+          <td>{{ r.sucursal_nombre }}</td>
+          <td>{{ r.fecha_reserva | date: 'short' }}</td>
+          <td>{{ r.horario_atencion || '—' }}</td>
+          <td>
+            <div *ngFor="let d of r.detalles" style="font-size: 0.85rem; margin-bottom: 0.2rem;">
+              {{ d.prenda_nombre }} ({{ d.talla_nombre }} / {{ d.color_nombre }}) × {{ d.cantidad }}
+            </div>
+          </td>
+          <td><span class="badge" [ngClass]="badgeClase(r.estado)">{{ r.estado }}</span></td>
+          <td>
+            <button
+              *ngIf="r.estado === 'pendiente'"
+              class="btn btn-danger btn-sm"
+              [disabled]="cancelandoId() === r.id"
+              (click)="cancelar(r)"
+            >
+              {{ cancelandoId() === r.id ? 'Cancelando...' : 'Cancelar' }}
+            </button>
+          </td>
+        </tr>
+      </tbody>
+    </table>
   </div>
 </div>
