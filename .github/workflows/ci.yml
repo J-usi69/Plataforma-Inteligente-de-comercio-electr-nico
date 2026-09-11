@@ -29,7 +29,8 @@ jobs:
       - name: Verificar que la app importa sin errores
         env:
           DATABASE_URL: "postgresql://user:pass@localhost:5432/fashionstore_ci"
-        run: python -c "from app.main import app; print('OK: la app importa correctamente')"
+        run: |
+          python -c "from app.main import app; print('OK - la app importa correctamente')"
 
   frontend:
     name: Frontend (Angular)
