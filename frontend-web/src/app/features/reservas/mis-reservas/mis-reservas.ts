@@ -12,6 +12,7 @@ import { BusinessService } from '../../../core/services/business.service';
 export class MisReservas implements OnInit {
   private readonly business = inject(BusinessService);
 
+  tabActiva = signal<'reservas' | 'carrito'>('reservas');
   reservas = signal<Reserva[]>([]);
   isLoading = signal(true);
   cancelandoId = signal<number | null>(null);

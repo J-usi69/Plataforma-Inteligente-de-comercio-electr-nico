@@ -20,6 +20,9 @@
     <a routerLink="/catalogo" routerLinkActive="active">
       Catálogo
     </a>
+    <a *ngIf="authService.isLoggedIn() && !authService.isAdmin()" routerLink="/reservas" routerLinkActive="active">
+      Mi Perfil
+    </a>
     <a *ngIf="authService.isAdmin()" routerLink="/admin" routerLinkActive="active">
       Panel de Administración
     </a>
