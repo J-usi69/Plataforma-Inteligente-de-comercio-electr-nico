@@ -184,11 +184,51 @@
       </div>
     </div>
 
+    <!-- Selección de variante y compra directa -->
+    <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 1.25rem; margin-bottom: 1.5rem;">
+      <div style="font-weight: 700; color: #1e293b; font-size: 0.9rem; margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.5rem;">
+        <span>🛍️</span> Comprar Online o Agregar a la Bolsa
+      </div>
+      
+      <div *ngIf="modalVariantes().length > 0" class="grid-2" style="gap: 1rem; align-items: flex-end;">
+        <div class="form-group" style="margin-bottom: 0;">
+          <label style="font-size: 0.8rem; color: #475569; font-weight: 600;">Talla y Color:</label>
+          <select [(ngModel)]="modalVarianteId" style="padding: 0.5rem 0.75rem; font-size: 0.9rem; border-radius: 8px; border: 1px solid #cbd5e1; width: 100%;">
+            <option *ngFor="let v of modalVariantes()" [ngValue]="v.id">
+              Talla: {{ v.talla_nombre }} | Color: {{ v.color_nombre }}
+            </option>
+          </select>
+        </div>
+        <div class="form-group" style="margin-bottom: 0;">
+          <label style="font-size: 0.8rem; color: #475569; font-weight: 600;">Cantidad:</label>
+          <div style="display: flex; gap: 0.5rem; align-items: center;">
+            <input type="number" min="1" max="10" [(ngModel)]="modalCantidad" style="width: 70px; padding: 0.5rem; text-align: center; border-radius: 8px; border: 1px solid #cbd5e1;" />
+            <button class="btn btn-primary" (click)="agregarAlCarritoDesdeModal()" [disabled]="!modalVarianteId()" style="flex: 1; padding: 0.55rem 1rem; font-size: 0.85rem; display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
+              <span>🛒</span> Añadir a la Bolsa
+            </button>
+          </div>
+        </div>
+      </div>
+      <p *ngIf="modalVariantes().length === 0" style="color: #64748b; font-size: 0.85rem; margin: 0;">
+        Cargando opciones de talla y color disponibles...
+      </p>
+
+      <div *ngIf="modalAgregadoExito()" style="margin-top: 0.75rem; background: #ecfdf5; color: #065f46; border: 1px solid #a7f3d0; border-radius: 8px; padding: 0.6rem 1rem; font-size: 0.85rem; display: flex; align-items: center; justify-content: space-between;">
+        <span>✓ ¡Prenda añadida a tu bolsa de compra!</span>
+        <a routerLink="/carrito" (click)="cerrarModalPrenda()" style="color: #047857; font-weight: 700; text-decoration: underline; cursor: pointer;">
+          Ir a pagar →
+        </a>
+      </div>
+    </div>
+
     <div style="display: flex; justify-content: flex-end; gap: 0.75rem;">
       <button class="btn btn-secondary" (click)="cerrarModalPrenda()">Cerrar</button>
-      <button *ngIf="isLoggedIn()" class="btn btn-primary" (click)="abrirReserva(prendaModal()!)">
-        Reservar para probar en sucursal
+      <button *ngIf="isLoggedIn()" class="btn btn-secondary" (click)="abrirReserva(prendaModal()!)" style="border-color: #cbd5e1; color: #334155;">
+        📅 Reservar para probar en tienda
       </button>
+      <a routerLink="/carrito" (click)="cerrarModalPrenda()" class="btn btn-primary" *ngIf="cart.totalItems() > 0" style="background: #10b981;">
+        Ver Bolsa ({{ cart.totalItems() }})
+      </a>
     </div>
   </div>
 </div>

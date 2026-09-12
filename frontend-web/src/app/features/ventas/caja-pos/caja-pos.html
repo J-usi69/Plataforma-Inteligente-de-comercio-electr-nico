@@ -1,0 +1,279 @@
+<div class="container">
+  <!-- Header -->
+  <div class="caja-hero">
+    <div>
+      <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
+        <span class="brand-tag">Punto de Venta / Caja</span>
+        <span style="font-size: 0.75rem; color: #818cf8; font-weight: 600;">Venta Presencial & Facturación</span>
+      </div>
+      <h2>Terminal de Cobro en Tienda</h2>
+      <p>Procesa compras de clientes que se probaron prendas en la sucursal o ventas directas de mostrador.</p>
+    </div>
+    <div style="display: flex; align-items: center; gap: 0.75rem;">
+      <select
+        [ngModel]="sucursalId()"
+        (ngModelChange)="cambiarSucursal($event)"
+        style="padding: 0.5rem 0.85rem; border-radius: 8px; font-weight: 600;"
+      >
+        <option *ngFor="let s of sucursales()" [value]="s.id">
+          {{ s.nombre }} ({{ s.ciudad_nombre }})
+        </option>
+      </select>
+    </div>
+  </div>
+
+  <div class="pos-layout">
+    <!-- Left Column: Source selection & manual items -->
+    <div>
+      <!-- 1. Reservas Atendidas List (CU-19) -->
+      <div class="pos-card" style="margin-bottom: 1.5rem;">
+        <h4 style="margin-bottom: 0.5rem;">1. Cargar desde Reserva Atendida (Vestidor Físico)</h4>
+        <p style="font-size: 0.82rem; color: #64748b; margin-bottom: 1rem;">
+          Clientes que terminaron su prueba en vestidor y van a comprar:
+        </p>
+
+        <div *ngIf="!reservasAtendidas().length" style="padding: 1rem; background: #f8fafc; border-radius: 8px; border: 1px dashed #cbd5e1; font-size: 0.85rem; color: #64748b; text-align: center;">
+          No hay reservas pendientes de cobro en esta sucursal.
+        </div>
+
+        <div *ngFor="let r of reservasAtendidas()" class="reserva-pill" (click)="cargarReservaEnVenta(r)">
+          <div>
+            <strong style="color: #4f46e5;">Reserva #{{ r.id }}</strong> — {{ r.cliente_correo || 'Cliente' }}
+            <div style="font-size: 0.78rem; color: #64748b;">
+              {{ r.detalles.length }} prendas solicitadas
+            </div>
+          </div>
+          <button type="button" class="btn btn-secondary btn-sm">Cargar a Venta →</button>
+        </div>
+      </div>
+
+      <!-- 2. Agregar ítem manual (CU-19) -->
+      <div class="pos-card">
+        <h4 style="margin-bottom: 0.5rem;">2. Agregar Prenda de Mostrador</h4>
+        <div style="display: flex; gap: 0.75rem; margin-top: 1rem;">
+          <select
+            [(ngModel)]="prendaSeleccionadaId"
+            (ngModelChange)="onSeleccionarPrenda($event)"
+            style="flex: 1; padding: 0.6rem; border-radius: 8px; border: 1px solid #cbd5e1;"
+          >
+            <option [ngValue]="null">-- Seleccionar Prenda --</option>
+            <option *ngFor="let p of prendas()" [ngValue]="p.id">
+              {{ p.nombre }} (Bs. {{ p.precio_base }})
+            </option>
+          </select>
+
+          <select
+            [(ngModel)]="varianteSeleccionadaId"
+            [disabled]="!variantesDisponibles().length"
+            style="width: 160px; padding: 0.6rem; border-radius: 8px; border: 1px solid #cbd5e1;"
+          >
+            <option *ngFor="let v of variantesDisponibles()" [ngValue]="v.id">
+              {{ v.talla_nombre || 'Talla M' }} / {{ v.color_nombre || 'Color' }}
+            </option>
+          </select>
+
+          <button class="btn btn-primary btn-sm" [disabled]="!varianteSeleccionadaId" (click)="agregarItemManual()">
+            + Agregar
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Column: Current Sale Ticket & Payment (CU-19 & CU-20) -->
+    <div>
+      <div class="pos-card">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+          <h4 style="margin: 0;">Detalle de la Venta en Caja</h4>
+          <button *ngIf="items().length" class="btn btn-secondary btn-sm" (click)="limpiarVenta()">Limpiar</button>
+        </div>
+
+        <div *ngIf="reservaSeleccionadaId()" style="background: #eef2ff; padding: 0.5rem 0.85rem; border-radius: 6px; font-size: 0.8rem; color: #3730a3; margin-bottom: 1rem;">
+          Vinculada a <strong>Reserva #{{ reservaSeleccionadaId() }}</strong>
+        </div>
+
+        <div *ngIf="!items().length" style="padding: 2.5rem 1rem; text-align: center; color: #94a3b8;">
+          <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">🛒</div>
+          <div>No hay prendas en la venta actual</div>
+        </div>
+
+        <div *ngIf="items().length" class="table-responsive" style="margin-bottom: 1rem;">
+          <table class="table" style="font-size: 0.85rem;">
+            <thead>
+              <tr>
+                <th>Prenda</th>
+                <th>Cant.</th>
+                <th>P. Unit</th>
+                <th>Subtotal</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let item of items()">
+                <td>
+                  <strong>{{ item.prenda_nombre }}</strong>
+                  <div style="font-size: 0.75rem; color: #64748b;">{{ item.talla_nombre }} / {{ item.color_nombre }}</div>
+                </td>
+                <td>{{ item.cantidad }}</td>
+                <td>Bs. {{ item.precio_unitario }}</td>
+                <td><strong>Bs. {{ item.precio_unitario * item.cantidad | number: '1.2-2' }}</strong></td>
+                <td>
+                  <button class="btn btn-secondary btn-icon btn-sm" style="color: #ef4444;" (click)="quitarItem(item.variante_id)">✕</button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="total-box">
+          <span style="font-size: 1.1rem; font-weight: 700;">TOTAL A COBRAR:</span>
+          <span class="total-amount">Bs. {{ totalVenta() | number: '1.2-2' }}</span>
+        </div>
+
+        <button
+          class="btn btn-primary"
+          style="width: 100%; padding: 0.9rem; font-size: 1rem;"
+          [disabled]="!items().length || isLoading()"
+          (click)="iniciarCobro()"
+        >
+          💳 Procesar Cobro en Caja (CU-20)
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- MODAL DE COBRO EN CAJA (CU-20) -->
+<!-- ============================================================ -->
+<div *ngIf="showModalCobro()" class="modal-overlay">
+  <div class="modal-content" style="max-width: 480px;">
+    <div class="modal-header">
+      <h3>Cobro de Venta en Caja</h3>
+      <button class="btn btn-secondary btn-icon" (click)="showModalCobro.set(false)">✕</button>
+    </div>
+
+    <div style="text-align: center; margin-bottom: 1.5rem;">
+      <span style="font-size: 0.85rem; color: #64748b; text-transform: uppercase; font-weight: 700;">Total Venta:</span>
+      <div style="font-size: 2.25rem; font-weight: 800; color: #0f172a;">
+        Bs. {{ totalVenta() | number: '1.2-2' }}
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label>Método de Pago:</label>
+      <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem; margin-top: 0.5rem;">
+        <button
+          type="button"
+          class="btn btn-secondary"
+          [style.background]="metodoPago === 'efectivo' ? '#4f46e5' : '#ffffff'"
+          [style.color]="metodoPago === 'efectivo' ? '#ffffff' : '#0f172a'"
+          (click)="metodoPago = 'efectivo'"
+        >
+          💵 Efectivo
+        </button>
+        <button
+          type="button"
+          class="btn btn-secondary"
+          [style.background]="metodoPago === 'tarjeta' ? '#4f46e5' : '#ffffff'"
+          [style.color]="metodoPago === 'tarjeta' ? '#ffffff' : '#0f172a'"
+          (click)="metodoPago = 'tarjeta'"
+        >
+          💳 Tarjeta POS
+        </button>
+        <button
+          type="button"
+          class="btn btn-secondary"
+          [style.background]="metodoPago === 'qr' ? '#4f46e5' : '#ffffff'"
+          [style.color]="metodoPago === 'qr' ? '#ffffff' : '#0f172a'"
+          (click)="metodoPago = 'qr'"
+        >
+          📱 QR Simple
+        </button>
+      </div>
+    </div>
+
+    <div *ngIf="metodoPago === 'efectivo'" class="form-group" style="margin-top: 1.25rem;">
+      <label>Monto Recibido del Cliente (Bs.):</label>
+      <input
+        type="number"
+        step="0.50"
+        [(ngModel)]="montoRecibido"
+        style="font-size: 1.25rem; font-weight: 700; text-align: center;"
+      />
+      <div *ngIf="montoRecibido >= totalVenta()" style="margin-top: 0.75rem; background: #ecfdf5; border: 1px solid #a7f3d0; padding: 0.75rem; border-radius: 8px; text-align: center;">
+        <span style="font-size: 0.8rem; color: #065f46; font-weight: 700;">CAMBIO A DEVOLVER:</span>
+        <div style="font-size: 1.5rem; font-weight: 800; color: #059669;">
+          Bs. {{ cambioDevolver() | number: '1.2-2' }}
+        </div>
+      </div>
+    </div>
+
+    <div *ngIf="metodoPago === 'qr'" style="text-align: center; padding: 1rem; background: #f8fafc; border-radius: 8px; margin-top: 1rem;">
+      <div style="font-size: 4rem;">📲</div>
+      <div style="font-size: 0.85rem; color: #475569;">
+        El cliente escanea el QR en la pantalla de la caja para autorizar con su banca móvil.
+      </div>
+    </div>
+
+    <div style="display: flex; gap: 0.75rem; margin-top: 2rem;">
+      <button type="button" class="btn btn-secondary" style="flex: 1;" (click)="showModalCobro.set(false)">Cancelar</button>
+      <button
+        type="button"
+        class="btn btn-primary"
+        style="flex: 2;"
+        [disabled]="metodoPago === 'efectivo' && montoRecibido < totalVenta()"
+        (click)="confirmarPagoCaja()"
+      >
+        Confirmar Pago & Emitir Ticket
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- MODAL COMPROBANTE OFICIAL DE VENTA (CU-23) -->
+<!-- ============================================================ -->
+<div *ngIf="comprobanteEmitido()" class="modal-overlay">
+  <div class="modal-content" style="max-width: 480px;">
+    <div class="ticket-view">
+      <div style="text-align: center; border-bottom: 1px dashed #94a3b8; padding-bottom: 1rem; margin-bottom: 1rem;">
+        <h3 style="margin: 0; font-size: 1.25rem;">FASHIONSTORE S.R.L.</h3>
+        <div style="font-size: 0.8rem;">{{ comprobanteEmitido()?.sucursal_nombre }}</div>
+        <div style="font-size: 0.75rem;">{{ comprobanteEmitido()?.sucursal_direccion }}</div>
+        <div style="font-size: 0.75rem;">{{ comprobanteEmitido()?.ciudad_nombre }} - Bolivia</div>
+      </div>
+
+      <div style="font-size: 0.8rem; margin-bottom: 0.75rem;">
+        <div><strong>COMPROBANTE N°:</strong> {{ comprobanteEmitido()?.numero_comprobante }}</div>
+        <div><strong>FECHA:</strong> {{ comprobanteEmitido()?.fecha_emision | date: 'dd/MM/yyyy HH:mm' }}</div>
+        <div><strong>CLIENTE:</strong> {{ comprobanteEmitido()?.cliente_nombre }}</div>
+        <div><strong>CAJERO:</strong> {{ comprobanteEmitido()?.cajero_nombre }}</div>
+        <div><strong>PAGO:</strong> {{ comprobanteEmitido()?.metodo_pago }}</div>
+      </div>
+
+      <div style="border-top: 1px dashed #94a3b8; border-bottom: 1px dashed #94a3b8; padding: 0.5rem 0; margin-bottom: 0.75rem;">
+        <div *ngFor="let item of comprobanteEmitido()?.items" style="display: flex; justify-content: space-between; font-size: 0.8rem; margin-bottom: 0.25rem;">
+          <div>
+            {{ item.cantidad }}x {{ item.descripcion }} ({{ item.talla }})
+          </div>
+          <div>Bs. {{ item.subtotal | number: '1.2-2' }}</div>
+        </div>
+      </div>
+
+      <div style="text-align: right; font-size: 1.1rem; font-weight: 800; margin-bottom: 1rem;">
+        TOTAL: Bs. {{ comprobanteEmitido()?.total | number: '1.2-2' }}
+      </div>
+
+      <div style="text-align: center; font-size: 0.72rem; color: #64748b;">
+        ¡Gracias por su compra en FashionStore!
+        <br />
+        Conserve este comprobante para cualquier reclamo.
+      </div>
+    </div>
+
+    <div style="display: flex; gap: 0.75rem; margin-top: 1.5rem;">
+      <button class="btn btn-secondary" style="flex: 1;" (click)="cerrarComprobante()">Cerrar</button>
+      <button class="btn btn-primary" style="flex: 1;" (click)="imprimirComprobante()">🖨️ Imprimir Ticket</button>
+    </div>
+  </div>
+</div>

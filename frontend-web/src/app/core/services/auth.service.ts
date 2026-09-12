@@ -17,6 +17,17 @@ export class AuthService {
   readonly token = this._token.asReadonly();
   readonly isLoggedIn = computed(() => !!this._currentUser());
   readonly isAdmin = computed(() => this._currentUser()?.roles.includes('Administrador') ?? false);
+  readonly isEncargado = computed(() => {
+    const u = this._currentUser();
+    return u?.roles.includes('Encargado') || u?.personal?.cargo === 'Encargado';
+  });
+  readonly isCajero = computed(() => {
+    const u = this._currentUser();
+    return u?.roles.includes('Cajero') || u?.personal?.cargo === 'Cajero';
+  });
+  readonly sucursalId = computed(() => {
+    return this._currentUser()?.personal?.sucursal_id ?? 1;
+  });
 
   constructor() {
     this.initSession();
