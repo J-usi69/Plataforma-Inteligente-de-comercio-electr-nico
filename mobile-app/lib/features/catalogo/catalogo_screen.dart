@@ -26,7 +26,9 @@ class _CatalogoScreenState extends State<CatalogoScreen> {
     setState(() => _isLoading = true);
     try {
       final cats = await _apiService.getCategorias();
-      final prendas = await _apiService.getPrendas(categoriaId: _selectedCategoriaId);
+      final prendas = await _apiService.getPrendas(
+        categoriaId: _selectedCategoriaId,
+      );
       setState(() {
         _categorias = cats;
         _prendas = prendas;
@@ -34,7 +36,10 @@ class _CatalogoScreenState extends State<CatalogoScreen> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error al cargar catálogo: $e'), backgroundColor: Colors.red),
+        SnackBar(
+          content: Text('Error al cargar catálogo: $e'),
+          backgroundColor: Colors.red,
+        ),
       );
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -113,7 +118,10 @@ class _CatalogoScreenState extends State<CatalogoScreen> {
             if (_categorias.isNotEmpty)
               SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
                 child: Row(
                   children: [
                     ChoiceChip(
@@ -136,7 +144,9 @@ class _CatalogoScreenState extends State<CatalogoScreen> {
                           selected: isSelected,
                           onSelected: (selected) {
                             setState(() {
-                              _selectedCategoriaId = selected ? cat['id'] : null;
+                              _selectedCategoriaId = selected
+                                  ? cat['id']
+                                  : null;
                             });
                             _cargarDatos();
                           },
@@ -151,140 +161,206 @@ class _CatalogoScreenState extends State<CatalogoScreen> {
               child: _isLoading
                   ? const Center(child: CircularProgressIndicator())
                   : _prendas.isEmpty
-                      ? const Center(child: Text('No hay prendas registradas en este momento.'))
-                      : ListView.builder(
-                          padding: const EdgeInsets.all(16),
-                          itemCount: _prendas.length,
-                          itemBuilder: (context, index) {
-                            final p = _prendas[index];
-                            final has3D = p['modelo_3d_url'] != null && p['modelo_3d_url'].toString().isNotEmpty;
+                  ? const Center(
+                      child: Text(
+                        'No hay prendas registradas en este momento.',
+                      ),
+                    )
+                  : ListView.builder(
+                      padding: const EdgeInsets.all(16),
+                      itemCount: _prendas.length,
+                      itemBuilder: (context, index) {
+                        final p = _prendas[index];
+                        final has3D =
+                            p['modelo_3d_url'] != null &&
+                            p['modelo_3d_url'].toString().isNotEmpty;
+                        final imagenUrl = p['imagen_url'] as String?;
+                        final tieneImagen =
+                            imagenUrl != null && imagenUrl.isNotEmpty;
 
-                            return Card(
-                              margin: const EdgeInsets.only(bottom: 16),
-                              elevation: 2,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  // Placeholder imagen
-                                  Container(
-                                    height: 150,
-                                    width: double.infinity,
-                                    decoration: BoxDecoration(
-                                      color: Colors.indigo.shade50,
-                                      borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-                                    ),
-                                    child: Stack(
-                                      children: [
-                                        const Center(
-                                          child: Icon(Icons.checkroom, size: 64, color: Colors.indigo),
-                                        ),
-                                        if (has3D)
-                                          Positioned(
-                                            top: 10,
-                                            right: 10,
-                                            child: Container(
-                                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                              decoration: BoxDecoration(
-                                                color: Colors.green.shade700,
-                                                borderRadius: BorderRadius.circular(8),
-                                              ),
-                                              child: const Row(
-                                                mainAxisSize: MainAxisSize.min,
-                                                children: [
-                                                  Icon(Icons.view_in_ar, size: 14, color: Colors.white),
-                                                  SizedBox(width: 4),
-                                                  Text(
-                                                    '3D RA',
-                                                    style: TextStyle(
-                                                      color: Colors.white,
-                                                      fontSize: 11,
-                                                      fontWeight: FontWeight.bold,
+                        return Card(
+                          margin: const EdgeInsets.only(bottom: 16),
+                          elevation: 2,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // Imagen de la prenda
+                              ClipRRect(
+                                borderRadius: const BorderRadius.vertical(
+                                  top: Radius.circular(12),
+                                ),
+                                child: Container(
+                                  height: 150,
+                                  width: double.infinity,
+                                  color: Colors.indigo.shade50,
+                                  child: Stack(
+                                    children: [
+                                      if (tieneImagen)
+                                        Positioned.fill(
+                                          child: Image.network(
+                                            imagenUrl,
+                                            fit: BoxFit.cover,
+                                            errorBuilder:
+                                                (context, error, stackTrace) =>
+                                                    const Center(
+                                                      child: Icon(
+                                                        Icons.checkroom,
+                                                        size: 64,
+                                                        color: Colors.indigo,
+                                                      ),
                                                     ),
-                                                  ),
-                                                ],
-                                              ),
-                                            ),
+                                            loadingBuilder:
+                                                (context, child, progress) {
+                                                  if (progress == null)
+                                                    return child;
+                                                  return const Center(
+                                                    child:
+                                                        CircularProgressIndicator(
+                                                          strokeWidth: 2,
+                                                        ),
+                                                  );
+                                                },
                                           ),
-                                      ],
-                                    ),
-                                  ),
-                                  Padding(
-                                    padding: const EdgeInsets.all(14.0),
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          p['categoria_nombre'] ?? 'Prenda',
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            color: Colors.indigo.shade600,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 4),
-                                        Text(
-                                          p['nombre'],
-                                          style: const TextStyle(
-                                            fontSize: 17,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                        if (p['descripcion'] != null) ...[
-                                          const SizedBox(height: 4),
-                                          Text(
-                                            p['descripcion'],
-                                            maxLines: 2,
-                                            overflow: TextOverflow.ellipsis,
-                                            style: const TextStyle(fontSize: 13, color: Colors.black54),
-                                          ),
-                                        ],
-                                        const SizedBox(height: 12),
-                                        Text(
-                                          'Bs. ${p['precio_base']}',
-                                          style: const TextStyle(
-                                            fontSize: 18,
-                                            fontWeight: FontWeight.w800,
+                                        )
+                                      else
+                                        const Center(
+                                          child: Icon(
+                                            Icons.checkroom,
+                                            size: 64,
                                             color: Colors.indigo,
                                           ),
                                         ),
-                                        const SizedBox(height: 10),
-                                        Row(
-                                          mainAxisAlignment: MainAxisAlignment.end,
-                                          children: [
-                                            OutlinedButton.icon(
-                                              onPressed: () => context.push('/vestidor-ar', extra: p),
-                                              icon: const Icon(Icons.view_in_ar, size: 16),
-                                              label: const Text('Probar con RA'),
+                                      if (has3D)
+                                        Positioned(
+                                          top: 10,
+                                          right: 10,
+                                          child: Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 8,
+                                              vertical: 4,
                                             ),
-                                            const SizedBox(width: 8),
-                                            ElevatedButton.icon(
-                                              onPressed: () {
-                                                if (_apiService.isLoggedIn) {
-                                                  context.push('/reservar', extra: p);
-                                                } else {
-                                                  context.push('/login');
-                                                }
-                                              },
-                                              icon: const Icon(Icons.event_available, size: 16),
-                                              label: const Text('Reservar'),
-                                              style: ElevatedButton.styleFrom(
-                                                backgroundColor: Colors.indigo,
-                                                foregroundColor: Colors.white,
-                                              ),
+                                            decoration: BoxDecoration(
+                                              color: Colors.green.shade700,
+                                              borderRadius:
+                                                  BorderRadius.circular(8),
                                             ),
-                                          ],
+                                            child: const Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                Icon(
+                                                  Icons.view_in_ar,
+                                                  size: 14,
+                                                  color: Colors.white,
+                                                ),
+                                                SizedBox(width: 4),
+                                                Text(
+                                                  '3D RA',
+                                                  style: TextStyle(
+                                                    color: Colors.white,
+                                                    fontSize: 11,
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                              Padding(
+                                padding: const EdgeInsets.all(14.0),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      p['categoria_nombre'] ?? 'Prenda',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.indigo.shade600,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      p['nombre'],
+                                      style: const TextStyle(
+                                        fontSize: 17,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    if (p['descripcion'] != null) ...[
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        p['descripcion'],
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                          fontSize: 13,
+                                          color: Colors.black54,
+                                        ),
+                                      ),
+                                    ],
+                                    const SizedBox(height: 12),
+                                    Text(
+                                      'Bs. ${p['precio_base']}',
+                                      style: const TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.w800,
+                                        color: Colors.indigo,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 10),
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.end,
+                                      children: [
+                                        OutlinedButton.icon(
+                                          onPressed: () => context.push(
+                                            '/vestidor-ar',
+                                            extra: p,
+                                          ),
+                                          icon: const Icon(
+                                            Icons.view_in_ar,
+                                            size: 16,
+                                          ),
+                                          label: const Text('Probar con RA'),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        ElevatedButton.icon(
+                                          onPressed: () {
+                                            if (_apiService.isLoggedIn) {
+                                              context.push(
+                                                '/reservar',
+                                                extra: p,
+                                              );
+                                            } else {
+                                              context.push('/login');
+                                            }
+                                          },
+                                          icon: const Icon(
+                                            Icons.event_available,
+                                            size: 16,
+                                          ),
+                                          label: const Text('Reservar'),
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor: Colors.indigo,
+                                            foregroundColor: Colors.white,
+                                          ),
                                         ),
                                       ],
                                     ),
-                                  ),
-                                ],
+                                  ],
+                                ),
                               ),
-                            );
-                          },
-                        ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
             ),
           ],
         ),

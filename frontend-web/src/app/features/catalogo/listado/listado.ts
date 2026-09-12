@@ -187,6 +187,12 @@ import { BusinessService } from '../../../core/services/business.service';
         filter: drop-shadow(0 4px 8px rgba(0,0,0,0.05));
       }
 
+      .product-photo {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+
       .ar-badge {
         position: absolute;
         top: 14px;

@@ -162,18 +162,58 @@ export class BusinessService {
     return this.http.get<Coleccion[]>(`${this.apiBase}/prendas/colecciones`);
   }
 
-  // --- CU-09: Catálogos maestros (Tallas y Colores) ---
+  // --- CU-09: Catálogos maestros (Categorías, Tallas y Colores) ---
+  createCategoria(datos: { nombre: string; descripcion?: string | null }): Observable<Categoria> {
+    return this.http.post<Categoria>(`${this.apiBase}/catalogo-maestro/categorias`, datos);
+  }
+
+  updateCategoria(id: number, datos: { nombre?: string; descripcion?: string | null; estado?: boolean }): Observable<Categoria> {
+    return this.http.put<Categoria>(`${this.apiBase}/catalogo-maestro/categorias/${id}`, datos);
+  }
+
   getTallas(): Observable<Talla[]> {
     return this.http.get<Talla[]>(`${this.apiBase}/catalogo-maestro/tallas`);
+  }
+
+  createTalla(nombre: string): Observable<Talla> {
+    return this.http.post<Talla>(`${this.apiBase}/catalogo-maestro/tallas`, { nombre });
+  }
+
+  updateTalla(id: number, nombre: string): Observable<Talla> {
+    return this.http.put<Talla>(`${this.apiBase}/catalogo-maestro/tallas/${id}`, { nombre });
+  }
+
+  deleteTalla(id: number): Observable<{ message: string }> {
+    return this.http.delete<{ message: string }>(`${this.apiBase}/catalogo-maestro/tallas/${id}`);
   }
 
   getColores(): Observable<Color[]> {
     return this.http.get<Color[]>(`${this.apiBase}/catalogo-maestro/colores`);
   }
 
+  createColor(datos: { nombre: string; hex?: string | null }): Observable<Color> {
+    return this.http.post<Color>(`${this.apiBase}/catalogo-maestro/colores`, datos);
+  }
+
+  updateColor(id: number, datos: { nombre?: string; hex?: string | null }): Observable<Color> {
+    return this.http.put<Color>(`${this.apiBase}/catalogo-maestro/colores/${id}`, datos);
+  }
+
+  deleteColor(id: number): Observable<{ message: string }> {
+    return this.http.delete<{ message: string }>(`${this.apiBase}/catalogo-maestro/colores/${id}`);
+  }
+
   // --- CU-11: Variantes de prenda ---
   getVariantes(prendaId: number): Observable<VariantePrenda[]> {
     return this.http.get<VariantePrenda[]>(`${this.apiBase}/prendas/${prendaId}/variantes`);
+  }
+
+  createVariante(prendaId: number, datos: { talla_id: number; color_id: number }): Observable<VariantePrenda> {
+    return this.http.post<VariantePrenda>(`${this.apiBase}/prendas/${prendaId}/variantes`, datos);
+  }
+
+  deleteVariante(prendaId: number, varianteId: number): Observable<{ message: string }> {
+    return this.http.delete<{ message: string }>(`${this.apiBase}/prendas/${prendaId}/variantes/${varianteId}`);
   }
 
   // --- CU-13: Disponibilidad por sucursal ---

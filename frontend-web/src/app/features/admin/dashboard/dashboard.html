@@ -110,6 +110,18 @@
     </button>
     <button
       class="nav-pill-btn"
+      [class.active]="activeTab() === 'catalogo-maestro'"
+      (click)="cambiarTab('catalogo-maestro')"
+    >
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M4 4h16v4H4z"/>
+        <path d="M4 4v16h16V4"/>
+        <path d="M4 12h16"/>
+      </svg>
+      Catálogo Maestro
+    </button>
+    <button
+      class="nav-pill-btn"
       [class.active]="activeTab() === 'bitacora'"
       (click)="cambiarTab('bitacora')"
     >
@@ -434,9 +446,15 @@
             <tr *ngFor="let p of prendasFiltradas()">
               <td>#{{ p.id }}</td>
               <td>
-                <strong>{{ p.nombre }}</strong>
-                <div style="font-size: 0.75rem; color: #64748b; max-width: 250px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-                  {{ p.descripcion }}
+                <div style="display: flex; align-items: center; gap: 0.6rem;">
+                  <img *ngIf="p.imagen_url" [src]="p.imagen_url" [alt]="p.nombre" style="width: 38px; height: 38px; border-radius: 8px; object-fit: cover; flex-shrink: 0;" />
+                  <span *ngIf="!p.imagen_url" class="avatar-badge" style="border-radius: 8px;">👗</span>
+                  <div>
+                    <strong>{{ p.nombre }}</strong>
+                    <div style="font-size: 0.75rem; color: #64748b; max-width: 220px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                      {{ p.descripcion }}
+                    </div>
+                  </div>
                 </div>
               </td>
               <td>
@@ -454,12 +472,136 @@
                 </span>
               </td>
               <td>
-                <button class="btn btn-secondary btn-sm" (click)="abrirModalPrenda(p)">Editar</button>
+                <button class="btn btn-secondary btn-sm" (click)="abrirModalVariantes(p)">Variantes</button>
+                <button class="btn btn-secondary btn-sm" style="margin-left: 6px;" (click)="abrirModalPrenda(p)">Editar</button>
                 <button class="btn btn-danger btn-sm" style="margin-left: 6px;" (click)="eliminarPrenda(p.id)">Baja</button>
               </td>
             </tr>
           </tbody>
         </table>
+      </div>
+    </section>
+
+    <!-- TAB: CATÁLOGO MAESTRO (CU-09) -->
+    <section *ngIf="activeTab() === 'catalogo-maestro'">
+      <div class="action-header">
+        <div class="header-title-box">
+          <h3>Catálogo Maestro</h3>
+          <p style="font-size: 0.85rem;">Categorías, tallas y colores usados para clasificar prendas y variantes</p>
+        </div>
+      </div>
+
+      <div class="grid-3" style="align-items: flex-start;">
+        <!-- Categorías -->
+        <div class="card" style="background: #ffffff;">
+          <h4 style="margin-bottom: 0.35rem;">Categorías</h4>
+          <p style="font-size: 0.82rem; margin-bottom: 1rem;">Clasificación principal de las prendas</p>
+
+          <div style="display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 1rem;">
+            <input
+              type="text"
+              [(ngModel)]="nuevaCategoriaForm.nombre"
+              placeholder="Nombre de la categoría"
+              style="padding: 0.55rem 0.75rem; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 0.85rem;"
+            />
+            <input
+              type="text"
+              [(ngModel)]="nuevaCategoriaForm.descripcion"
+              placeholder="Descripción (opcional)"
+              style="padding: 0.55rem 0.75rem; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 0.85rem;"
+            />
+            <button class="btn btn-primary btn-sm" (click)="agregarCategoria()">+ Añadir Categoría</button>
+          </div>
+
+          <div style="display: flex; flex-direction: column; gap: 0.4rem; max-height: 260px; overflow-y: auto;">
+            <div
+              *ngFor="let cat of categorias()"
+              style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 0.6rem; border: 1px solid #e2e8f0; border-radius: 8px;"
+            >
+              <div>
+                <strong style="font-size: 0.85rem;">{{ cat.nombre }}</strong>
+                <div style="font-size: 0.75rem; color: #94a3b8;">{{ cat.descripcion || 'Sin descripción' }}</div>
+              </div>
+              <button
+                class="btn btn-sm"
+                [class.btn-secondary]="cat.estado"
+                [class.btn-danger]="!cat.estado"
+                (click)="toggleCategoriaEstado(cat)"
+              >
+                {{ cat.estado ? 'Activa' : 'Inactiva' }}
+              </button>
+            </div>
+            <div *ngIf="!categorias().length" style="color: #94a3b8; font-size: 0.85rem; text-align: center; padding: 1rem 0;">
+              Sin categorías registradas
+            </div>
+          </div>
+        </div>
+
+        <!-- Tallas -->
+        <div class="card" style="background: #ffffff;">
+          <h4 style="margin-bottom: 0.35rem;">Tallas</h4>
+          <p style="font-size: 0.82rem; margin-bottom: 1rem;">Tallas disponibles para las variantes de prenda</p>
+
+          <div style="display: flex; gap: 0.5rem; margin-bottom: 1rem;">
+            <input
+              type="text"
+              [(ngModel)]="nuevaTallaNombre"
+              placeholder="ej. S, M, L, XL"
+              style="flex: 1; padding: 0.55rem 0.75rem; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 0.85rem;"
+            />
+            <button class="btn btn-primary btn-sm" (click)="agregarTalla()">+ Añadir</button>
+          </div>
+
+          <div style="display: flex; flex-direction: column; gap: 0.4rem; max-height: 260px; overflow-y: auto;">
+            <div
+              *ngFor="let t of tallas()"
+              style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 0.6rem; border: 1px solid #e2e8f0; border-radius: 8px;"
+            >
+              <strong style="font-size: 0.85rem;">{{ t.nombre }}</strong>
+              <button class="btn btn-danger btn-sm" (click)="eliminarTalla(t.id)">Eliminar</button>
+            </div>
+            <div *ngIf="!tallas().length" style="color: #94a3b8; font-size: 0.85rem; text-align: center; padding: 1rem 0;">
+              Sin tallas registradas
+            </div>
+          </div>
+        </div>
+
+        <!-- Colores -->
+        <div class="card" style="background: #ffffff;">
+          <h4 style="margin-bottom: 0.35rem;">Colores</h4>
+          <p style="font-size: 0.82rem; margin-bottom: 1rem;">Colores disponibles para las variantes de prenda</p>
+
+          <div style="display: flex; gap: 0.5rem; margin-bottom: 1rem;">
+            <input
+              type="color"
+              [(ngModel)]="nuevoColorForm.hex"
+              style="width: 42px; height: 38px; padding: 2px; border: 1px solid #e2e8f0; border-radius: 8px; cursor: pointer;"
+            />
+            <input
+              type="text"
+              [(ngModel)]="nuevoColorForm.nombre"
+              placeholder="ej. Azul Marino"
+              style="flex: 1; padding: 0.55rem 0.75rem; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 0.85rem;"
+            />
+            <button class="btn btn-primary btn-sm" (click)="agregarColor()">+ Añadir</button>
+          </div>
+
+          <div style="display: flex; flex-direction: column; gap: 0.4rem; max-height: 260px; overflow-y: auto;">
+            <div
+              *ngFor="let c of colores()"
+              style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 0.6rem; border: 1px solid #e2e8f0; border-radius: 8px;"
+            >
+              <div style="display: flex; align-items: center; gap: 0.5rem;">
+                <span style="width: 16px; height: 16px; border-radius: 50%; border: 1px solid #e2e8f0;" [style.background]="c.hex || '#cbd5e1'"></span>
+                <strong style="font-size: 0.85rem;">{{ c.nombre }}</strong>
+              </div>
+              <button class="btn btn-danger btn-sm" (click)="eliminarColor(c.id)">Eliminar</button>
+            </div>
+            <div *ngIf="!colores().length" style="color: #94a3b8; font-size: 0.85rem; text-align: center; padding: 1rem 0;">
+              Sin colores registrados
+            </div>
+          </div>
+        </div>
       </div>
     </section>
 
@@ -726,9 +868,14 @@
           <input type="number" step="0.01" [(ngModel)]="prendaForm.precio_base" name="prenda_precio" required />
         </div>
         <div class="form-group">
-          <label>URL Modelo 3D (Vestidor RA .glb/.gltf)</label>
-          <input type="url" [(ngModel)]="prendaForm.modelo_3d_url" name="prenda_3d" placeholder="https://storage.googleapis.com/..." />
+          <label>URL de Imagen (foto de la prenda)</label>
+          <input type="url" [(ngModel)]="prendaForm.imagen_url" name="prenda_img" placeholder="https://images.unsplash.com/..." />
         </div>
+      </div>
+
+      <div class="form-group">
+        <label>URL Modelo 3D (Vestidor RA .glb/.gltf) — sin usar actualmente</label>
+        <input type="url" [(ngModel)]="prendaForm.modelo_3d_url" name="prenda_3d" placeholder="https://storage.googleapis.com/..." />
       </div>
 
       <div style="display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 1.5rem;">
@@ -736,5 +883,69 @@
         <button type="submit" class="btn btn-primary">Guardar Prenda</button>
       </div>
     </form>
+  </div>
+</div>
+
+<!-- Modal Variantes de Prenda -->
+<div *ngIf="showModal() === 'variantes'" class="modal-overlay">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3>Variantes de "{{ prendaSeleccionadaVariantes()?.nombre }}"</h3>
+      <button class="btn btn-secondary btn-icon" (click)="cerrarModal()">✕</button>
+    </div>
+
+    <div class="grid-2" style="align-items: end; margin-bottom: 1rem;">
+      <div class="form-group">
+        <label>Talla</label>
+        <select [(ngModel)]="nuevaVarianteForm.talla_id" name="var_talla">
+          <option *ngFor="let t of tallas()" [ngValue]="t.id">{{ t.nombre }}</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Color</label>
+        <select [(ngModel)]="nuevaVarianteForm.color_id" name="var_color">
+          <option *ngFor="let c of colores()" [ngValue]="c.id">{{ c.nombre }}</option>
+        </select>
+      </div>
+    </div>
+    <button class="btn btn-primary btn-sm" style="margin-bottom: 1.25rem;" (click)="agregarVariante()">+ Agregar Variante</button>
+
+    <div class="table-responsive">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Talla</th>
+            <th>Color</th>
+            <th>Código de Barras</th>
+            <th>Estado</th>
+            <th>Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let v of variantesPrendaActual()">
+            <td>{{ v.talla_nombre }}</td>
+            <td>{{ v.color_nombre }}</td>
+            <td><code style="font-size: 0.75rem;">{{ v.codigo_barras }}</code></td>
+            <td>
+              <span class="badge" [ngClass]="v.estado ? 'badge-success' : 'badge-danger'">
+                {{ v.estado ? 'Activa' : 'Inactiva' }}
+              </span>
+            </td>
+            <td>
+              <button *ngIf="v.estado" class="btn btn-danger btn-sm" (click)="eliminarVariante(v.id)">Desactivar</button>
+            </td>
+          </tr>
+          <tr *ngIf="!variantesPrendaActual().length">
+            <td colspan="5" style="text-align: center; color: #94a3b8; padding: 1.5rem;">
+              Esta prenda todavía no tiene variantes registradas
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div style="display: flex; justify-content: flex-end; margin-top: 1.5rem;">
+      <button type="button" class="btn btn-secondary" (click)="cerrarModal()">Cerrar</button>
+    </div>
   </div>
 </div>

@@ -77,6 +77,7 @@ export interface Prenda {
   proveedor_id?: number | null;
   precio_base: number;
   modelo_3d_url?: string | null;
+  imagen_url?: string | null;
   estado: boolean;
   categoria_nombre?: string | null;
   coleccion_nombre?: string | null;

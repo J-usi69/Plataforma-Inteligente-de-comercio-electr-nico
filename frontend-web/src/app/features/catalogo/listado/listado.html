@@ -90,7 +90,8 @@
           </svg>
           Vestidor RA
         </span>
-        <div class="icon-box">
+        <img *ngIf="p.imagen_url" [src]="p.imagen_url" [alt]="p.nombre" class="product-photo" />
+        <div *ngIf="!p.imagen_url" class="icon-box">
           👗
         </div>
       </div>
@@ -137,6 +138,13 @@
       </div>
       <button class="btn btn-secondary btn-icon" (click)="cerrarModalPrenda()">✕</button>
     </div>
+
+    <img
+      *ngIf="prendaModal()?.imagen_url"
+      [src]="prendaModal()?.imagen_url"
+      [alt]="prendaModal()?.nombre"
+      style="width: 100%; max-height: 320px; object-fit: cover; border-radius: 12px; margin-bottom: 1.5rem;"
+    />
 
     <div style="margin-bottom: 1.5rem;">
       <p style="font-size: 0.95rem; color: #475569; line-height: 1.6;">

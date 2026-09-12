@@ -35,6 +35,25 @@ class _VestidorArScreenState extends State<VestidorArScreen> {
       widget.prenda!['imagen_url'] != null &&
       widget.prenda!['imagen_url'].toString().isNotEmpty;
 
+  bool get _esCalzado {
+    final categoria =
+        widget.prenda?['categoria_nombre']?.toString().toLowerCase() ?? '';
+    return categoria.contains('calzado') || categoria.contains('zapatilla');
+  }
+
+  String get _textoInstruccion => _esCalzado
+      ? 'Tómate una foto de cuerpo completo (que se vean tus pies) para ver cómo te quedan estas zapatillas, generada con inteligencia artificial.'
+      : 'Tómate una foto para ver cómo te queda esta prenda, generada con inteligencia artificial.';
+
+  String _traducirError(String mensaje) {
+    if (mensaje.contains('No detections found')) {
+      return _esCalzado
+          ? 'No se detectó una persona en la foto. Para zapatillas, toma una foto de cuerpo completo donde se vean claramente tus pies.'
+          : 'No se detectó una persona en la foto. Asegúrate de que tu rostro y cuerpo se vean con buena iluminación e inténtalo de nuevo.';
+    }
+    return mensaje;
+  }
+
   Future<void> _tomarFotoYGenerar() async {
     if (widget.prenda == null) {
       setState(() {
@@ -46,12 +65,16 @@ class _VestidorArScreenState extends State<VestidorArScreen> {
     if (!_prendaTieneImagen) {
       setState(() {
         _estado = _EstadoVestidor.error;
-        _mensajeError = 'Esta prenda todavía no tiene una foto de referencia configurada por el administrador.';
+        _mensajeError =
+            'Esta prenda todavía no tiene una foto de referencia configurada por el administrador.';
       });
       return;
     }
 
-    final XFile? foto = await _picker.pickImage(source: ImageSource.camera, imageQuality: 90);
+    final XFile? foto = await _picker.pickImage(
+      source: ImageSource.camera,
+      imageQuality: 90,
+    );
     if (foto == null) return;
 
     setState(() {
@@ -116,7 +139,7 @@ class _VestidorArScreenState extends State<VestidorArScreen> {
     final nombrePrenda = widget.prenda?['nombre'] as String?;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Vestidor virtual (CU-14)')),
+      appBar: AppBar(title: const Text('Vestidor virtual')),
       body: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
@@ -125,7 +148,10 @@ class _VestidorArScreenState extends State<VestidorArScreen> {
             if (nombrePrenda != null)
               Text(
                 'Probando: $nombrePrenda',
-                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
                 textAlign: TextAlign.center,
               ),
             const SizedBox(height: 20),
@@ -135,7 +161,11 @@ class _VestidorArScreenState extends State<VestidorArScreen> {
               ElevatedButton.icon(
                 onPressed: _tomarFotoYGenerar,
                 icon: const Icon(Icons.camera_alt),
-                label: Text(_estado == _EstadoVestidor.listo ? 'Probar otra foto' : 'Tomar foto y probar'),
+                label: Text(
+                  _estado == _EstadoVestidor.listo
+                      ? 'Probar otra foto'
+                      : 'Tomar foto y probar',
+                ),
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   backgroundColor: Colors.indigo,
@@ -151,15 +181,12 @@ class _VestidorArScreenState extends State<VestidorArScreen> {
   Widget _buildContenido() {
     switch (_estado) {
       case _EstadoVestidor.inicial:
-        return const Column(
+        return Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.view_in_ar, size: 96, color: Colors.indigo),
-            SizedBox(height: 12),
-            Text(
-              'Tómate una foto para ver cómo te queda esta prenda, generada con inteligencia artificial.',
-              textAlign: TextAlign.center,
-            ),
+            const Icon(Icons.view_in_ar, size: 96, color: Colors.indigo),
+            const SizedBox(height: 12),
+            Text(_textoInstruccion, textAlign: TextAlign.center),
           ],
         );
       case _EstadoVestidor.generando:
@@ -185,7 +212,9 @@ class _VestidorArScreenState extends State<VestidorArScreen> {
             const Icon(Icons.error_outline, size: 64, color: Colors.red),
             const SizedBox(height: 12),
             Text(
-              _mensajeError ?? 'Ocurrió un error inesperado.',
+              _mensajeError != null
+                  ? _traducirError(_mensajeError!)
+                  : 'Ocurrió un error inesperado.',
               textAlign: TextAlign.center,
               style: const TextStyle(color: Colors.red),
             ),

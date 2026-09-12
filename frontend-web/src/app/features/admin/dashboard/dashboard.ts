@@ -6,12 +6,15 @@ import {
   Categoria,
   Ciudad,
   Coleccion,
+  Color,
   Permiso,
   Personal,
   Prenda,
   Proveedor,
   Rol,
   Sucursal,
+  Talla,
+  VariantePrenda,
 } from '../../../core/models/user.model';
 import { AuthService } from '../../../core/services/auth.service';
 import { BusinessService } from '../../../core/services/business.service';
@@ -145,7 +148,7 @@ export class Dashboard implements OnInit {
   private readonly business = inject(BusinessService);
   readonly authService = inject(AuthService);
 
-  activeTab = signal<'roles' | 'personal' | 'sucursales' | 'proveedores' | 'prendas' | 'bitacora'>('roles');
+  activeTab = signal<'roles' | 'personal' | 'sucursales' | 'proveedores' | 'prendas' | 'catalogo-maestro' | 'bitacora'>('roles');
   isLoading = signal(false);
   filtroTexto = signal('');
   alertMessage = signal<{ type: 'success' | 'danger'; text: string } | null>(null);
@@ -160,6 +163,10 @@ export class Dashboard implements OnInit {
   prendas = signal<Prenda[]>([]);
   categorias = signal<Categoria[]>([]);
   colecciones = signal<Coleccion[]>([]);
+  tallas = signal<Talla[]>([]);
+  colores = signal<Color[]>([]);
+  variantesPrendaActual = signal<VariantePrenda[]>([]);
+  prendaSeleccionadaVariantes = signal<Prenda | null>(null);
   bitacora = signal<Bitacora[]>([]);
 
   // Computed KPIs
@@ -194,6 +201,10 @@ export class Dashboard implements OnInit {
     hora_fin: '21:00',
   };
   nuevaCiudadNombre = '';
+  nuevaCategoriaForm = { nombre: '', descripcion: '' };
+  nuevaTallaNombre = '';
+  nuevoColorForm = { nombre: '', hex: '#4f46e5' };
+  nuevaVarianteForm = { talla_id: null as number | null, color_id: null as number | null };
   proveedorForm = { id: 0, nombre_empresa: '', contacto: '' };
   prendaForm = {
     id: 0,
@@ -204,6 +215,7 @@ export class Dashboard implements OnInit {
     proveedor_id: null as number | null,
     precio_base: 150.0,
     modelo_3d_url: '',
+    imagen_url: '',
   };
 
   // Filtrados reactivos
@@ -260,7 +272,7 @@ export class Dashboard implements OnInit {
     this.cambiarTab(this.activeTab());
   }
 
-  cambiarTab(tab: 'roles' | 'personal' | 'sucursales' | 'proveedores' | 'prendas' | 'bitacora'): void {
+  cambiarTab(tab: 'roles' | 'personal' | 'sucursales' | 'proveedores' | 'prendas' | 'catalogo-maestro' | 'bitacora'): void {
     this.activeTab.set(tab);
     this.alertMessage.set(null);
     this.filtroTexto.set('');
@@ -289,6 +301,13 @@ export class Dashboard implements OnInit {
     } else if (tab === 'prendas') {
       this.business.getPrendas().subscribe({
         next: (data) => { this.prendas.set(data); this.isLoading.set(false); },
+        error: () => this.isLoading.set(false),
+      });
+    } else if (tab === 'catalogo-maestro') {
+      this.business.getCategorias().subscribe({ next: (data) => this.categorias.set(data) });
+      this.business.getTallas().subscribe({ next: (data) => this.tallas.set(data) });
+      this.business.getColores().subscribe({
+        next: (data) => { this.colores.set(data); this.isLoading.set(false); },
         error: () => this.isLoading.set(false),
       });
     } else if (tab === 'bitacora') {
@@ -555,6 +574,7 @@ export class Dashboard implements OnInit {
         proveedor_id: p.proveedor_id || null,
         precio_base: p.precio_base,
         modelo_3d_url: p.modelo_3d_url || '',
+        imagen_url: p.imagen_url || '',
       };
     } else {
       this.prendaForm = {
@@ -566,6 +586,7 @@ export class Dashboard implements OnInit {
         proveedor_id: this.proveedores().length ? this.proveedores()[0].id : null,
         precio_base: 150.0,
         modelo_3d_url: '',
+        imagen_url: '',
       };
     }
     this.showModal.set('prenda');
@@ -601,6 +622,125 @@ export class Dashboard implements OnInit {
         this.cambiarTab('prendas');
       },
       error: (err) => this.mostrarAlerta('danger', err.error?.detail || 'Error al eliminar prenda'),
+    });
+  }
+
+  // --- CU-09: Catálogo Maestro (Categorías, Tallas y Colores) ---
+  agregarCategoria(): void {
+    if (!this.nuevaCategoriaForm.nombre.trim()) return;
+    this.business.createCategoria(this.nuevaCategoriaForm).subscribe({
+      next: (nueva) => {
+        this.categorias.update((prev) => [...prev, nueva]);
+        this.nuevaCategoriaForm = { nombre: '', descripcion: '' };
+        this.mostrarAlerta('success', 'Categoría registrada correctamente');
+      },
+      error: (err) => this.mostrarAlerta('danger', err.error?.detail || 'Error al registrar la categoría'),
+    });
+  }
+
+  toggleCategoriaEstado(cat: Categoria): void {
+    this.business.updateCategoria(cat.id, { estado: !cat.estado }).subscribe({
+      next: (actualizada) => {
+        this.categorias.update((prev) => prev.map((c) => (c.id === actualizada.id ? actualizada : c)));
+        this.mostrarAlerta('success', actualizada.estado ? 'Categoría activada' : 'Categoría desactivada');
+      },
+      error: (err) => this.mostrarAlerta('danger', err.error?.detail || 'Error al actualizar la categoría'),
+    });
+  }
+
+  agregarTalla(): void {
+    if (!this.nuevaTallaNombre.trim()) return;
+    this.business.createTalla(this.nuevaTallaNombre.trim()).subscribe({
+      next: (nueva) => {
+        this.tallas.update((prev) => [...prev, nueva]);
+        this.nuevaTallaNombre = '';
+        this.mostrarAlerta('success', 'Talla registrada correctamente');
+      },
+      error: (err) => this.mostrarAlerta('danger', err.error?.detail || 'Error al registrar la talla'),
+    });
+  }
+
+  eliminarTalla(id: number): void {
+    if (!confirm('¿Está seguro de eliminar esta talla?')) return;
+    this.business.deleteTalla(id).subscribe({
+      next: () => {
+        this.tallas.update((prev) => prev.filter((t) => t.id !== id));
+        this.mostrarAlerta('success', 'Talla eliminada correctamente');
+      },
+      error: (err) => this.mostrarAlerta('danger', err.error?.detail || 'Error al eliminar la talla'),
+    });
+  }
+
+  agregarColor(): void {
+    if (!this.nuevoColorForm.nombre.trim()) return;
+    this.business.createColor(this.nuevoColorForm).subscribe({
+      next: (nuevo) => {
+        this.colores.update((prev) => [...prev, nuevo]);
+        this.nuevoColorForm = { nombre: '', hex: '#4f46e5' };
+        this.mostrarAlerta('success', 'Color registrado correctamente');
+      },
+      error: (err) => this.mostrarAlerta('danger', err.error?.detail || 'Error al registrar el color'),
+    });
+  }
+
+  eliminarColor(id: number): void {
+    if (!confirm('¿Está seguro de eliminar este color?')) return;
+    this.business.deleteColor(id).subscribe({
+      next: () => {
+        this.colores.update((prev) => prev.filter((c) => c.id !== id));
+        this.mostrarAlerta('success', 'Color eliminado correctamente');
+      },
+      error: (err) => this.mostrarAlerta('danger', err.error?.detail || 'Error al eliminar el color'),
+    });
+  }
+
+  // --- CU-11: Variantes de prenda (talla + color) ---
+  abrirModalVariantes(prenda: Prenda): void {
+    this.prendaSeleccionadaVariantes.set(prenda);
+    this.nuevaVarianteForm = { talla_id: null, color_id: null };
+    this.business.getTallas().subscribe((data) => {
+      this.tallas.set(data);
+      if (data.length) this.nuevaVarianteForm.talla_id = data[0].id;
+    });
+    this.business.getColores().subscribe((data) => {
+      this.colores.set(data);
+      if (data.length) this.nuevaVarianteForm.color_id = data[0].id;
+    });
+    this.cargarVariantesDePrenda(prenda.id);
+    this.showModal.set('variantes');
+  }
+
+  cargarVariantesDePrenda(prendaId: number): void {
+    this.business.getVariantes(prendaId).subscribe((data) => this.variantesPrendaActual.set(data));
+  }
+
+  agregarVariante(): void {
+    const prenda = this.prendaSeleccionadaVariantes();
+    if (!prenda || !this.nuevaVarianteForm.talla_id || !this.nuevaVarianteForm.color_id) return;
+
+    this.business.createVariante(prenda.id, {
+      talla_id: this.nuevaVarianteForm.talla_id,
+      color_id: this.nuevaVarianteForm.color_id,
+    }).subscribe({
+      next: (nueva) => {
+        this.variantesPrendaActual.update((prev) => [...prev, nueva]);
+        this.mostrarAlerta('success', 'Variante agregada correctamente');
+      },
+      error: (err) => this.mostrarAlerta('danger', err.error?.detail || 'Error al agregar la variante'),
+    });
+  }
+
+  eliminarVariante(varianteId: number): void {
+    const prenda = this.prendaSeleccionadaVariantes();
+    if (!prenda) return;
+    if (!confirm('¿Está seguro de desactivar esta variante?')) return;
+
+    this.business.deleteVariante(prenda.id, varianteId).subscribe({
+      next: () => {
+        this.cargarVariantesDePrenda(prenda.id);
+        this.mostrarAlerta('success', 'Variante desactivada correctamente');
+      },
+      error: (err) => this.mostrarAlerta('danger', err.error?.detail || 'Error al desactivar la variante'),
     });
   }
 }
