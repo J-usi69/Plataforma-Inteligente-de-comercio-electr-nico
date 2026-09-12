@@ -538,3 +538,4 @@ def obtener_venta(
     if not venta:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Venta no encontrada")
     return _venta_a_out(db, venta)
+

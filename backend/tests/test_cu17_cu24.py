@@ -166,3 +166,4 @@ def test_cu21_cu22_cu24_compra_digital_pago_y_mis_compras():
         compras = res_historial.json()
         assert len(compras) > 0
         assert any(c["id"] == venta_id for c in compras)
+

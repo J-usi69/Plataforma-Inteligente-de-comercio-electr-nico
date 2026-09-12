@@ -162,6 +162,7 @@ CREATE TABLE prenda (
     proveedor_id INTEGER REFERENCES proveedor(id),
     precio_base NUMERIC(10,2) NOT NULL,
     modelo_3d_url VARCHAR(500),
+    imagen_url VARCHAR(500),
     estado BOOLEAN NOT NULL DEFAULT TRUE
 );
 

@@ -285,3 +285,4 @@ export class CajaPos implements OnInit {
     window.print();
   }
 }
+

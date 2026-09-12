@@ -116,3 +116,4 @@ class ComprobanteVentaOut(BaseModel):
     subtotal: float
     total: float
     items: List[ComprobanteItemOut] = []
+

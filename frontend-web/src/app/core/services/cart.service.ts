@@ -95,3 +95,4 @@ export class CartService {
     localStorage.removeItem('fs_cart');
   }
 }
+
