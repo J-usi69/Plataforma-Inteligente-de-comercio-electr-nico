@@ -50,7 +50,7 @@ class Pago(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     venta_id: Mapped[int] = mapped_column(ForeignKey("venta.id", ondelete="CASCADE"))
     metodo_pago: Mapped[str] = mapped_column(String(30))
-    pasarela: Mapped[str | None] = mapped_column(String(30))
+    pasarela: Mapped[str | None] = mapped_column(String(60))
     estado: Mapped[EstadoPago] = mapped_column(
         Enum(EstadoPago, name="estado_pago", create_type=False), default=EstadoPago.pendiente
     )
