@@ -49,6 +49,9 @@ services:
     restart: unless-stopped
     ports:
       - "4200:80"
+    environment:
+      BACKEND_UPSTREAM: http://backend:8000
+      BACKEND_HOST: backend:8000
     depends_on:
       - backend
     networks:

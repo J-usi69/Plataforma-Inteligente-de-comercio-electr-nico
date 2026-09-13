@@ -7,6 +7,10 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_client_ip, get_current_active_user, get_db, get_user_roles, registrar_bitacora, require_roles
 
 _ROLES_STAFF_SUCURSAL = ["Encargado", "Administrador"]
+# El Cajero necesita poder ver las reservas de su sucursal (para cargar una
+# reserva "atendida" al momento de cobrar en caja), aunque no pueda
+# confirmar/atender/marcar no-show — esas acciones siguen siendo solo del Encargado.
+_ROLES_LECTURA_RESERVAS_SUCURSAL = ["Encargado", "Cajero", "Administrador"]
 from app.models.catalogo import Color, Prenda, Talla, VariantePrenda
 from app.models.enums import EstadoReserva, TipoMovimiento
 from app.models.inventario import InventarioSucursal, MovimientoInventario
@@ -156,9 +160,9 @@ def listar_reservas_sucursal(
     sucursal_id: int,
     estado: Optional[str] = None,
     db: Session = Depends(get_db),
-    current_user: Usuario = Depends(require_roles(_ROLES_STAFF_SUCURSAL)),
+    current_user: Usuario = Depends(require_roles(_ROLES_LECTURA_RESERVAS_SUCURSAL)),
 ):
-    """CU-17: Listar reservas asignadas a una sucursal para preparación y recepción"""
+    """Listar reservas asignadas a una sucursal para preparación, recepción y cobro en caja"""
     stmt = select(Reserva).where(Reserva.sucursal_id == sucursal_id)
     if estado:
         stmt = stmt.where(Reserva.estado == EstadoReserva(estado))
@@ -173,13 +177,13 @@ def obtener_reserva(
     db: Session = Depends(get_db),
     current_user: Usuario = Depends(get_current_active_user),
 ):
-    """CU-16 / CU-17: Consultar el detalle de una reserva (dueño o personal de sucursal)"""
+    """Consultar el detalle de una reserva (dueño o personal de sucursal)"""
     reserva = db.get(Reserva, reserva_id)
     if not reserva:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Reserva no encontrada")
     if reserva.usuario_id != current_user.id:
         roles = get_user_roles(current_user.id, db)
-        if not any(rol in _ROLES_STAFF_SUCURSAL for rol in roles):
+        if not any(rol in _ROLES_LECTURA_RESERVAS_SUCURSAL for rol in roles):
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Reserva no encontrada")
     return _reserva_a_out(db, reserva)
 
@@ -191,7 +195,7 @@ def confirmar_preparacion_reserva(
     db: Session = Depends(get_db),
     current_user: Usuario = Depends(require_roles(_ROLES_STAFF_SUCURSAL)),
 ):
-    """CU-17: El Encargado de Sucursal confirma que apartó físicamente las prendas de la reserva"""
+    """El Encargado de Sucursal confirma que apartó físicamente las prendas de la reserva"""
     reserva = db.get(Reserva, reserva_id)
     if not reserva:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Reserva no encontrada")
@@ -220,7 +224,7 @@ def confirmar_recepcion_cliente(
     db: Session = Depends(get_db),
     current_user: Usuario = Depends(require_roles(_ROLES_STAFF_SUCURSAL)),
 ):
-    """CU-18: El Encargado confirma la llegada del cliente a la sucursal y entrega las prendas al vestidor"""
+    """El Encargado confirma la llegada del cliente a la sucursal y entrega las prendas al vestidor"""
     reserva = db.get(Reserva, reserva_id)
     if not reserva:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Reserva no encontrada")
@@ -249,7 +253,7 @@ def marcar_reserva_no_show(
     db: Session = Depends(get_db),
     current_user: Usuario = Depends(require_roles(_ROLES_STAFF_SUCURSAL)),
 ):
-    """CU-18 Excepción: El cliente no se presentó a su cita, liberando el stock reservado"""
+    """Excepción: el cliente no se presentó a su cita, liberando el stock reservado"""
     reserva = db.get(Reserva, reserva_id)
     if not reserva:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Reserva no encontrada")
