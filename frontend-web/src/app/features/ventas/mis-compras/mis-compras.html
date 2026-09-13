@@ -1,0 +1,100 @@
+<div class="container">
+  <div style="margin-bottom: 2rem;">
+    <h2>Mis Compras Realizadas</h2>
+    <p>Consulta tus adquisiciones presenciales y digitales con sus comprobantes y tickets de venta oficiales.</p>
+  </div>
+
+  <div *ngIf="isLoading()" style="text-align: center; padding: 3rem 0;">
+    <div style="font-size: 1.1rem; font-weight: 600; color: #4f46e5;">Cargando tu historial de compras...</div>
+  </div>
+
+  <div *ngIf="!isLoading() && !compras().length" style="text-align: center; padding: 4rem 1rem; background: #ffffff; border-radius: 16px; border: 1px dashed #cbd5e1;">
+    <div style="font-size: 3rem; margin-bottom: 0.5rem;">🧾</div>
+    <h3>Todavía no tienes compras registradas</h3>
+    <p style="margin-top: 0.5rem; color: #64748b;">Cuando compres en sucursal o en línea, aquí podrás descargar tus tickets y facturas.</p>
+    <a routerLink="/catalogo" class="btn btn-primary" style="margin-top: 1.5rem;">Explorar Catálogo</a>
+  </div>
+
+  <div *ngIf="!isLoading() && compras().length">
+    <div *ngFor="let c of compras()" class="compra-card">
+      <div style="flex: 1;">
+        <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.5rem;">
+          <h4 style="margin: 0; font-size: 1.15rem;">Venta #{{ c.id }}</h4>
+          <span class="badge" [ngClass]="c.estado === 'pagada' ? 'badge-success' : 'badge-warning'">
+            {{ c.estado | uppercase }}
+          </span>
+          <span class="badge badge-info">{{ c.tipo_origen | uppercase }}</span>
+          <span style="font-size: 0.8rem; color: #64748b;">
+            🕒 {{ c.fecha_venta | date: 'dd/MM/yyyy HH:mm' }}
+          </span>
+        </div>
+
+        <div style="font-size: 0.85rem; color: #475569; margin-bottom: 0.5rem;">
+          🏬 <strong>Sucursal:</strong> {{ c.sucursal_nombre || 'Sucursal Central' }}
+        </div>
+
+        <div style="font-size: 0.82rem; color: #64748b;">
+          <strong>Prendas:</strong>
+          <span *ngFor="let d of c.detalles; let last = last">
+            {{ d.cantidad }}x {{ d.prenda_nombre }} ({{ d.talla_nombre || 'M' }}){{ !last ? ', ' : '' }}
+          </span>
+        </div>
+      </div>
+
+      <div style="text-align: right; display: flex; flex-direction: column; align-items: flex-end; gap: 0.75rem;">
+        <div>
+          <span style="font-size: 0.75rem; color: #94a3b8; display: block;">TOTAL PAGADO:</span>
+          <span style="font-size: 1.5rem; font-weight: 800; color: #0f172a;">
+            Bs. {{ c.total | number: '1.2-2' }}
+          </span>
+        </div>
+
+        <button class="btn btn-secondary btn-sm" (click)="verComprobante(c.id)">
+          📄 Ver Comprobante (CU-23)
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- MODAL COMPROBANTE OFICIAL (CU-23) -->
+<!-- ============================================================ -->
+<div *ngIf="comprobanteSeleccionado()" class="modal-overlay">
+  <div class="modal-content" style="max-width: 480px;">
+    <div style="background: #ffffff; border: 1px dashed #94a3b8; padding: 1.5rem; border-radius: 8px; font-family: monospace;">
+      <div style="text-align: center; border-bottom: 1px dashed #94a3b8; padding-bottom: 1rem; margin-bottom: 1rem;">
+        <h3 style="margin: 0; font-size: 1.2rem;">FASHIONSTORE S.R.L.</h3>
+        <div style="font-size: 0.8rem;">{{ comprobanteSeleccionado()?.sucursal_nombre }}</div>
+        <div style="font-size: 0.75rem;">{{ comprobanteSeleccionado()?.sucursal_direccion }}</div>
+      </div>
+
+      <div style="font-size: 0.8rem; margin-bottom: 0.75rem;">
+        <div><strong>COMPROBANTE N°:</strong> {{ comprobanteSeleccionado()?.numero_comprobante }}</div>
+        <div><strong>FECHA:</strong> {{ comprobanteSeleccionado()?.fecha_emision | date: 'dd/MM/yyyy HH:mm' }}</div>
+        <div><strong>CLIENTE:</strong> {{ comprobanteSeleccionado()?.cliente_nombre }}</div>
+        <div><strong>MÉTODO DE PAGO:</strong> {{ comprobanteSeleccionado()?.metodo_pago }}</div>
+        <div *ngIf="comprobanteSeleccionado()?.transaccion_id">
+          <strong>TRANSACCIÓN:</strong> {{ comprobanteSeleccionado()?.transaccion_id }}
+        </div>
+      </div>
+
+      <div style="border-top: 1px dashed #94a3b8; border-bottom: 1px dashed #94a3b8; padding: 0.5rem 0; margin-bottom: 0.75rem;">
+        <div *ngFor="let item of comprobanteSeleccionado()?.items" style="display: flex; justify-content: space-between; font-size: 0.8rem; margin-bottom: 0.25rem;">
+          <div>{{ item.cantidad }}x {{ item.descripcion }} ({{ item.talla }})</div>
+          <div>Bs. {{ item.subtotal | number: '1.2-2' }}</div>
+        </div>
+      </div>
+
+      <div style="text-align: right; font-size: 1.15rem; font-weight: 800;">
+        TOTAL: Bs. {{ comprobanteSeleccionado()?.total | number: '1.2-2' }}
+      </div>
+    </div>
+
+    <div style="display: flex; gap: 0.75rem; margin-top: 1.5rem;">
+      <button class="btn btn-secondary" style="flex: 1;" (click)="cerrarComprobante()">Cerrar</button>
+      <button class="btn btn-primary" style="flex: 1;" (click)="imprimirComprobante()">🖨️ Imprimir Ticket</button>
+    </div>
+  </div>
+</div>
+

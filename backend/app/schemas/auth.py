@@ -19,6 +19,18 @@ class UsuarioUpdate(BaseModel):
     estado: Optional[bool] = None
 
 
+class PersonalBriefOut(BaseModel):
+    id: int
+    nombres: str
+    apellidos: str
+    cargo: str
+    sucursal_id: Optional[int] = None
+    sucursal_nombre: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+
 class UsuarioOut(BaseModel):
     id: int
     correo: str
@@ -27,6 +39,7 @@ class UsuarioOut(BaseModel):
     roles: List[str] = []
     permisos: List[str] = []
     creado_en: Optional[datetime] = None
+    personal: Optional[PersonalBriefOut] = None
 
     class Config:
         from_attributes = True
@@ -47,4 +60,3 @@ class BitacoraOut(BaseModel):
 
     class Config:
         from_attributes = True
-

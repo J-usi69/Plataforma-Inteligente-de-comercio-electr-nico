@@ -252,4 +252,54 @@ class ApiService {
     final res = await post('/api/v1/reservas/$reservaId/cancelar', {});
     return Map<String, dynamic>.from(res);
   }
+
+  // --- CU-21 a CU-24: Ventas y Pagos Digitales Móviles ---
+
+  // CU-21: Crear venta digital desde app móvil
+  Future<Map<String, dynamic>> crearVentaDigital({
+    required int sucursalId,
+    required List<Map<String, dynamic>> detalles,
+    String tipoEntrega = 'DOMICILIO',
+    String? direccionEnvio,
+  }) async {
+    final body = {
+      'sucursal_id': sucursalId,
+      'tipo_entrega': tipoEntrega,
+      if (direccionEnvio != null && direccionEnvio.isNotEmpty)
+        'direccion_envio': direccionEnvio,
+      'detalles': detalles,
+    };
+    final res = await post('/api/v1/ventas/digital', body);
+    return Map<String, dynamic>.from(res);
+  }
+
+  // CU-22: Procesar pago digital (QR Libélula o Tarjeta)
+  Future<Map<String, dynamic>> pagarVentaDigital({
+    required int ventaId,
+    required String metodoPago,
+    String? referenciaTransaccion,
+    Map<String, dynamic>? datosTarjeta,
+  }) async {
+    final body = {
+      'metodo_pago': metodoPago,
+      if (referenciaTransaccion != null)
+        'referencia_transaccion': referenciaTransaccion,
+      if (datosTarjeta != null)
+        'datos_tarjeta': datosTarjeta,
+    };
+    final res = await post('/api/v1/ventas/$ventaId/pagar-digital', body);
+    return Map<String, dynamic>.from(res);
+  }
+
+  // CU-23: Obtener comprobante digital oficial de venta
+  Future<Map<String, dynamic>> getComprobanteVenta(int ventaId) async {
+    final res = await get('/api/v1/ventas/comprobante/$ventaId');
+    return Map<String, dynamic>.from(res);
+  }
+
+  // CU-24: Consultar historial de compras del cliente
+  Future<List<dynamic>> getMisCompras() async {
+    final res = await get('/api/v1/ventas/mis-compras');
+    return res is List ? res : [];
+  }
 }

@@ -7,6 +7,7 @@ import {
   Ciudad,
   Coleccion,
   Color,
+  ComprobanteVenta,
   DisponibilidadSucursal,
   Permiso,
   Personal,
@@ -17,6 +18,7 @@ import {
   Sucursal,
   Talla,
   VariantePrenda,
+  Venta,
 } from '../models/user.model';
 
 @Injectable({ providedIn: 'root' })
@@ -265,6 +267,68 @@ export class BusinessService {
 
   deletePrenda(id: number): Observable<{ message: string }> {
     return this.http.delete<{ message: string }>(`${this.apiBase}/prendas/${id}`);
+  }
+
+  // --- CU-17 / CU-18: Gestión de reservas por sucursal (Encargado) ---
+  getReservasSucursal(sucursalId: number, estado?: string): Observable<Reserva[]> {
+    const params: any = {};
+    if (estado) params.estado = estado;
+    return this.http.get<Reserva[]>(`${this.apiBase}/reservas/sucursal/${sucursalId}`, { params });
+  }
+
+  confirmarPreparacionReserva(reservaId: number): Observable<Reserva> {
+    return this.http.post<Reserva>(`${this.apiBase}/reservas/${reservaId}/confirmar`, {});
+  }
+
+  confirmarRecepcionCliente(reservaId: number): Observable<Reserva> {
+    return this.http.post<Reserva>(`${this.apiBase}/reservas/${reservaId}/atender`, {});
+  }
+
+  marcarReservaNoShow(reservaId: number): Observable<Reserva> {
+    return this.http.post<Reserva>(`${this.apiBase}/reservas/${reservaId}/no-show`, {});
+  }
+
+  // --- CU-19 / CU-20: Ventas presenciales y cobro en caja (Cajero) ---
+  registrarVentaPresencial(datos: {
+    sucursal_id?: number;
+    reserva_id?: number | null;
+    cliente_id?: number | null;
+    detalles: { variante_id: number; cantidad: number; precio_unitario?: number }[];
+  }): Observable<Venta> {
+    return this.http.post<Venta>(`${this.apiBase}/ventas/presencial`, datos);
+  }
+
+  cobrarEnCaja(ventaId: number, datos: { metodo_pago: string; monto_recibido?: number }): Observable<Venta> {
+    return this.http.post<Venta>(`${this.apiBase}/ventas/${ventaId}/cobrar-caja`, datos);
+  }
+
+  getVentasSucursal(sucursalId: number): Observable<Venta[]> {
+    return this.http.get<Venta[]>(`${this.apiBase}/ventas/sucursal/${sucursalId}`);
+  }
+
+  // --- CU-21 / CU-22: Compra digital y pasarela de pago (Cliente) ---
+  crearVentaDigital(datos: {
+    sucursal_id: number;
+    detalles: { variante_id: number; cantidad: number }[];
+  }): Observable<Venta> {
+    return this.http.post<Venta>(`${this.apiBase}/ventas/digital`, datos);
+  }
+
+  pagarVentaDigital(
+    ventaId: number,
+    datos: { metodo_pago: string; pasarela?: string; numero_tarjeta_simulada?: string }
+  ): Observable<Venta> {
+    return this.http.post<Venta>(`${this.apiBase}/ventas/${ventaId}/pagar-digital`, datos);
+  }
+
+  // --- CU-23: Comprobante oficial de venta ---
+  getComprobanteVenta(ventaId: number): Observable<ComprobanteVenta> {
+    return this.http.get<ComprobanteVenta>(`${this.apiBase}/ventas/comprobante/${ventaId}`);
+  }
+
+  // --- CU-24: Historial de compras del cliente ---
+  getMisCompras(): Observable<Venta[]> {
+    return this.http.get<Venta[]>(`${this.apiBase}/ventas/mis-compras`);
   }
 
   // --- Bitácora de Auditoría ---

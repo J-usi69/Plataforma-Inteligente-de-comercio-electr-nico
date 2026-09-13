@@ -160,6 +160,10 @@ export class Login {
         this.isLoading.set(false);
         if (res.usuario.roles.includes('Administrador')) {
           this.router.navigate(['/admin']);
+        } else if (res.usuario.roles.includes('Encargado') || res.usuario.personal?.cargo === 'Encargado') {
+          this.router.navigate(['/encargado']);
+        } else if (res.usuario.roles.includes('Cajero') || res.usuario.personal?.cargo === 'Cajero') {
+          this.router.navigate(['/caja']);
         } else {
           this.router.navigate(['/catalogo']);
         }

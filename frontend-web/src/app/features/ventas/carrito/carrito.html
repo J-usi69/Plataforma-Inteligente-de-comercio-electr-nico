@@ -1,4 +1,233 @@
 <div class="container">
-  <h2>Carrito de Compras</h2>
-  <p>Tus prendas seleccionadas para compra en línea y retiro en sucursal.</p>
+  <div style="margin-bottom: 2rem;">
+    <h2>Bolsa de Compras Digital</h2>
+    <p>Revisa tus prendas seleccionadas y completa tu compra con pago en línea y retiro en sucursal.</p>
+  </div>
+
+  <!-- Empty state -->
+  <div *ngIf="!cart.items().length && !comprobanteEmitido()" style="text-align: center; padding: 4rem 1rem; background: #ffffff; border-radius: 16px; border: 1px dashed #cbd5e1;">
+    <div style="font-size: 3.5rem; margin-bottom: 0.5rem;">🛍️</div>
+    <h3>Tu bolsa de compras está vacía</h3>
+    <p style="margin-top: 0.5rem; color: #64748b;">Explora nuestro catálogo para descubrir lo último en moda y vestidor virtual.</p>
+    <a routerLink="/catalogo" class="btn btn-primary" style="margin-top: 1.5rem;">Ir al Catálogo de Prendas</a>
+  </div>
+
+  <div *ngIf="cart.items().length" class="cart-grid">
+    <!-- Left Column: Items List -->
+    <div>
+      <div class="card" style="margin-bottom: 1.5rem; padding: 1.25rem;">
+        <label style="font-weight: 700; color: #0f172a; font-size: 0.9rem; display: block; margin-bottom: 0.5rem;">
+          🏬 Sucursal de Retiro / Origen del Stock:
+        </label>
+        <select
+          [value]="cart.sucursalId()"
+          (change)="cambiarSucursal($event)"
+          style="width: 100%; padding: 0.65rem; border-radius: 8px; border: 1px solid #cbd5e1; font-weight: 600;"
+        >
+          <option *ngFor="let s of sucursales()" [value]="s.id">
+            {{ s.nombre }} ({{ s.ciudad_nombre }}) - {{ s.direccion }}
+          </option>
+        </select>
+      </div>
+
+      <div *ngFor="let item of cart.items()" class="cart-item-card">
+        <div class="item-img-placeholder">👗</div>
+
+        <div style="flex: 1;">
+          <h4 style="margin: 0; font-size: 1.05rem;">{{ item.nombre }}</h4>
+          <div style="font-size: 0.82rem; color: #64748b; margin-top: 0.25rem;">
+            Talla: <strong>{{ item.talla }}</strong> | Color: <strong>{{ item.color }}</strong>
+          </div>
+          <div style="font-size: 1.1rem; font-weight: 800; color: #0f172a; margin-top: 0.5rem;">
+            Bs. {{ item.precio | number: '1.2-2' }}
+          </div>
+        </div>
+
+        <div style="display: flex; align-items: center; gap: 0.5rem;">
+          <button class="btn btn-secondary btn-icon btn-sm" (click)="cart.actualizarCantidad(item.variante_id, item.cantidad - 1)">-</button>
+          <span style="font-weight: 700; min-width: 24px; text-align: center;">{{ item.cantidad }}</span>
+          <button class="btn btn-secondary btn-icon btn-sm" (click)="cart.actualizarCantidad(item.variante_id, item.cantidad + 1)">+</button>
+        </div>
+
+        <div style="font-size: 1.15rem; font-weight: 800; color: #4f46e5; min-width: 90px; text-align: right;">
+          Bs. {{ item.precio * item.cantidad | number: '1.2-2' }}
+        </div>
+
+        <button class="btn btn-secondary btn-icon btn-sm" style="color: #ef4444;" (click)="cart.quitar(item.variante_id)">
+          ✕
+        </button>
+      </div>
+    </div>
+
+    <!-- Right Column: Summary -->
+    <div>
+      <div class="order-summary-card">
+        <h3 style="margin-top: 0; margin-bottom: 1.25rem;">Resumen de Compra</h3>
+
+        <div style="display: flex; justify-content: space-between; margin-bottom: 0.75rem; color: #64748b; font-size: 0.9rem;">
+          <span>Subtotal ({{ cart.totalItems() }} prendas):</span>
+          <strong style="color: #0f172a;">Bs. {{ cart.totalPrecio() | number: '1.2-2' }}</strong>
+        </div>
+
+        <div style="display: flex; justify-content: space-between; margin-bottom: 0.75rem; color: #64748b; font-size: 0.9rem;">
+          <span>Retiro en Tienda:</span>
+          <strong style="color: #10b981;">Gratuito</strong>
+        </div>
+
+        <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 1.25rem 0;" />
+
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+          <span style="font-size: 1.1rem; font-weight: 700;">TOTAL:</span>
+          <span style="font-size: 1.75rem; font-weight: 800; color: #0f172a;">
+            Bs. {{ cart.totalPrecio() | number: '1.2-2' }}
+          </span>
+        </div>
+
+        <button
+          class="btn btn-primary"
+          style="width: 100%; padding: 0.9rem; font-size: 1rem;"
+          [disabled]="isLoading()"
+          (click)="iniciarCompraDigital()"
+        >
+          {{ isLoading() ? 'Validando stock...' : 'Pagar con Pasarela Digital (CU-21/22)' }}
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- MODAL DE PASARELA DE PAGO DIGITAL (CU-22) -->
+<!-- ============================================================ -->
+<div *ngIf="showModalPasarela()" class="modal-overlay">
+  <div class="modal-content" style="max-width: 520px;">
+    <div class="modal-header">
+      <div>
+        <span class="brand-tag">Pasarela Digital Segura</span>
+        <h3 style="margin: 0.25rem 0 0;">Pago Electrónico de Compra</h3>
+      </div>
+      <button class="btn btn-secondary btn-icon" (click)="showModalPasarela.set(false)">✕</button>
+    </div>
+
+    <div style="text-align: center; margin-bottom: 1.25rem;">
+      <span style="font-size: 0.8rem; color: #64748b;">Monto Total a Pagar:</span>
+      <div style="font-size: 2rem; font-weight: 800; color: #4f46e5;">
+        Bs. {{ ventaEnProceso()?.total | number: '1.2-2' }}
+      </div>
+    </div>
+
+    <!-- Payment Type Selector -->
+    <div style="display: flex; gap: 0.5rem; margin-bottom: 1rem;">
+      <button
+        type="button"
+        class="btn btn-secondary"
+        style="flex: 1;"
+        [style.background]="metodoDigital() === 'qr' ? '#4f46e5' : '#ffffff'"
+        [style.color]="metodoDigital() === 'qr' ? '#ffffff' : '#0f172a'"
+        (click)="metodoDigital.set('qr')"
+      >
+        📱 QR Bancario Interoperable
+      </button>
+      <button
+        type="button"
+        class="btn btn-secondary"
+        style="flex: 1;"
+        [style.background]="metodoDigital() === 'tarjeta' ? '#4f46e5' : '#ffffff'"
+        [style.color]="metodoDigital() === 'tarjeta' ? '#ffffff' : '#0f172a'"
+        (click)="metodoDigital.set('tarjeta')"
+      >
+        💳 Tarjeta de Débito / Crédito
+      </button>
+    </div>
+
+    <!-- QR Option -->
+    <div *ngIf="metodoDigital() === 'qr'" class="qr-container">
+      <div style="font-size: 0.85rem; font-weight: 700; color: #0f172a; margin-bottom: 0.75rem;">
+        Escanea con la app de cualquier banco boliviano:
+      </div>
+      <div class="qr-mock">
+        <div style="text-align: center;">
+          <div style="font-size: 3rem;">📲</div>
+          <div style="font-size: 0.75rem; font-weight: 800; margin-top: 0.25rem;">QR SIMPLE / LIBÉLULA</div>
+        </div>
+      </div>
+      <p style="font-size: 0.78rem; color: #64748b; margin: 0;">
+        Válido por 10 minutos. Al completar la transferencia en tu banca móvil, pulsa confirmar.
+      </p>
+    </div>
+
+    <!-- Card Option -->
+    <div *ngIf="metodoDigital() === 'tarjeta'" style="margin: 1.5rem 0;">
+      <div class="form-group">
+        <label>Número de Tarjeta</label>
+        <input type="text" [(ngModel)]="numeroTarjeta" placeholder="4567 •••• •••• 1234" />
+      </div>
+      <div class="grid-2">
+        <div class="form-group">
+          <label>Vencimiento</label>
+          <input type="text" [(ngModel)]="fechaExpiracion" placeholder="MM/AA" />
+        </div>
+        <div class="form-group">
+          <label>CVV</label>
+          <input type="password" maxlength="4" [(ngModel)]="cvv" placeholder="•••" />
+        </div>
+      </div>
+    </div>
+
+    <div style="display: flex; gap: 0.75rem; margin-top: 1.5rem;">
+      <button type="button" class="btn btn-secondary" style="flex: 1;" (click)="showModalPasarela.set(false)">Cancelar</button>
+      <button
+        type="button"
+        class="btn btn-primary"
+        style="flex: 2;"
+        [disabled]="isLoading()"
+        (click)="confirmarPagoDigital()"
+      >
+        {{ isLoading() ? 'Procesando pago...' : 'Confirmar y Finalizar Compra' }}
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- MODAL COMPROBANTE OFICIAL (CU-23) -->
+<!-- ============================================================ -->
+<div *ngIf="comprobanteEmitido()" class="modal-overlay">
+  <div class="modal-content" style="max-width: 480px;">
+    <div style="background: #ffffff; border: 1px dashed #94a3b8; padding: 1.5rem; border-radius: 8px; font-family: monospace;">
+      <div style="text-align: center; border-bottom: 1px dashed #94a3b8; padding-bottom: 1rem; margin-bottom: 1rem;">
+        <h3 style="margin: 0; font-size: 1.2rem;">FASHIONSTORE ONLINE</h3>
+        <div style="font-size: 0.8rem;">Comprobante de Compra Digital</div>
+        <div style="font-size: 0.75rem;">Sucursal de Despacho: {{ comprobanteEmitido()?.sucursal_nombre }}</div>
+      </div>
+
+      <div style="font-size: 0.8rem; margin-bottom: 0.75rem;">
+        <div><strong>N° COMPROBANTE:</strong> {{ comprobanteEmitido()?.numero_comprobante }}</div>
+        <div><strong>FECHA:</strong> {{ comprobanteEmitido()?.fecha_emision | date: 'dd/MM/yyyy HH:mm' }}</div>
+        <div><strong>CLIENTE:</strong> {{ comprobanteEmitido()?.cliente_nombre }}</div>
+        <div><strong>PAGO:</strong> {{ comprobanteEmitido()?.metodo_pago }} (Aprobado)</div>
+        <div><strong>TRANSACCIÓN ID:</strong> {{ comprobanteEmitido()?.transaccion_id }}</div>
+      </div>
+
+      <div style="border-top: 1px dashed #94a3b8; border-bottom: 1px dashed #94a3b8; padding: 0.5rem 0; margin-bottom: 0.75rem;">
+        <div *ngFor="let item of comprobanteEmitido()?.items" style="display: flex; justify-content: space-between; font-size: 0.8rem; margin-bottom: 0.25rem;">
+          <div>{{ item.cantidad }}x {{ item.descripcion }}</div>
+          <div>Bs. {{ item.subtotal | number: '1.2-2' }}</div>
+        </div>
+      </div>
+
+      <div style="text-align: right; font-size: 1.15rem; font-weight: 800;">
+        TOTAL: Bs. {{ comprobanteEmitido()?.total | number: '1.2-2' }}
+      </div>
+
+      <div style="text-align: center; font-size: 0.75rem; color: #10b981; font-weight: 700; margin-top: 1rem;">
+        ✓ Pago confirmado. Puedes retirar tus prendas en la sucursal seleccionada con este comprobante.
+      </div>
+    </div>
+
+    <div style="display: flex; gap: 0.75rem; margin-top: 1.5rem;">
+      <button class="btn btn-secondary" style="flex: 1;" (click)="cerrarComprobante()">Ver Mis Compras</button>
+      <button class="btn btn-primary" style="flex: 1;" (click)="imprimirComprobante()">🖨️ Imprimir Recibo</button>
+    </div>
+  </div>
 </div>

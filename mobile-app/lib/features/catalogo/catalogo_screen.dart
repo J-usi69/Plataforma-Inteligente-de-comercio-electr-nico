@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/services/api_service.dart';
+import '../../core/services/cart_service.dart';
 
 class CatalogoScreen extends StatefulWidget {
   const CatalogoScreen({super.key});
@@ -11,6 +12,7 @@ class CatalogoScreen extends StatefulWidget {
 
 class _CatalogoScreenState extends State<CatalogoScreen> {
   final _apiService = ApiService();
+  final _cartService = CartService();
   bool _isLoading = true;
   List<dynamic> _prendas = [];
   List<dynamic> _categorias = [];
@@ -19,7 +21,18 @@ class _CatalogoScreenState extends State<CatalogoScreen> {
   @override
   void initState() {
     super.initState();
+    _cartService.addListener(_onCartChanged);
     _cargarDatos();
+  }
+
+  @override
+  void dispose() {
+    _cartService.removeListener(_onCartChanged);
+    super.dispose();
+  }
+
+  void _onCartChanged() {
+    if (mounted) setState(() {});
   }
 
   Future<void> _cargarDatos() async {
@@ -53,12 +66,34 @@ class _CatalogoScreenState extends State<CatalogoScreen> {
         title: const Text('Catálogo FashionStore'),
         centerTitle: false,
         actions: [
-          if (_apiService.isLoggedIn)
-            IconButton(
-              icon: const Icon(Icons.shopping_cart_outlined),
-              tooltip: 'Carrito',
-              onPressed: () => context.push('/carrito'),
-            ),
+          Stack(
+            alignment: Alignment.center,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.shopping_bag_outlined),
+                tooltip: 'Bolsa de compras',
+                onPressed: () => context.push('/carrito'),
+              ),
+              if (_cartService.totalCount > 0)
+                Positioned(
+                  right: 8,
+                  top: 8,
+                  child: Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: const BoxDecoration(
+                      color: Color(0xFF4F46E5),
+                      shape: BoxShape.circle,
+                    ),
+                    constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
+                    child: Text(
+                      '${_cartService.totalCount}',
+                      style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ),
+            ],
+          ),
           PopupMenuButton<String>(
             icon: const Icon(Icons.menu),
             tooltip: 'Menú',
@@ -66,6 +101,8 @@ class _CatalogoScreenState extends State<CatalogoScreen> {
               switch (value) {
                 case 'sucursales':
                   context.push('/sucursales');
+                case 'compras':
+                  context.push('/mis-compras');
                 case 'reservas':
                   context.push('/reservas');
                 case 'perfil':
@@ -82,6 +119,14 @@ class _CatalogoScreenState extends State<CatalogoScreen> {
                   title: Text('Ver Sucursales'),
                 ),
               ),
+              if (_apiService.isLoggedIn)
+                const PopupMenuItem(
+                  value: 'compras',
+                  child: ListTile(
+                    leading: Icon(Icons.receipt_long_outlined),
+                    title: Text('Mis Compras'),
+                  ),
+                ),
               if (_apiService.isLoggedIn)
                 const PopupMenuItem(
                   value: 'reservas',
@@ -315,8 +360,10 @@ class _CatalogoScreenState extends State<CatalogoScreen> {
                                       ),
                                     ),
                                     const SizedBox(height: 10),
-                                    Row(
-                                      mainAxisAlignment: MainAxisAlignment.end,
+                                    Wrap(
+                                      alignment: WrapAlignment.end,
+                                      spacing: 8,
+                                      runSpacing: 8,
                                       children: [
                                         OutlinedButton.icon(
                                           onPressed: () => context.push(
@@ -327,10 +374,9 @@ class _CatalogoScreenState extends State<CatalogoScreen> {
                                             Icons.view_in_ar,
                                             size: 16,
                                           ),
-                                          label: const Text('Probar con RA'),
+                                          label: const Text('3D RA'),
                                         ),
-                                        const SizedBox(width: 8),
-                                        ElevatedButton.icon(
+                                        OutlinedButton.icon(
                                           onPressed: () {
                                             if (_apiService.isLoggedIn) {
                                               context.push(
@@ -346,8 +392,16 @@ class _CatalogoScreenState extends State<CatalogoScreen> {
                                             size: 16,
                                           ),
                                           label: const Text('Reservar'),
+                                        ),
+                                        ElevatedButton.icon(
+                                          onPressed: () => _mostrarModalAgregarBolsa(p),
+                                          icon: const Icon(
+                                            Icons.shopping_bag_outlined,
+                                            size: 16,
+                                          ),
+                                          label: const Text('Comprar'),
                                           style: ElevatedButton.styleFrom(
-                                            backgroundColor: Colors.indigo,
+                                            backgroundColor: const Color(0xFF4F46E5),
                                             foregroundColor: Colors.white,
                                           ),
                                         ),
@@ -364,6 +418,244 @@ class _CatalogoScreenState extends State<CatalogoScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  void _mostrarModalAgregarBolsa(Map<String, dynamic> prenda) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => _ModalSeleccionarVariante(prenda: prenda),
+    );
+  }
+}
+
+class _ModalSeleccionarVariante extends StatefulWidget {
+  final Map<String, dynamic> prenda;
+  const _ModalSeleccionarVariante({required this.prenda});
+
+  @override
+  State<_ModalSeleccionarVariante> createState() => _ModalSeleccionarVarianteState();
+}
+
+class _ModalSeleccionarVarianteState extends State<_ModalSeleccionarVariante> {
+  final _apiService = ApiService();
+  final _cartService = CartService();
+  bool _isLoading = true;
+  List<dynamic> _variantes = [];
+  Map<String, dynamic>? _selectedVariant;
+  int _cantidad = 1;
+
+  @override
+  void initState() {
+    super.initState();
+    _cargarVariantes();
+  }
+
+  Future<void> _cargarVariantes() async {
+    setState(() => _isLoading = true);
+    try {
+      final vars = await _apiService.getVariantes(widget.prenda['id']);
+      final activas = vars.where((v) => v['estado'] == true).toList();
+      if (mounted) {
+        setState(() {
+          _variantes = activas;
+          if (activas.isNotEmpty) {
+            _selectedVariant = activas.first;
+          }
+        });
+      }
+    } catch (_) {
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  void _agregarABolsa() {
+    if (_selectedVariant == null) return;
+
+    final precio = (widget.prenda['precio_base'] as num).toDouble();
+    _cartService.addItem(CartItem(
+      varianteId: _selectedVariant!['id'] as int,
+      prendaId: widget.prenda['id'] as int,
+      nombre: widget.prenda['nombre'] as String,
+      talla: (_selectedVariant!['talla_nombre'] ?? 'Única').toString(),
+      color: (_selectedVariant!['color_nombre'] ?? 'Estándar').toString(),
+      precio: precio,
+      cantidad: _cantidad,
+      imagenUrl: widget.prenda['imagen_url'] as String?,
+    ));
+
+    Navigator.of(context).pop();
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('✓ Se añadió "${widget.prenda['nombre']}" a tu bolsa.'),
+        backgroundColor: const Color(0xFF059669),
+        action: SnackBarAction(
+          label: 'Ver Bolsa',
+          textColor: Colors.white,
+          onPressed: () => context.push('/carrito'),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final precio = (widget.prenda['precio_base'] as num).toDouble();
+    final subtotal = precio * _cantidad;
+
+    return Container(
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      padding: EdgeInsets.only(
+        top: 20,
+        left: 20,
+        right: 20,
+        bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Center(
+            child: Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(10),
+                child: Container(
+                  width: 60,
+                  height: 60,
+                  color: const Color(0xFFEEF2FF),
+                  child: widget.prenda['imagen_url'] != null
+                      ? Image.network(
+                          widget.prenda['imagen_url'],
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => const Icon(Icons.checkroom, color: Color(0xFF4F46E5)),
+                        )
+                      : const Icon(Icons.checkroom, color: Color(0xFF4F46E5)),
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      widget.prenda['nombre'],
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Precio: Bs. ${precio.toStringAsFixed(2)}',
+                      style: const TextStyle(color: Color(0xFF4F46E5), fontWeight: FontWeight.bold),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+
+          // Selección de variante
+          const Text(
+            'Selecciona Talla y Color:',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF334155)),
+          ),
+          const SizedBox(height: 8),
+          if (_isLoading)
+            const Center(child: Padding(padding: EdgeInsets.all(12), child: CircularProgressIndicator()))
+          else if (_variantes.isEmpty)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 8),
+              child: Text('No hay variantes disponibles actualmente para esta prenda.'),
+            )
+          else
+            DropdownButtonFormField<int>(
+              value: _selectedVariant?['id'] as int?,
+              decoration: InputDecoration(
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+              items: _variantes.map<DropdownMenuItem<int>>((v) {
+                return DropdownMenuItem<int>(
+                  value: v['id'] as int,
+                  child: Text('Talla: ${v['talla_nombre']}  ·  Color: ${v['color_nombre']}'),
+                );
+              }).toList(),
+              onChanged: (val) {
+                if (val != null) {
+                  setState(() {
+                    _selectedVariant = _variantes.firstWhere((v) => v['id'] == val);
+                  });
+                }
+              },
+            ),
+
+          const SizedBox(height: 16),
+
+          // Cantidad
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Cantidad:',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF334155)),
+              ),
+              Row(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.remove_circle_outline),
+                    onPressed: _cantidad > 1 ? () => setState(() => _cantidad--) : null,
+                  ),
+                  Text(
+                    '$_cantidad',
+                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.add_circle_outline),
+                    onPressed: _cantidad < 10 ? () => setState(() => _cantidad++) : null,
+                  ),
+                ],
+              ),
+            ],
+          ),
+
+          const Divider(height: 24),
+
+          // Botón de agregar
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: _selectedVariant == null ? null : _agregarABolsa,
+              icon: const Icon(Icons.shopping_bag_outlined),
+              label: Text('AÑADIR A LA BOLSA (Bs. ${subtotal.toStringAsFixed(2)})'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF4F46E5),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

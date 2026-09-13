@@ -8,6 +8,7 @@ import '../features/reservas/reservar_screen.dart';
 import '../features/reservas/reservas_screen.dart';
 import '../features/sucursales/sucursales_screen.dart';
 import '../features/ventas/carrito_screen.dart';
+import '../features/ventas/mis_compras_screen.dart';
 import '../features/vestidor_ar/vestidor_ar_screen.dart';
 
 final GoRouter appRouter = GoRouter(
@@ -26,6 +27,7 @@ final GoRouter appRouter = GoRouter(
       ),
     ),
     GoRoute(path: '/carrito', builder: (context, state) => const CarritoScreen()),
+    GoRoute(path: '/mis-compras', builder: (context, state) => const MisComprasScreen()),
     GoRoute(
       path: '/vestidor-ar',
       builder: (context, state) => VestidorArScreen(

@@ -38,12 +38,30 @@ from app.schemas.seguridad import (
     RolOut,
     RolUpdate,
 )
+from app.schemas.reserva import (
+    DetalleReservaCreate,
+    DetalleReservaOut,
+    ReservaCreate,
+    ReservaOut,
+)
 from app.schemas.sucursal import (
     CiudadCreate,
     CiudadOut,
     SucursalCreate,
     SucursalOut,
     SucursalUpdate,
+)
+from app.schemas.venta import (
+    CobroCajaCreate,
+    ComprobanteItemOut,
+    ComprobanteVentaOut,
+    DetalleVentaCreate,
+    DetalleVentaOut,
+    PagoDigitalCreate,
+    PagoOut,
+    VentaDigitalCreate,
+    VentaOut,
+    VentaPresencialCreate,
 )
 
 __all__ = [

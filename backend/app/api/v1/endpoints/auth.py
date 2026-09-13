@@ -15,8 +15,10 @@ from app.api.deps import (
 from app.core.security import create_access_token, get_password_hash, verify_password
 from app.db.session import get_db
 from app.models.seguridad import Bitacora, Rol, Usuario, UsuarioRol
+from app.models.sucursal import Sucursal
 from app.schemas.auth import (
     BitacoraOut,
+    PersonalBriefOut,
     TokenResponse,
     UsuarioLogin,
     UsuarioOut,
@@ -27,25 +29,54 @@ from app.schemas.auth import (
 router = APIRouter()
 
 
+def _construir_usuario_out(db: Session, usuario: Usuario) -> UsuarioOut:
+    roles = get_user_roles(usuario.id, db)
+    permisos = get_user_permisos(usuario.id, db)
+    personal_out = None
+    if usuario.personal:
+        sucursal = db.get(Sucursal, usuario.personal.sucursal_id) if usuario.personal.sucursal_id else None
+        personal_out = PersonalBriefOut(
+            id=usuario.personal.id,
+            nombres=usuario.personal.nombres,
+            apellidos=usuario.personal.apellidos,
+            cargo=usuario.personal.cargo,
+            sucursal_id=usuario.personal.sucursal_id,
+            sucursal_nombre=sucursal.nombre if sucursal else None,
+        )
+    return UsuarioOut(
+        id=usuario.id,
+        correo=usuario.correo,
+        celular=usuario.celular,
+        estado=usuario.estado,
+        roles=roles,
+        permisos=permisos,
+        creado_en=usuario.creado_en,
+        personal=personal_out,
+    )
+
+
 @router.post("/register", response_model=UsuarioOut, status_code=status.HTTP_201_CREATED)
 def register(
     datos: UsuarioRegister,
     request: Request,
     db: Session = Depends(get_db),
 ):
-    """CU-01: Gestionar cuenta de usuario - Registro de cliente"""
-    # 4. Validar correo o celular no registrados previamente
-    filtro = [Usuario.correo == datos.correo]
-    if datos.celular:
-        filtro.append(Usuario.celular == datos.celular)
-    existente = db.scalars(select(Usuario).where(or_(*filtro))).first()
-    if existente:
+    """CU-01: Registrar una nueva cuenta de cliente"""
+    # 4. Validar que el correo no esté registrado previamente
+    if db.scalars(select(Usuario).where(Usuario.correo == datos.correo)).first():
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="El correo electrónico o número de celular ya se encuentra registrado",
+            detail="El correo electrónico ya se encuentra registrado",
         )
 
-    # 5. Crear usuario
+    # Validar celular único si fue proporcionado
+    if datos.celular and db.scalars(select(Usuario).where(Usuario.celular == datos.celular)).first():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="El número de celular ya se encuentra registrado",
+        )
+
+    # 5. Crear el registro Usuario
     nuevo_usuario = Usuario(
         correo=datos.correo,
         password_hash=get_password_hash(datos.password),
@@ -67,18 +98,7 @@ def register(
     client_ip = get_client_ip(request)
     registrar_bitacora(db, nuevo_usuario.id, "Registro de cuenta", client_ip)
 
-    roles = get_user_roles(nuevo_usuario.id, db)
-    permisos = get_user_permisos(nuevo_usuario.id, db)
-
-    return UsuarioOut(
-        id=nuevo_usuario.id,
-        correo=nuevo_usuario.correo,
-        celular=nuevo_usuario.celular,
-        estado=nuevo_usuario.estado,
-        roles=roles,
-        permisos=permisos,
-        creado_en=nuevo_usuario.creado_en,
-    )
+    return _construir_usuario_out(db, nuevo_usuario)
 
 
 @router.post("/login", response_model=TokenResponse)
@@ -130,20 +150,10 @@ def login(
     access_token = create_access_token(token_data)
     registrar_bitacora(db, usuario.id, "Inicio de sesión", client_ip)
 
-    usuario_out = UsuarioOut(
-        id=usuario.id,
-        correo=usuario.correo,
-        celular=usuario.celular,
-        estado=usuario.estado,
-        roles=roles,
-        permisos=permisos,
-        creado_en=usuario.creado_en,
-    )
-
     return TokenResponse(
         access_token=access_token,
         token_type="bearer",
-        usuario=usuario_out,
+        usuario=_construir_usuario_out(db, usuario),
     )
 
 
@@ -165,17 +175,7 @@ def obtener_perfil(
     db: Session = Depends(get_db),
 ):
     """CU-01: Consultar perfil del usuario autenticado"""
-    roles = get_user_roles(current_user.id, db)
-    permisos = get_user_permisos(current_user.id, db)
-    return UsuarioOut(
-        id=current_user.id,
-        correo=current_user.correo,
-        celular=current_user.celular,
-        estado=current_user.estado,
-        roles=roles,
-        permisos=permisos,
-        creado_en=current_user.creado_en,
-    )
+    return _construir_usuario_out(db, current_user)
 
 
 @router.put("/me", response_model=UsuarioOut)
@@ -213,18 +213,7 @@ def actualizar_perfil(
     accion = "Actualización de perfil" if current_user.estado else "Desactivación de cuenta"
     registrar_bitacora(db, current_user.id, accion, client_ip)
 
-    roles = get_user_roles(current_user.id, db)
-    permisos = get_user_permisos(current_user.id, db)
-
-    return UsuarioOut(
-        id=current_user.id,
-        correo=current_user.correo,
-        celular=current_user.celular,
-        estado=current_user.estado,
-        roles=roles,
-        permisos=permisos,
-        creado_en=current_user.creado_en,
-    )
+    return _construir_usuario_out(db, current_user)
 
 
 @router.get("/bitacora", response_model=List[BitacoraOut])

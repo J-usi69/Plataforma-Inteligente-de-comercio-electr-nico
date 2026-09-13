@@ -12,6 +12,7 @@ import {
 } from '../../../core/models/user.model';
 import { AuthService } from '../../../core/services/auth.service';
 import { BusinessService } from '../../../core/services/business.service';
+import { CartService } from '../../../core/services/cart.service';
 
 @Component({
   selector: 'app-listado',
@@ -265,6 +266,7 @@ import { BusinessService } from '../../../core/services/business.service';
 export class Listado implements OnInit {
   private readonly business = inject(BusinessService);
   private readonly auth = inject(AuthService);
+  readonly cart = inject(CartService);
 
   isLoggedIn = this.auth.isLoggedIn;
 
@@ -279,6 +281,10 @@ export class Listado implements OnInit {
   isLoading = signal(true);
 
   prendaModal = signal<Prenda | null>(null);
+  modalVariantes = signal<VariantePrenda[]>([]);
+  modalVarianteId = signal<number | null>(null);
+  modalCantidad = signal(1);
+  modalAgregadoExito = signal(false);
 
   // --- CU-15: Flujo de reserva ---
   reservaPrenda = signal<Prenda | null>(null);
@@ -354,6 +360,40 @@ export class Listado implements OnInit {
 
   verPrenda(p: Prenda): void {
     this.prendaModal.set(p);
+    this.modalVariantes.set([]);
+    this.modalVarianteId.set(null);
+    this.modalCantidad.set(1);
+    this.modalAgregadoExito.set(false);
+    this.business.getVariantes(p.id).subscribe((data) => {
+      const active = data.filter((v) => v.estado);
+      this.modalVariantes.set(active);
+      if (active.length > 0) {
+        this.modalVarianteId.set(active[0].id);
+      }
+    });
+  }
+
+  agregarAlCarritoDesdeModal(): void {
+    const prenda = this.prendaModal();
+    const vId = this.modalVarianteId();
+    if (!prenda || !vId) return;
+
+    const variante = this.modalVariantes().find((v) => v.id === vId);
+    if (!variante) return;
+
+    this.cart.agregar({
+      variante_id: variante.id,
+      prenda_id: prenda.id,
+      nombre: prenda.nombre,
+      talla: variante.talla_nombre || 'Única',
+      color: variante.color_nombre || 'Estándar',
+      precio: Number(prenda.precio_base),
+      cantidad: this.modalCantidad() || 1,
+      imagen_url: prenda.imagen_url,
+    });
+
+    this.modalAgregadoExito.set(true);
+    setTimeout(() => this.modalAgregadoExito.set(false), 3000);
   }
 
   cerrarModalPrenda(): void {

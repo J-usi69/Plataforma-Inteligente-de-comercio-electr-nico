@@ -109,6 +109,28 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       subtitle: Text(user['estado'] == true ? 'Activo' : 'Inactivo'),
                       trailing: const Icon(Icons.check_circle, color: Colors.green),
                     ),
+                    const Divider(height: 32),
+                    ListTile(
+                      leading: const Icon(Icons.receipt_long_outlined, color: Color(0xFF4F46E5)),
+                      title: const Text('Mis Compras Realizadas', style: TextStyle(fontWeight: FontWeight.w600)),
+                      subtitle: const Text('Ver comprobantes, tickets y facturas digitales'),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () => context.push('/mis-compras'),
+                    ),
+                    ListTile(
+                      leading: const Icon(Icons.event_note_outlined, color: Color(0xFF4F46E5)),
+                      title: const Text('Mis Reservas en Tienda', style: TextStyle(fontWeight: FontWeight.w600)),
+                      subtitle: const Text('Consultar prendas apartadas en sucursales'),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () => context.push('/reservas'),
+                    ),
+                    ListTile(
+                      leading: const Icon(Icons.shopping_bag_outlined, color: Color(0xFF4F46E5)),
+                      title: const Text('Bolsa de Compras', style: TextStyle(fontWeight: FontWeight.w600)),
+                      subtitle: const Text('Ver artículos pendientes de compra'),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () => context.push('/carrito'),
+                    ),
                     const SizedBox(height: 24),
                     ElevatedButton.icon(
                       onPressed: _handleLogout,

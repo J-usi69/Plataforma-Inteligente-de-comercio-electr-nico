@@ -1,3 +1,12 @@
+export interface PersonalBrief {
+  id: number;
+  nombres: string;
+  apellidos: string;
+  cargo: string;
+  sucursal_id?: number | null;
+  sucursal_nombre?: string | null;
+}
+
 export interface Usuario {
   id: number;
   correo: string;
@@ -6,6 +15,7 @@ export interface Usuario {
   roles: string[];
   permisos: string[];
   creado_en?: string;
+  personal?: PersonalBrief | null;
 }
 
 export interface TokenResponse {
@@ -142,21 +152,98 @@ export interface DetalleReserva {
   id: number;
   variante_id: number;
   cantidad: number;
+  prenda_id?: number | null;
   prenda_nombre?: string | null;
   talla_nombre?: string | null;
   color_nombre?: string | null;
   codigo_barras?: string | null;
+  precio_unitario?: number | null;
+  subtotal?: number | null;
 }
 
 export interface Reserva {
   id: number;
   usuario_id: number;
+  cliente_correo?: string | null;
+  cliente_celular?: string | null;
   sucursal_id: number;
   sucursal_nombre?: string | null;
   personal_id?: number | null;
   fecha_reserva: string;
   horario_atencion?: string | null;
   estado: 'pendiente' | 'confirmada' | 'atendida' | 'cancelada' | 'expirada';
+  total_estimado?: number | null;
   detalles: DetalleReserva[];
 }
 
+export interface DetalleVenta {
+  id: number;
+  variante_id: number;
+  cantidad: number;
+  precio_unitario: number;
+  subtotal: number;
+  prenda_id?: number | null;
+  prenda_nombre?: string | null;
+  talla_nombre?: string | null;
+  color_nombre?: string | null;
+  codigo_barras?: string | null;
+}
+
+export interface Pago {
+  id: number;
+  venta_id: number;
+  metodo_pago: string;
+  pasarela?: string | null;
+  estado: string;
+  monto: number;
+  transaccion_id?: string | null;
+  fecha_pago: string;
+}
+
+export interface Venta {
+  id: number;
+  usuario_id?: number | null;
+  cliente_nombre?: string | null;
+  cliente_correo?: string | null;
+  personal_id?: number | null;
+  personal_nombre?: string | null;
+  sucursal_id: number;
+  sucursal_nombre?: string | null;
+  reserva_id?: number | null;
+  tipo_origen: 'presencial' | 'web' | 'movil';
+  estado: 'pendiente' | 'pagada' | 'anulada';
+  total: number;
+  fecha_venta: string;
+  detalles: DetalleVenta[];
+  pagos: Pago[];
+}
+
+export interface ComprobanteItem {
+  descripcion: string;
+  talla?: string | null;
+  color?: string | null;
+  codigo_barras?: string | null;
+  cantidad: number;
+  precio_unitario: number;
+  subtotal: number;
+}
+
+export interface ComprobanteVenta {
+  numero_comprobante: string;
+  venta_id: number;
+  fecha_emision: string;
+  tipo_origen: string;
+  sucursal_nombre: string;
+  sucursal_direccion: string;
+  sucursal_telefono?: string | null;
+  ciudad_nombre?: string | null;
+  cajero_nombre?: string | null;
+  cliente_nombre: string;
+  cliente_correo?: string | null;
+  metodo_pago: string;
+  transaccion_id?: string | null;
+  estado_venta: string;
+  subtotal: number;
+  total: number;
+  items: ComprobanteItem[];
+}
