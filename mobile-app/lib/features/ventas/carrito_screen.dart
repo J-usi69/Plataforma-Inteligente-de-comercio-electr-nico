@@ -137,8 +137,8 @@ class _CarritoScreenState extends State<CarritoScreen> {
               Container(
                 width: 64,
                 height: 64,
-                decoration: BoxDecoration(
-                  color: Colors.emerald.shade50,
+                decoration: const BoxDecoration(
+                  color: Color(0xFFECFDF5),
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(Icons.check_circle, color: Color(0xFF059669), size: 42),

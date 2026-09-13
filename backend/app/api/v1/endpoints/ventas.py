@@ -5,7 +5,9 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_client_ip, get_current_active_user, get_db, registrar_bitacora
+from app.api.deps import get_client_ip, get_current_active_user, get_db, get_user_roles, registrar_bitacora, require_roles
+
+_ROLES_STAFF_VENTA = ["Cajero", "Encargado", "Administrador"]
 from app.models.catalogo import Color, Prenda, Talla, VariantePrenda
 from app.models.enums import CanalVenta, EstadoPago, EstadoReserva, EstadoVenta, TipoMovimiento
 from app.models.inventario import InventarioSucursal, MovimientoInventario
@@ -96,7 +98,7 @@ def registrar_venta_presencial(
     datos: VentaPresencialCreate,
     request: Request,
     db: Session = Depends(get_db),
-    current_user: Usuario = Depends(get_current_active_user),
+    current_user: Usuario = Depends(require_roles(["Cajero", "Administrador"])),
 ):
     """CU-19: El Cajero registra una venta presencial en el punto de atención"""
     if not datos.detalles:
@@ -212,7 +214,7 @@ def procesar_pago_en_caja(
     datos: CobroCajaCreate,
     request: Request,
     db: Session = Depends(get_db),
-    current_user: Usuario = Depends(get_current_active_user),
+    current_user: Usuario = Depends(require_roles(["Cajero", "Administrador"])),
 ):
     """CU-20: El cajero cobra la venta presencial y actualiza el inventario"""
     venta = db.get(Venta, venta_id)
@@ -382,7 +384,7 @@ def procesar_pago_electronico(
 ):
     """CU-22: Cobro digital de la venta mediante pasarela de pagos (QR Interoperable / Tarjeta)"""
     venta = db.get(Venta, venta_id)
-    if not venta:
+    if not venta or venta.usuario_id != current_user.id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Venta no encontrada")
     if venta.estado == EstadoVenta.pagada:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Esta compra ya se encuentra pagada")
@@ -451,6 +453,10 @@ def emitir_comprobante_venta(
     venta = db.get(Venta, venta_id)
     if not venta:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Venta no encontrada")
+    if venta.usuario_id != current_user.id:
+        roles = get_user_roles(current_user.id, db)
+        if not any(rol in _ROLES_STAFF_VENTA for rol in roles):
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Venta no encontrada")
 
     sucursal = db.get(Sucursal, venta.sucursal_id)
     ciudad = db.get(Ciudad, sucursal.ciudad_id) if sucursal else None
@@ -519,7 +525,7 @@ def consultar_historial_compras(
 def listar_ventas_sucursal(
     sucursal_id: int,
     db: Session = Depends(get_db),
-    current_user: Usuario = Depends(get_current_active_user),
+    current_user: Usuario = Depends(require_roles(_ROLES_STAFF_VENTA)),
 ):
     """Consultar las ventas registradas en una sucursal específica (Cajero/Encargado/Admin)"""
     stmt = select(Venta).where(Venta.sucursal_id == sucursal_id).order_by(Venta.id.desc())
@@ -533,9 +539,13 @@ def obtener_venta(
     db: Session = Depends(get_db),
     current_user: Usuario = Depends(get_current_active_user),
 ):
-    """Consultar el detalle de una venta por ID"""
+    """Consultar el detalle de una venta por ID (dueño o personal)"""
     venta = db.get(Venta, venta_id)
     if not venta:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Venta no encontrada")
+    if venta.usuario_id != current_user.id:
+        roles = get_user_roles(current_user.id, db)
+        if not any(rol in _ROLES_STAFF_VENTA for rol in roles):
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Venta no encontrada")
     return _venta_a_out(db, venta)
 
