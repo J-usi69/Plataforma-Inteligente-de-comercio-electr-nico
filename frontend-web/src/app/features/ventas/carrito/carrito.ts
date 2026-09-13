@@ -2,10 +2,14 @@ import { CommonModule } from '@angular/common';
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
+import { environment } from '../../../environments/environment';
 import { ComprobanteVenta, Sucursal, Venta } from '../../../core/models/user.model';
 import { AuthService } from '../../../core/services/auth.service';
 import { BusinessService } from '../../../core/services/business.service';
 import { CartService } from '../../../core/services/cart.service';
+
+// Stripe.js se carga por <script> en index.html (no via npm) y expone `Stripe` en window.
+declare const Stripe: any;
 
 @Component({
   selector: 'app-carrito',
@@ -106,10 +110,13 @@ export class Carrito implements OnInit {
   showModalPasarela = signal(false);
   ventaEnProceso = signal<Venta | null>(null);
   metodoDigital = signal<'qr' | 'tarjeta'>('qr');
-  numeroTarjeta = '';
-  fechaExpiracion = '';
-  cvv = '';
   comprobanteEmitido = signal<ComprobanteVenta | null>(null);
+
+  // Stripe Elements (tarjeta)
+  private stripe: any = null;
+  private stripeElements: any = null;
+  private stripeCardElement: any = null;
+  private stripeCardMontado = false;
 
   ngOnInit(): void {
     this.business.getSucursales().subscribe((data) => {
@@ -155,35 +162,110 @@ export class Carrito implements OnInit {
     });
   }
 
+  // El usuario eligió pagar con tarjeta: monta el Card Element de Stripe en el DOM
+  seleccionarTarjeta(): void {
+    this.metodoDigital.set('tarjeta');
+    if (this.stripeCardMontado) return;
+
+    // Se monta en el próximo ciclo para asegurar que el *ngIf ya renderizó el div
+    setTimeout(() => {
+      if (!this.stripe) {
+        this.stripe = Stripe(environment.stripePublishableKey);
+      }
+      this.stripeElements = this.stripe.elements();
+      this.stripeCardElement = this.stripeElements.create('card');
+      this.stripeCardElement.mount('#stripe-card-element');
+      this.stripeCardElement.on('change', (event: any) => {
+        const errorDiv = document.getElementById('stripe-card-errors');
+        if (errorDiv) errorDiv.textContent = event.error ? event.error.message : '';
+      });
+      this.stripeCardMontado = true;
+    }, 0);
+  }
+
   // Procesar pago electrónico en la pasarela
   confirmarPagoDigital(): void {
     const venta = this.ventaEnProceso();
     if (!venta) return;
 
-    this.isLoading.set(true);
+    if (this.metodoDigital() === 'tarjeta') {
+      this.confirmarPagoConStripe(venta);
+      return;
+    }
 
+    // QR / Libélula: Stripe no maneja QR interoperable boliviano, se mantiene simulado
+    this.isLoading.set(true);
     this.business
       .pagarVentaDigital(venta.id, {
-        metodo_pago: this.metodoDigital(),
-        pasarela: this.metodoDigital() === 'qr' ? 'Libélula QR Interoperable' : 'Pasarela Tarjeta Visa/Mastercard',
-        numero_tarjeta_simulada: this.metodoDigital() === 'tarjeta' ? this.numeroTarjeta : undefined,
+        metodo_pago: 'qr',
+        pasarela: 'Libélula QR Interoperable',
       })
       .subscribe({
-        next: (ventaPagada) => {
-          this.cart.vaciar();
-          this.showModalPasarela.set(false);
-
-          // Obtener comprobante oficial
-          this.business.getComprobanteVenta(ventaPagada.id).subscribe((comp) => {
-            this.comprobanteEmitido.set(comp);
-            this.isLoading.set(false);
-          });
-        },
+        next: (ventaPagada) => this.finalizarCompra(ventaPagada.id),
         error: (err) => {
           this.isLoading.set(false);
           alert(err.error?.detail || 'Error al procesar el pago con la pasarela.');
         },
       });
+  }
+
+  // Pago con tarjeta: crea el PaymentIntent en el backend, lo confirma con Stripe
+  // (el número de tarjeta viaja directo al servidor de Stripe, nunca al nuestro),
+  // y solo si Stripe confirma el pago se le notifica al backend para marcar la venta pagada.
+  private confirmarPagoConStripe(venta: Venta): void {
+    this.isLoading.set(true);
+
+    this.business.crearIntentoPagoStripe(venta.id).subscribe({
+      next: ({ client_secret }) => {
+        this.stripe
+          .confirmCardPayment(client_secret, { payment_method: { card: this.stripeCardElement } })
+          .then((resultado: any) => {
+            if (resultado.error) {
+              this.isLoading.set(false);
+              alert(resultado.error.message || 'La tarjeta fue rechazada.');
+              return;
+            }
+
+            this.business
+              .pagarVentaDigital(venta.id, {
+                metodo_pago: 'tarjeta',
+                stripe_payment_intent_id: resultado.paymentIntent.id,
+              })
+              .subscribe({
+                next: (ventaPagada) => this.finalizarCompra(ventaPagada.id),
+                error: (err) => {
+                  this.isLoading.set(false);
+                  alert(err.error?.detail || 'Error al confirmar el pago con la pasarela.');
+                },
+              });
+          });
+      },
+      error: (err) => {
+        this.isLoading.set(false);
+        alert(err.error?.detail || 'Error al iniciar el pago con Stripe.');
+      },
+    });
+  }
+
+  cerrarModalPasarela(): void {
+    this.showModalPasarela.set(false);
+    this.metodoDigital.set('qr');
+    this.stripeCardElement?.destroy();
+    this.stripeCardElement = null;
+    this.stripeCardMontado = false;
+  }
+
+  private finalizarCompra(ventaId: number): void {
+    this.cart.vaciar();
+    this.showModalPasarela.set(false);
+    this.stripeCardElement?.destroy();
+    this.stripeCardElement = null;
+    this.stripeCardMontado = false;
+
+    this.business.getComprobanteVenta(ventaId).subscribe((comp) => {
+      this.comprobanteEmitido.set(comp);
+      this.isLoading.set(false);
+    });
   }
 
   cerrarComprobante(): void {

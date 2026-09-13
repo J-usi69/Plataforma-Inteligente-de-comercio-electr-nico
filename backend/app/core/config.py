@@ -10,6 +10,8 @@ class Settings(BaseSettings):
     jwt_secret_key: str = ""
     environment: str = "development"
     payment_gateway_api_key: str = ""
+    stripe_secret_key: str = ""
+    stripe_webhook_secret: str = ""
     ai_api_key: str = ""
     replicate_api_token: str = ""
     tryon_replicate_model: str = "prunaai/p-image-try-on"

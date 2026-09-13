@@ -1,11 +1,14 @@
 import uuid
 from datetime import datetime, timezone
 from typing import List, Optional
+
+import stripe
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_client_ip, get_current_active_user, get_db, get_user_roles, registrar_bitacora, require_roles
+from app.core.config import settings
 
 _ROLES_STAFF_VENTA = ["Cajero", "Encargado", "Administrador"]
 from app.models.catalogo import Color, Prenda, Talla, VariantePrenda
@@ -20,6 +23,7 @@ from app.schemas.venta import (
     ComprobanteItemOut,
     ComprobanteVentaOut,
     DetalleVentaOut,
+    IntentoPagoOut,
     PagoDigitalCreate,
     PagoOut,
     VentaDigitalCreate,
@@ -28,6 +32,8 @@ from app.schemas.venta import (
 )
 
 router = APIRouter()
+
+stripe.api_key = settings.stripe_secret_key
 
 
 def _detalle_venta_a_out(db: Session, detalle: DetalleVenta) -> DetalleVentaOut:
@@ -372,6 +378,37 @@ def comprar_desde_plataforma_digital(
 
 
 # ==============================================================================
+# Crear Intento de Pago con Stripe (solo para metodo_pago == "tarjeta")
+# ==============================================================================
+@router.post("/{venta_id}/crear-intento-pago", response_model=IntentoPagoOut)
+def crear_intento_pago(
+    venta_id: int,
+    db: Session = Depends(get_db),
+    current_user: Usuario = Depends(get_current_active_user),
+):
+    """Crea un PaymentIntent de Stripe por el total de la venta y devuelve el client_secret
+    que el frontend usa para confirmar el pago con Stripe.js/Elements (nunca vemos el
+    numero de tarjeta en nuestro backend)."""
+    venta = db.get(Venta, venta_id)
+    if not venta or venta.usuario_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Venta no encontrada")
+    if venta.estado == EstadoVenta.pagada:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Esta compra ya se encuentra pagada")
+
+    try:
+        intento = stripe.PaymentIntent.create(
+            amount=int(round(float(venta.total) * 100)),  # Stripe trabaja en centavos
+            currency="usd",  # Stripe no soporta BOB; se usa USD para el entorno de pruebas
+            payment_method_types=["card"],  # solo tarjeta: evita métodos que requieren redirect (return_url)
+            metadata={"venta_id": str(venta.id), "usuario_id": str(current_user.id)},
+        )
+    except stripe.error.StripeError as exc:
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=f"Error de Stripe: {exc.user_message or str(exc)}")
+
+    return IntentoPagoOut(client_secret=intento.client_secret)
+
+
+# ==============================================================================
 # Procesar Pago Electrónico (Pasarela Digital)
 # ==============================================================================
 @router.post("/{venta_id}/pagar-digital", response_model=VentaOut)
@@ -390,13 +427,36 @@ def procesar_pago_electronico(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Esta compra ya se encuentra pagada")
 
     ahora = datetime.now(timezone.utc)
-    transaccion_id = f"PAY-{uuid.uuid4().hex[:12].upper()}"
+
+    if datos.metodo_pago == "tarjeta":
+        # El pago con tarjeta pasa por Stripe: no confiamos en lo que diga el
+        # frontend, verificamos el estado real del PaymentIntent contra la API.
+        if not datos.stripe_payment_intent_id:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Falta el identificador del pago de Stripe")
+
+        try:
+            intento = stripe.PaymentIntent.retrieve(datos.stripe_payment_intent_id)
+        except stripe.error.StripeError as exc:
+            raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=f"Error de Stripe: {exc.user_message or str(exc)}")
+
+        if intento.metadata.get("venta_id") != str(venta.id):
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="El pago de Stripe no corresponde a esta venta")
+        if intento.status != "succeeded":
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"El pago con Stripe no se completó (estado: {intento.status})")
+
+        transaccion_id = intento.id
+        pasarela = "Stripe"
+    else:
+        # QR / Libélula: Stripe no opera pasarelas de QR interoperable boliviano,
+        # este camino se mantiene simulado.
+        transaccion_id = f"PAY-{uuid.uuid4().hex[:12].upper()}"
+        pasarela = datos.pasarela or "Libélula QR"
 
     # Registrar el pago digital
     nuevo_pago = Pago(
         venta_id=venta.id,
         metodo_pago=datos.metodo_pago,
-        pasarela=datos.pasarela or "Libélula QR",
+        pasarela=pasarela,
         estado=EstadoPago.aprobado,
         monto=venta.total,
         transaccion_id=transaccion_id,

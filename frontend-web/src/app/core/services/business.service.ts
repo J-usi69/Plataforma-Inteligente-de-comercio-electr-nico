@@ -316,9 +316,13 @@ export class BusinessService {
 
   pagarVentaDigital(
     ventaId: number,
-    datos: { metodo_pago: string; pasarela?: string; numero_tarjeta_simulada?: string }
+    datos: { metodo_pago: string; pasarela?: string; numero_tarjeta_simulada?: string; stripe_payment_intent_id?: string }
   ): Observable<Venta> {
     return this.http.post<Venta>(`${this.apiBase}/ventas/${ventaId}/pagar-digital`, datos);
+  }
+
+  crearIntentoPagoStripe(ventaId: number): Observable<{ client_secret: string }> {
+    return this.http.post<{ client_secret: string }>(`${this.apiBase}/ventas/${ventaId}/crear-intento-pago`, {});
   }
 
   // --- Comprobante oficial de venta ---

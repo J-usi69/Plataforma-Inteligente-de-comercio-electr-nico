@@ -106,7 +106,7 @@
         <span class="brand-tag">Pasarela Digital Segura</span>
         <h3 style="margin: 0.25rem 0 0;">Pago Electrónico de Compra</h3>
       </div>
-      <button class="btn btn-secondary btn-icon" (click)="showModalPasarela.set(false)">✕</button>
+      <button class="btn btn-secondary btn-icon" (click)="cerrarModalPasarela()">✕</button>
     </div>
 
     <div style="text-align: center; margin-bottom: 1.25rem;">
@@ -134,7 +134,7 @@
         style="flex: 1;"
         [style.background]="metodoDigital() === 'tarjeta' ? '#4f46e5' : '#ffffff'"
         [style.color]="metodoDigital() === 'tarjeta' ? '#ffffff' : '#0f172a'"
-        (click)="metodoDigital.set('tarjeta')"
+        (click)="seleccionarTarjeta()"
       >
         💳 Tarjeta de Débito / Crédito
       </button>
@@ -156,26 +156,20 @@
       </p>
     </div>
 
-    <!-- Card Option -->
+    <!-- Card Option: Stripe Elements monta aquí el iframe seguro de la tarjeta -->
     <div *ngIf="metodoDigital() === 'tarjeta'" style="margin: 1.5rem 0;">
       <div class="form-group">
-        <label>Número de Tarjeta</label>
-        <input type="text" [(ngModel)]="numeroTarjeta" placeholder="4567 •••• •••• 1234" />
+        <label>Datos de la Tarjeta</label>
+        <div id="stripe-card-element" style="padding: 0.75rem; border: 1px solid #cbd5e1; border-radius: 8px; background: #ffffff;"></div>
+        <div id="stripe-card-errors" style="color: #ef4444; font-size: 0.8rem; margin-top: 0.5rem;"></div>
       </div>
-      <div class="grid-2">
-        <div class="form-group">
-          <label>Vencimiento</label>
-          <input type="text" [(ngModel)]="fechaExpiracion" placeholder="MM/AA" />
-        </div>
-        <div class="form-group">
-          <label>CVV</label>
-          <input type="password" maxlength="4" [(ngModel)]="cvv" placeholder="•••" />
-        </div>
-      </div>
+      <p style="font-size: 0.75rem; color: #94a3b8; margin-top: 0.5rem;">
+        Procesado de forma segura por Stripe. Tu número de tarjeta nunca pasa por nuestros servidores.
+      </p>
     </div>
 
     <div style="display: flex; gap: 0.75rem; margin-top: 1.5rem;">
-      <button type="button" class="btn btn-secondary" style="flex: 1;" (click)="showModalPasarela.set(false)">Cancelar</button>
+      <button type="button" class="btn btn-secondary" style="flex: 1;" (click)="cerrarModalPasarela()">Cancelar</button>
       <button
         type="button"
         class="btn btn-primary"
