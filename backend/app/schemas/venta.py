@@ -87,7 +87,7 @@ class VentaOut(BaseModel):
         from_attributes = True
 
 
-# --- Comprobante de Venta (CU-23) ---
+# --- Comprobante de Venta ---
 class ComprobanteItemOut(BaseModel):
     descripcion: str
     talla: Optional[str] = None

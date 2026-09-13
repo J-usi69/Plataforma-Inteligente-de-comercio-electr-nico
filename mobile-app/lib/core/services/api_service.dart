@@ -253,9 +253,9 @@ class ApiService {
     return Map<String, dynamic>.from(res);
   }
 
-  // --- CU-21 a CU-24: Ventas y Pagos Digitales Móviles ---
+  // --- Ventas y Pagos Digitales Móviles ---
 
-  // CU-21: Crear venta digital desde app móvil
+  // Crear venta digital desde app móvil
   Future<Map<String, dynamic>> crearVentaDigital({
     required int sucursalId,
     required List<Map<String, dynamic>> detalles,
@@ -273,7 +273,7 @@ class ApiService {
     return Map<String, dynamic>.from(res);
   }
 
-  // CU-22: Procesar pago digital (QR Libélula o Tarjeta)
+  // Procesar pago digital (QR Libélula o Tarjeta)
   Future<Map<String, dynamic>> pagarVentaDigital({
     required int ventaId,
     required String metodoPago,
@@ -291,13 +291,13 @@ class ApiService {
     return Map<String, dynamic>.from(res);
   }
 
-  // CU-23: Obtener comprobante digital oficial de venta
+  // Obtener comprobante digital oficial de venta
   Future<Map<String, dynamic>> getComprobanteVenta(int ventaId) async {
     final res = await get('/api/v1/ventas/comprobante/$ventaId');
     return Map<String, dynamic>.from(res);
   }
 
-  // CU-24: Consultar historial de compras del cliente
+  // Consultar historial de compras del cliente
   Future<List<dynamic>> getMisCompras() async {
     final res = await get('/api/v1/ventas/mis-compras');
     return res is List ? res : [];

@@ -46,7 +46,7 @@ def _crear_reserva(cliente_token: str) -> int:
 
 
 def test_cu17_cu18_flujo_completo_reserva_hasta_atencion():
-    """CU-17/CU-18 de punta a punta: crear -> listar sucursal -> confirmar -> atender."""
+    """Flujo de punta a punta: crear -> listar sucursal -> confirmar -> atender."""
     cliente_token = _get_cliente_token()
     encargado_token = _get_encargado_token()
 
@@ -60,7 +60,7 @@ def test_cu17_cu18_flujo_completo_reserva_hasta_atencion():
     assert res_propia.status_code == 200
     assert res_propia.json()["estado"] == "pendiente"
 
-    # CU-17: Encargado lista reservas de su sucursal y ve la reserva recién creada
+    # Encargado lista reservas de su sucursal y ve la reserva recién creada
     res_list = client.get(
         "/api/v1/reservas/sucursal/1",
         headers={"Authorization": f"Bearer {encargado_token}"},
@@ -68,7 +68,7 @@ def test_cu17_cu18_flujo_completo_reserva_hasta_atencion():
     assert res_list.status_code == 200
     assert reserva_id in [r["id"] for r in res_list.json()]
 
-    # CU-17: Encargado confirma preparación (apartó las prendas)
+    # Encargado confirma preparación (apartó las prendas)
     res_conf = client.post(
         f"/api/v1/reservas/{reserva_id}/confirmar",
         headers={"Authorization": f"Bearer {encargado_token}"},
@@ -76,7 +76,7 @@ def test_cu17_cu18_flujo_completo_reserva_hasta_atencion():
     assert res_conf.status_code == 200
     assert res_conf.json()["estado"] == "confirmada"
 
-    # CU-18: Encargado confirma recepción del cliente en sucursal
+    # Encargado confirma recepción del cliente en sucursal
     res_atend = client.post(
         f"/api/v1/reservas/{reserva_id}/atender",
         headers={"Authorization": f"Bearer {encargado_token}"},
@@ -94,7 +94,7 @@ def test_cu17_cu18_flujo_completo_reserva_hasta_atencion():
 
 
 def test_cu18_excepcion_no_show_libera_stock():
-    """CU-18 excepción: el cliente no se presenta y el stock reservado vuelve a estar disponible."""
+    """Excepción: el cliente no se presenta y el stock reservado vuelve a estar disponible."""
     cliente_token = _get_cliente_token()
     encargado_token = _get_encargado_token()
 
@@ -146,7 +146,7 @@ def test_cu17_cu18_control_de_acceso_reservas():
 
 
 def test_cu19_cu20_cu23_flujo_completo_venta_presencial():
-    """CU-19/CU-20/CU-23 de punta a punta: venta presencial -> cobro en caja -> comprobante."""
+    """Flujo de punta a punta: venta presencial -> cobro en caja -> comprobante."""
     cajero_token = _get_cajero_token()
 
     res_venta = client.post(
@@ -162,7 +162,7 @@ def test_cu19_cu20_cu23_flujo_completo_venta_presencial():
     assert res_venta.json()["estado"] == "pendiente"
     assert res_venta.json()["tipo_origen"] == "presencial"
 
-    # CU-20: Cobro en caja
+    # Cobro en caja
     res_pago = client.post(
         f"/api/v1/ventas/{venta_id}/cobrar-caja",
         headers={"Authorization": f"Bearer {cajero_token}"},
@@ -179,7 +179,7 @@ def test_cu19_cu20_cu23_flujo_completo_venta_presencial():
     )
     assert res_doble_cobro.status_code == 400
 
-    # CU-23: Emitir comprobante (el cajero, como staff, puede emitirlo)
+    # Emitir comprobante (el cajero, como staff, puede emitirlo)
     res_comp = client.get(
         f"/api/v1/ventas/comprobante/{venta_id}",
         headers={"Authorization": f"Bearer {cajero_token}"},
@@ -247,7 +247,7 @@ def test_cu19_cu20_control_de_acceso_ventas_presenciales():
 
 
 def test_cu21_cu22_cu24_flujo_completo_compra_digital():
-    """CU-21/CU-22/CU-24 de punta a punta: compra digital -> pago pasarela -> historial."""
+    """Flujo de punta a punta: compra digital -> pago pasarela -> historial."""
     cliente_token = _get_cliente_token()
 
     res_compra = client.post(
@@ -262,7 +262,7 @@ def test_cu21_cu22_cu24_flujo_completo_compra_digital():
     venta_id = res_compra.json()["id"]
     assert res_compra.json()["estado"] == "pendiente"
 
-    # CU-22: Pago digital
+    # Pago digital
     res_pago = client.post(
         f"/api/v1/ventas/{venta_id}/pagar-digital",
         headers={"Authorization": f"Bearer {cliente_token}"},
@@ -279,14 +279,14 @@ def test_cu21_cu22_cu24_flujo_completo_compra_digital():
     )
     assert res_doble_pago.status_code == 400
 
-    # CU-23: El propio cliente puede ver su comprobante
+    # El propio cliente puede ver su comprobante
     res_comp = client.get(
         f"/api/v1/ventas/comprobante/{venta_id}",
         headers={"Authorization": f"Bearer {cliente_token}"},
     )
     assert res_comp.status_code == 200
 
-    # CU-24: Consultar historial de compras del cliente
+    # Consultar historial de compras del cliente
     res_historial = client.get(
         "/api/v1/ventas/mis-compras",
         headers={"Authorization": f"Bearer {cliente_token}"},

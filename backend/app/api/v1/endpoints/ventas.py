@@ -91,7 +91,7 @@ def _venta_a_out(db: Session, venta: Venta) -> VentaOut:
 
 
 # ==============================================================================
-# CU-19: Registrar Venta Presencial (Cajero)
+# Registrar Venta Presencial (Cajero)
 # ==============================================================================
 @router.post("/presencial", response_model=VentaOut, status_code=status.HTTP_201_CREATED)
 def registrar_venta_presencial(
@@ -100,7 +100,7 @@ def registrar_venta_presencial(
     db: Session = Depends(get_db),
     current_user: Usuario = Depends(require_roles(["Cajero", "Administrador"])),
 ):
-    """CU-19: El Cajero registra una venta presencial en el punto de atención"""
+    """El Cajero registra una venta presencial en el punto de atención"""
     if not datos.detalles:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="La venta debe incluir al menos una prenda")
 
@@ -206,7 +206,7 @@ def registrar_venta_presencial(
 
 
 # ==============================================================================
-# CU-20: Procesar Pago en Caja (Cajero)
+# Procesar Pago en Caja (Cajero)
 # ==============================================================================
 @router.post("/{venta_id}/cobrar-caja", response_model=VentaOut)
 def procesar_pago_en_caja(
@@ -216,7 +216,7 @@ def procesar_pago_en_caja(
     db: Session = Depends(get_db),
     current_user: Usuario = Depends(require_roles(["Cajero", "Administrador"])),
 ):
-    """CU-20: El cajero cobra la venta presencial y actualiza el inventario"""
+    """El cajero cobra la venta presencial y actualiza el inventario"""
     venta = db.get(Venta, venta_id)
     if not venta:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Venta no encontrada")
@@ -281,7 +281,7 @@ def procesar_pago_en_caja(
 
 
 # ==============================================================================
-# CU-21: Comprar desde Plataforma Web o Móvil (Cliente)
+# Comprar desde Plataforma Web o Móvil (Cliente)
 # ==============================================================================
 @router.post("/digital", response_model=VentaOut, status_code=status.HTTP_201_CREATED)
 def comprar_desde_plataforma_digital(
@@ -290,7 +290,7 @@ def comprar_desde_plataforma_digital(
     db: Session = Depends(get_db),
     current_user: Usuario = Depends(get_current_active_user),
 ):
-    """CU-21: El cliente confirma una compra digital desde su carrito en la web o app móvil"""
+    """El cliente confirma una compra digital desde su carrito en la web o app móvil"""
     if not datos.detalles:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="El carrito de compra está vacío")
 
@@ -372,7 +372,7 @@ def comprar_desde_plataforma_digital(
 
 
 # ==============================================================================
-# CU-22: Procesar Pago Electrónico (Pasarela Digital)
+# Procesar Pago Electrónico (Pasarela Digital)
 # ==============================================================================
 @router.post("/{venta_id}/pagar-digital", response_model=VentaOut)
 def procesar_pago_electronico(
@@ -382,7 +382,7 @@ def procesar_pago_electronico(
     db: Session = Depends(get_db),
     current_user: Usuario = Depends(get_current_active_user),
 ):
-    """CU-22: Cobro digital de la venta mediante pasarela de pagos (QR Interoperable / Tarjeta)"""
+    """Cobro digital de la venta mediante pasarela de pagos (QR Interoperable / Tarjeta)"""
     venta = db.get(Venta, venta_id)
     if not venta or venta.usuario_id != current_user.id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Venta no encontrada")
@@ -441,7 +441,7 @@ def procesar_pago_electronico(
 
 
 # ==============================================================================
-# CU-23: Emitir Comprobante de Venta
+# Emitir Comprobante de Venta
 # ==============================================================================
 @router.get("/comprobante/{venta_id}", response_model=ComprobanteVentaOut)
 def emitir_comprobante_venta(
@@ -449,7 +449,7 @@ def emitir_comprobante_venta(
     db: Session = Depends(get_db),
     current_user: Usuario = Depends(get_current_active_user),
 ):
-    """CU-23: Generar comprobante oficial respaldando una venta pagada"""
+    """Generar comprobante oficial respaldando una venta pagada"""
     venta = db.get(Venta, venta_id)
     if not venta:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Venta no encontrada")
@@ -508,14 +508,14 @@ def emitir_comprobante_venta(
 
 
 # ==============================================================================
-# CU-24: Consultar Historial de Compras (Cliente)
+# Consultar Historial de Compras (Cliente)
 # ==============================================================================
 @router.get("/mis-compras", response_model=List[VentaOut])
 def consultar_historial_compras(
     db: Session = Depends(get_db),
     current_user: Usuario = Depends(get_current_active_user),
 ):
-    """CU-24: El cliente consulta el historial de sus compras anteriores (presenciales y digitales)"""
+    """El cliente consulta el historial de sus compras anteriores (presenciales y digitales)"""
     stmt = select(Venta).where(Venta.usuario_id == current_user.id).order_by(Venta.fecha_venta.desc())
     ventas = db.scalars(stmt).all()
     return [_venta_a_out(db, v) for v in ventas]

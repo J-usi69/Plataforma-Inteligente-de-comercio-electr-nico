@@ -122,7 +122,7 @@ export class Carrito implements OnInit {
     this.cart.setSucursal(id);
   }
 
-  // CU-21: Iniciar compra digital desde la web
+  // Iniciar compra digital desde la web
   iniciarCompraDigital(): void {
     if (!this.authService.isLoggedIn()) {
       alert('Debes iniciar sesión para completar tu compra digital');
@@ -155,7 +155,7 @@ export class Carrito implements OnInit {
     });
   }
 
-  // CU-22: Procesar pago electrónico en la pasarela
+  // Procesar pago electrónico en la pasarela
   confirmarPagoDigital(): void {
     const venta = this.ventaEnProceso();
     if (!venta) return;
@@ -173,7 +173,7 @@ export class Carrito implements OnInit {
           this.cart.vaciar();
           this.showModalPasarela.set(false);
 
-          // CU-23: Obtener comprobante oficial
+          // Obtener comprobante oficial
           this.business.getComprobanteVenta(ventaPagada.id).subscribe((comp) => {
             this.comprobanteEmitido.set(comp);
             this.isLoading.set(false);

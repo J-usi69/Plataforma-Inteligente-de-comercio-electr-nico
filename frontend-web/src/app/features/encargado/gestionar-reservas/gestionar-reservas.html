@@ -89,17 +89,17 @@
 
       <!-- Actions -->
       <div style="display: flex; flex-direction: column; gap: 0.5rem; min-width: 200px;">
-        <!-- CU-17: Confirmar que las prendas fueron apartadas del perchero -->
+        <!-- Confirmar que las prendas fueron apartadas del perchero -->
         <button
           *ngIf="r.estado === 'pendiente'"
           class="btn btn-primary btn-sm"
           [disabled]="accionandoId() === r.id"
           (click)="confirmarApartado(r)"
         >
-          ✓ Apartar Prendas (CU-17)
+          ✓ Apartar Prendas
         </button>
 
-        <!-- CU-18: El cliente se presentó en la sucursal -->
+        <!-- El cliente se presentó en la sucursal -->
         <button
           *ngIf="r.estado === 'confirmada'"
           class="btn btn-primary btn-sm"
@@ -110,7 +110,7 @@
           🚶‍♂️ Atender Cliente (Vestidor)
         </button>
 
-        <!-- CU-18 Excepción: No se presentó -->
+        <!-- Excepción: no se presentó -->
         <button
           *ngIf="r.estado === 'pendiente' || r.estado === 'confirmada'"
           class="btn btn-secondary btn-sm"

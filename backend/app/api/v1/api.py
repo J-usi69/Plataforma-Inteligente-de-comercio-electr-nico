@@ -29,6 +29,6 @@ api_router.include_router(temporadas.router, tags=["Temporadas y Colecciones (CU
 api_router.include_router(variantes.router, prefix="/prendas", tags=["Variantes de Prenda (CU-11)"])
 api_router.include_router(vestidor_ar.router, prefix="/vestidor-ar", tags=["Vestidor Virtual RA (CU-14)"])
 api_router.include_router(inventario.router, prefix="/inventario", tags=["Disponibilidad por Sucursal (CU-13)"])
-api_router.include_router(reservas.router, prefix="/reservas", tags=["Reservas (CU-15, CU-16, CU-17, CU-18)"])
-api_router.include_router(ventas.router, prefix="/ventas", tags=["Ventas, Caja y Pagos (CU-19 a CU-24)"])
+api_router.include_router(reservas.router, prefix="/reservas", tags=["Reservas (CU-15, CU-16)"])
+api_router.include_router(ventas.router, prefix="/ventas", tags=["Ventas, Caja y Pagos"])
 

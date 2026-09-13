@@ -219,7 +219,7 @@ export class CajaPos implements OnInit {
     this.ventaCreada.set(null);
   }
 
-  // CU-19: Registrar Venta y abrir cobro
+  // Registrar Venta y abrir cobro
   iniciarCobro(): void {
     if (!this.items().length) return;
     this.isLoading.set(true);
@@ -248,7 +248,7 @@ export class CajaPos implements OnInit {
     });
   }
 
-  // CU-20: Confirmar pago en caja
+  // Confirmar pago en caja
   confirmarPagoCaja(): void {
     const venta = this.ventaCreada();
     if (!venta) return;
@@ -262,7 +262,7 @@ export class CajaPos implements OnInit {
       .subscribe({
         next: () => {
           this.showModalCobro.set(false);
-          // CU-23: Obtener y mostrar comprobante de venta
+          // Obtener y mostrar comprobante de venta
           this.business.getComprobanteVenta(venta.id).subscribe((comp) => {
             this.comprobanteEmitido.set(comp);
             this.isLoading.set(false);

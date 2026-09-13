@@ -25,7 +25,7 @@
   <div class="pos-layout">
     <!-- Left Column: Source selection & manual items -->
     <div>
-      <!-- 1. Reservas Atendidas List (CU-19) -->
+      <!-- 1. Reservas Atendidas List -->
       <div class="pos-card" style="margin-bottom: 1.5rem;">
         <h4 style="margin-bottom: 0.5rem;">1. Cargar desde Reserva Atendida (Vestidor Físico)</h4>
         <p style="font-size: 0.82rem; color: #64748b; margin-bottom: 1rem;">
@@ -47,7 +47,7 @@
         </div>
       </div>
 
-      <!-- 2. Agregar ítem manual (CU-19) -->
+      <!-- 2. Agregar ítem manual -->
       <div class="pos-card">
         <h4 style="margin-bottom: 0.5rem;">2. Agregar Prenda de Mostrador</h4>
         <div style="display: flex; gap: 0.75rem; margin-top: 1rem;">
@@ -79,7 +79,7 @@
       </div>
     </div>
 
-    <!-- Right Column: Current Sale Ticket & Payment (CU-19 & CU-20) -->
+    <!-- Right Column: Current Sale Ticket & Payment -->
     <div>
       <div class="pos-card">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
@@ -135,7 +135,7 @@
           [disabled]="!items().length || isLoading()"
           (click)="iniciarCobro()"
         >
-          💳 Procesar Cobro en Caja (CU-20)
+          💳 Procesar Cobro en Caja
         </button>
       </div>
     </div>
@@ -143,7 +143,7 @@
 </div>
 
 <!-- ============================================================ -->
-<!-- MODAL DE COBRO EN CAJA (CU-20) -->
+<!-- MODAL DE COBRO EN CAJA -->
 <!-- ============================================================ -->
 <div *ngIf="showModalCobro()" class="modal-overlay">
   <div class="modal-content" style="max-width: 480px;">
@@ -231,7 +231,7 @@
 </div>
 
 <!-- ============================================================ -->
-<!-- MODAL COMPROBANTE OFICIAL DE VENTA (CU-23) -->
+<!-- MODAL COMPROBANTE OFICIAL DE VENTA -->
 <!-- ============================================================ -->
 <div *ngIf="comprobanteEmitido()" class="modal-overlay">
   <div class="modal-content" style="max-width: 480px;">

@@ -89,7 +89,7 @@
           [disabled]="isLoading()"
           (click)="iniciarCompraDigital()"
         >
-          {{ isLoading() ? 'Validando stock...' : 'Pagar con Pasarela Digital (CU-21/22)' }}
+          {{ isLoading() ? 'Validando stock...' : 'Pagar con Pasarela Digital' }}
         </button>
       </div>
     </div>
@@ -97,7 +97,7 @@
 </div>
 
 <!-- ============================================================ -->
-<!-- MODAL DE PASARELA DE PAGO DIGITAL (CU-22) -->
+<!-- MODAL DE PASARELA DE PAGO DIGITAL -->
 <!-- ============================================================ -->
 <div *ngIf="showModalPasarela()" class="modal-overlay">
   <div class="modal-content" style="max-width: 520px;">
@@ -190,7 +190,7 @@
 </div>
 
 <!-- ============================================================ -->
-<!-- MODAL COMPROBANTE OFICIAL (CU-23) -->
+<!-- MODAL COMPROBANTE OFICIAL -->
 <!-- ============================================================ -->
 <div *ngIf="comprobanteEmitido()" class="modal-overlay">
   <div class="modal-content" style="max-width: 480px;">
