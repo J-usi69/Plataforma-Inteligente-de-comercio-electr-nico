@@ -488,16 +488,24 @@ class _ModalSeleccionarVarianteState extends State<_ModalSeleccionarVariante> {
       imagenUrl: widget.prenda['imagen_url'] as String?,
     ));
 
+    // El contexto de este modal queda invalido despues de cerrarlo (pop), asi
+    // que el router y el ScaffoldMessenger de la pantalla que lo abrio se
+    // capturan ANTES de cerrar, para poder mostrar el snackbar y navegar
+    // correctamente desde su accion "Ver Bolsa".
+    final router = GoRouter.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    final nombrePrenda = widget.prenda['nombre'];
+
     Navigator.of(context).pop();
 
-    ScaffoldMessenger.of(context).showSnackBar(
+    messenger.showSnackBar(
       SnackBar(
-        content: Text('✓ Se añadió "${widget.prenda['nombre']}" a tu bolsa.'),
+        content: Text('✓ Se añadió "$nombrePrenda" a tu bolsa.'),
         backgroundColor: const Color(0xFF059669),
         action: SnackBarAction(
           label: 'Ver Bolsa',
           textColor: Colors.white,
-          onPressed: () => context.push('/carrito'),
+          onPressed: () => router.push('/carrito'),
         ),
       ),
     );

@@ -61,16 +61,12 @@ class _CarritoScreenState extends State<CarritoScreen> {
 
   void _iniciarCheckout() async {
     if (!_apiService.isLoggedIn) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('Debes iniciar sesión para completar tu compra.'),
-          action: SnackBarAction(
-            label: 'Ingresar',
-            onPressed: () => context.push('/login'),
-          ),
-        ),
-      );
-      return;
+      // Se envía a iniciar sesión y, si el login es exitoso, se continúa
+      // automáticamente con el pago sin que el usuario tenga que volver a
+      // pulsar "Continuar al pago digital".
+      final loggedIn = await context.push<bool>('/login');
+      if (!mounted) return;
+      if (loggedIn != true || !_apiService.isLoggedIn) return;
     }
 
     if (_cartService.items.isEmpty) return;
@@ -428,6 +424,7 @@ class _CarritoScreenState extends State<CarritoScreen> {
                         else
                           DropdownButtonFormField<int>(
                             value: _selectedSucursalId,
+                            isExpanded: true,
                             decoration: InputDecoration(
                               contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                               border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
@@ -435,7 +432,11 @@ class _CarritoScreenState extends State<CarritoScreen> {
                             items: _sucursales.map<DropdownMenuItem<int>>((s) {
                               return DropdownMenuItem<int>(
                                 value: s['id'] as int,
-                                child: Text('${s['nombre']} (${s['ciudad_nombre'] ?? 'Bolivia'})'),
+                                child: Text(
+                                  '${s['nombre']} (${s['ciudad_nombre'] ?? 'Bolivia'})',
+                                  overflow: TextOverflow.ellipsis,
+                                  maxLines: 1,
+                                ),
                               );
                             }).toList(),
                             onChanged: (val) {
@@ -538,6 +539,14 @@ class _ModalPagoDigitalState extends State<_ModalPagoDigital> with SingleTickerP
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    // El CardField de Stripe crea una vista nativa (PlatformView): montarla de
+    // inmediato junto con la animacion de apertura del bottom sheet puede
+    // trabar la UI. Por eso no usamos TabBarView (que construye ambas
+    // pestañas a la vez) y en su lugar solo renderizamos la vista activa,
+    // así el CardField recien se crea cuando el usuario elige "Tarjeta".
+    _tabController.addListener(() {
+      if (mounted) setState(() {});
+    });
   }
 
   @override
@@ -608,6 +617,120 @@ class _ModalPagoDigitalState extends State<_ModalPagoDigital> with SingleTickerP
     );
   }
 
+  Widget _buildVistaQr() {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: const Color(0xFFE2E8F0)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Column(
+            children: [
+              Container(
+                width: 160,
+                height: 160,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0F172A),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Center(
+                  child: Icon(Icons.qr_code_scanner, color: Colors.white, size: 100),
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'QR Simple & Libélula Pay',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF4F46E5)),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+        const Text(
+          'Escanea desde cualquier app bancaria de Bolivia.',
+          style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+        ),
+        const SizedBox(height: 16),
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton.icon(
+            onPressed: _isPaying ? null : _procesarPagoQr,
+            icon: const Icon(Icons.check),
+            label: _isPaying
+                ? const SizedBox(
+                    height: 18,
+                    width: 18,
+                    child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                  )
+                : const Text('CONFIRMAR PAGO QR'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF059669),
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 14),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // Vista Tarjeta: CardField de Stripe, procesa el número en un componente
+  // nativo aislado que nunca pasa por nuestro código. Solo se construye
+  // cuando el usuario efectivamente selecciona esta pestaña (ver build()).
+  Widget _buildVistaTarjeta() {
+    return SingleChildScrollView(
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            decoration: BoxDecoration(
+              border: Border.all(color: const Color(0xFFCBD5E1)),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: CardField(
+              onCardChanged: (_) {},
+            ),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Procesado de forma segura por Stripe.',
+            style: TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
+          ),
+          const SizedBox(height: 18),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: _isPaying ? null : _procesarPagoTarjeta,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF4F46E5),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+              ),
+              child: _isPaying
+                  ? const SizedBox(
+                      height: 18,
+                      width: 18,
+                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                    )
+                  : Text('PAGAR BS. ${widget.total.toStringAsFixed(2)}'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -621,157 +744,49 @@ class _ModalPagoDigitalState extends State<_ModalPagoDigital> with SingleTickerP
         right: 20,
         bottom: MediaQuery.of(context).viewInsets.bottom + 24,
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 40,
-            height: 4,
-            decoration: BoxDecoration(
-              color: Colors.grey.shade300,
-              borderRadius: BorderRadius.circular(2),
+      // El teclado (al escribir la tarjeta) reduce el espacio vertical
+      // disponible; sin scroll, el contenido de altura fija se salía de la
+      // pantalla ("BOTTOM OVERFLOWED"). Con esto se desplaza en vez de desbordar.
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(2),
+              ),
             ),
-          ),
-          const SizedBox(height: 16),
-          const Text(
-            'Pasarela de Pago Electrónico',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Total a cancelar: Bs. ${widget.total.toStringAsFixed(2)}',
-            style: const TextStyle(color: Color(0xFF4F46E5), fontWeight: FontWeight.w700, fontSize: 16),
-          ),
-          const SizedBox(height: 16),
-          TabBar(
-            controller: _tabController,
-            labelColor: const Color(0xFF4F46E5),
-            unselectedLabelColor: const Color(0xFF64748B),
-            indicatorColor: const Color(0xFF4F46E5),
-            tabs: const [
-              Tab(icon: Icon(Icons.qr_code_2), text: 'Pago QR Libélula'),
-              Tab(icon: Icon(Icons.credit_card), text: 'Tarjeta Débito/Crédito'),
-            ],
-          ),
-          const SizedBox(height: 16),
-          SizedBox(
-            height: 320,
-            child: TabBarView(
+            const SizedBox(height: 16),
+            const Text(
+              'Pasarela de Pago Electrónico',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Total a cancelar: Bs. ${widget.total.toStringAsFixed(2)}',
+              style: const TextStyle(color: Color(0xFF4F46E5), fontWeight: FontWeight.w700, fontSize: 16),
+            ),
+            const SizedBox(height: 16),
+            TabBar(
               controller: _tabController,
-              children: [
-                // Vista QR
-                Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: const Color(0xFFE2E8F0)),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.05),
-                            blurRadius: 10,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                      child: Column(
-                        children: [
-                          Container(
-                            width: 160,
-                            height: 160,
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF0F172A),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: const Center(
-                              child: Icon(Icons.qr_code_scanner, color: Colors.white, size: 100),
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          const Text(
-                            'QR Simple & Libélula Pay',
-                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF4F46E5)),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    const Text(
-                      'Escanea desde cualquier app bancaria de Bolivia.',
-                      style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
-                    ),
-                    const SizedBox(height: 16),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton.icon(
-                        onPressed: _isPaying ? null : _procesarPagoQr,
-                        icon: const Icon(Icons.check),
-                        label: _isPaying
-                            ? const SizedBox(
-                                height: 18,
-                                width: 18,
-                                child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
-                              )
-                            : const Text('CONFIRMAR PAGO QR'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF059669),
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-
-                // Vista Tarjeta: CardField de Stripe, procesa el número en un
-                // componente nativo aislado que nunca pasa por nuestro código.
-                SingleChildScrollView(
-                  child: Column(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8),
-                        decoration: BoxDecoration(
-                          border: Border.all(color: const Color(0xFFCBD5E1)),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: CardField(
-                          onCardChanged: (_) {},
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      const Text(
-                        'Procesado de forma segura por Stripe.',
-                        style: TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
-                      ),
-                      const SizedBox(height: 18),
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton(
-                          onPressed: _isPaying ? null : _procesarPagoTarjeta,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF4F46E5),
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                          ),
-                          child: _isPaying
-                              ? const SizedBox(
-                                  height: 18,
-                                  width: 18,
-                                  child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
-                                )
-                              : Text('PAGAR BS. ${widget.total.toStringAsFixed(2)}'),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+              labelColor: const Color(0xFF4F46E5),
+              unselectedLabelColor: const Color(0xFF64748B),
+              indicatorColor: const Color(0xFF4F46E5),
+              tabs: const [
+                Tab(icon: Icon(Icons.qr_code_2), text: 'Pago QR Libélula'),
+                Tab(icon: Icon(Icons.credit_card), text: 'Tarjeta Débito/Crédito'),
               ],
             ),
-          ),
-        ],
+            const SizedBox(height: 16),
+            SizedBox(
+              height: 320,
+              child: _tabController.index == 0 ? _buildVistaQr() : _buildVistaTarjeta(),
+            ),
+          ],
+        ),
       ),
     );
   }

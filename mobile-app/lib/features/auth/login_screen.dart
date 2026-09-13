@@ -46,7 +46,14 @@ class _LoginScreenState extends State<LoginScreen> {
           backgroundColor: Colors.green,
         ),
       );
-      context.go('/catalogo');
+      // Si el login se abrió empujado desde otra pantalla (ej. el carrito
+      // pidiendo iniciar sesión antes de pagar), volvemos a ella con "true"
+      // para que esa pantalla pueda continuar su flujo automáticamente.
+      if (context.canPop()) {
+        context.pop(true);
+      } else {
+        context.go('/catalogo');
+      }
     } catch (e) {
       if (!mounted) return;
       setState(() {

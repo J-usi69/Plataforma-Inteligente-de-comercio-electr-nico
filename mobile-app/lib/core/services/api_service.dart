@@ -37,31 +37,40 @@ class ApiService {
     return Uri.parse('$baseUrl$path');
   }
 
+  // Sin timeout, un corte de red silencioso (ej. el tunel de `adb reverse`
+  // cayendose) dejaba la pantalla cargando para siempre en vez de mostrar
+  // un error.
+  static const _timeout = Duration(seconds: 15);
+
   Future<dynamic> get(String path) async {
-    final response = await http.get(_uri(path), headers: _headers);
+    final response = await http.get(_uri(path), headers: _headers).timeout(_timeout);
     return _decode(response);
   }
 
   Future<dynamic> post(String path, Map<String, dynamic> body) async {
-    final response = await http.post(
-      _uri(path),
-      headers: _headers,
-      body: jsonEncode(body),
-    );
+    final response = await http
+        .post(
+          _uri(path),
+          headers: _headers,
+          body: jsonEncode(body),
+        )
+        .timeout(_timeout);
     return _decode(response);
   }
 
   Future<dynamic> put(String path, Map<String, dynamic> body) async {
-    final response = await http.put(
-      _uri(path),
-      headers: _headers,
-      body: jsonEncode(body),
-    );
+    final response = await http
+        .put(
+          _uri(path),
+          headers: _headers,
+          body: jsonEncode(body),
+        )
+        .timeout(_timeout);
     return _decode(response);
   }
 
   Future<dynamic> delete(String path) async {
-    final response = await http.delete(_uri(path), headers: _headers);
+    final response = await http.delete(_uri(path), headers: _headers).timeout(_timeout);
     return _decode(response);
   }
 
