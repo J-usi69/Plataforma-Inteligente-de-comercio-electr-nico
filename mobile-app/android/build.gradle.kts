@@ -26,9 +26,7 @@ subprojects {
 // aunque nuestro codigo no tenga errores. Se desactivan esos checks "vital" (no
 // afecta al `flutter analyze` normal de Dart, solo al lint nativo de Android).
 subprojects {
-    afterEvaluate {
-        tasks.matching { it.name.startsWith("lintVital") }.configureEach { enabled = false }
-    }
+    tasks.matching { it.name.startsWith("lintVital") }.configureEach { enabled = false }
 }
 
 tasks.register<Delete>("clean") {
