@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_stripe/flutter_stripe.dart' hide Card;
 import 'package:go_router/go_router.dart';
 import '../../core/services/api_service.dart';
 import '../../core/services/cart_service.dart';
@@ -166,7 +167,7 @@ class _CarritoScreenState extends State<CarritoScreen> {
                   children: [
                     _resumenFila('Cliente', comprobante['cliente_nombre'] ?? 'Cliente'),
                     _resumenFila('Sucursal', comprobante['sucursal_nombre'] ?? 'Central'),
-                    _resumenFila('Tipo de Venta', comprobante['tipo_venta'] ?? 'DIGITAL'),
+                    _resumenFila('Tipo de Venta', comprobante['tipo_origen'] ?? 'DIGITAL'),
                     _resumenFila('Método de Pago', comprobante['metodo_pago'] ?? 'ELECTRÓNICO'),
                     const Divider(height: 16),
                     _resumenFila('Total Cancelado', 'Bs. ${(comprobante['total'] as num).toStringAsFixed(2)}', bold: true),
@@ -175,7 +176,7 @@ class _CarritoScreenState extends State<CarritoScreen> {
               ),
               const SizedBox(height: 16),
               Text(
-                'Código de Autorización: ${comprobante['codigo_control']}',
+                'Código de Autorización: ${comprobante['transaccion_id'] ?? comprobante['numero_comprobante']}',
                 style: const TextStyle(fontSize: 11, color: Color(0xFF94A3B8), fontFamily: 'monospace'),
               ),
               const SizedBox(height: 24),
@@ -533,11 +534,6 @@ class _ModalPagoDigitalState extends State<_ModalPagoDigital> with SingleTickerP
   final _apiService = ApiService();
   bool _isPaying = false;
 
-  final _tarjetaNumCtrl = TextEditingController(text: '4532 8900 1234 5678');
-  final _tarjetaTitularCtrl = TextEditingController(text: 'CLIENTE FASHION');
-  final _tarjetaExpCtrl = TextEditingController(text: '12/28');
-  final _tarjetaCvvCtrl = TextEditingController(text: '345');
-
   @override
   void initState() {
     super.initState();
@@ -547,42 +543,69 @@ class _ModalPagoDigitalState extends State<_ModalPagoDigital> with SingleTickerP
   @override
   void dispose() {
     _tabController.dispose();
-    _tarjetaNumCtrl.dispose();
-    _tarjetaTitularCtrl.dispose();
-    _tarjetaExpCtrl.dispose();
-    _tarjetaCvvCtrl.dispose();
     super.dispose();
   }
 
-  Future<void> _procesarPago(String metodo) async {
+  // Pago QR/Libélula: Stripe no maneja QR interoperable boliviano, se mantiene simulado.
+  Future<void> _procesarPagoQr() async {
     setState(() => _isPaying = true);
     try {
-      final res = await _apiService.pagarVentaDigital(
+      await _apiService.pagarVentaDigital(
         ventaId: widget.ventaId,
-        metodoPago: metodo,
-        referenciaTransaccion: metodo == 'QR' ? 'LIBELULA-QR-${DateTime.now().millisecondsSinceEpoch}' : null,
-        datosTarjeta: metodo == 'TARJETA'
-            ? {
-                'numero': _tarjetaNumCtrl.text.replaceAll(' ', ''),
-                'titular': _tarjetaTitularCtrl.text,
-                'exp': _tarjetaExpCtrl.text,
-              }
-            : null,
+        metodoPago: 'qr',
+        pasarela: 'Libélula QR Interoperable',
       );
-
-      final comprobante = res['comprobante'] as Map<String, dynamic>;
-      widget.onPagoCompletado(comprobante);
+      await _finalizarPago();
     } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error al procesar pago: $e'),
-          backgroundColor: Colors.red.shade700,
-        ),
-      );
+      _mostrarError('Error al procesar pago: $e');
     } finally {
       if (mounted) setState(() => _isPaying = false);
     }
+  }
+
+  // Pago con tarjeta: crea el PaymentIntent en el backend, lo confirma con Stripe
+  // usando los datos que el usuario cargó en el CardField (nunca pasan por nuestro
+  // servidor), y solo si Stripe confirma se le notifica al backend.
+  Future<void> _procesarPagoTarjeta() async {
+    setState(() => _isPaying = true);
+    try {
+      final clientSecret = await _apiService.crearIntentoPagoStripe(widget.ventaId);
+
+      final paymentIntent = await Stripe.instance.confirmPayment(
+        paymentIntentClientSecret: clientSecret,
+        data: const PaymentMethodParams.card(paymentMethodData: PaymentMethodData()),
+      );
+
+      if (paymentIntent.status != PaymentIntentsStatus.Succeeded) {
+        _mostrarError('El pago no se pudo completar (estado: ${paymentIntent.status}).');
+        return;
+      }
+
+      await _apiService.pagarVentaDigital(
+        ventaId: widget.ventaId,
+        metodoPago: 'tarjeta',
+        stripePaymentIntentId: paymentIntent.id,
+      );
+      await _finalizarPago();
+    } on StripeException catch (e) {
+      _mostrarError(e.error.localizedMessage ?? 'La tarjeta fue rechazada.');
+    } catch (e) {
+      _mostrarError('Error al procesar pago: $e');
+    } finally {
+      if (mounted) setState(() => _isPaying = false);
+    }
+  }
+
+  Future<void> _finalizarPago() async {
+    final comprobante = await _apiService.getComprobanteVenta(widget.ventaId);
+    widget.onPagoCompletado(comprobante);
+  }
+
+  void _mostrarError(String mensaje) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(mensaje), backgroundColor: Colors.red.shade700),
+    );
   }
 
   @override
@@ -684,7 +707,7 @@ class _ModalPagoDigitalState extends State<_ModalPagoDigital> with SingleTickerP
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton.icon(
-                        onPressed: _isPaying ? null : () => _procesarPago('QR'),
+                        onPressed: _isPaying ? null : _procesarPagoQr,
                         icon: const Icon(Icons.check),
                         label: _isPaying
                             ? const SizedBox(
@@ -703,58 +726,31 @@ class _ModalPagoDigitalState extends State<_ModalPagoDigital> with SingleTickerP
                   ],
                 ),
 
-                // Vista Tarjeta
+                // Vista Tarjeta: CardField de Stripe, procesa el número en un
+                // componente nativo aislado que nunca pasa por nuestro código.
                 SingleChildScrollView(
                   child: Column(
                     children: [
-                      TextField(
-                        controller: _tarjetaNumCtrl,
-                        decoration: InputDecoration(
-                          labelText: 'Número de Tarjeta',
-                          prefixIcon: const Icon(Icons.credit_card),
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: const Color(0xFFCBD5E1)),
+                          borderRadius: BorderRadius.circular(10),
                         ),
-                        keyboardType: TextInputType.number,
-                      ),
-                      const SizedBox(height: 12),
-                      TextField(
-                        controller: _tarjetaTitularCtrl,
-                        decoration: InputDecoration(
-                          labelText: 'Nombre del Titular',
-                          prefixIcon: const Icon(Icons.person_outline),
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                        child: CardField(
+                          onCardChanged: (_) {},
                         ),
                       ),
-                      const SizedBox(height: 12),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: TextField(
-                              controller: _tarjetaExpCtrl,
-                              decoration: InputDecoration(
-                                labelText: 'Vencimiento (MM/AA)',
-                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: TextField(
-                              controller: _tarjetaCvvCtrl,
-                              decoration: InputDecoration(
-                                labelText: 'CVV',
-                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                              ),
-                              obscureText: true,
-                            ),
-                          ),
-                        ],
+                      const SizedBox(height: 8),
+                      const Text(
+                        'Procesado de forma segura por Stripe.',
+                        style: TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
                       ),
                       const SizedBox(height: 18),
                       SizedBox(
                         width: double.infinity,
                         child: ElevatedButton(
-                          onPressed: _isPaying ? null : () => _procesarPago('TARJETA'),
+                          onPressed: _isPaying ? null : _procesarPagoTarjeta,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFF4F46E5),
                             foregroundColor: Colors.white,

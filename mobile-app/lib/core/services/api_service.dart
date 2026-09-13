@@ -273,22 +273,27 @@ class ApiService {
     return Map<String, dynamic>.from(res);
   }
 
-  // Procesar pago digital (QR Libélula o Tarjeta)
+  // Procesar pago digital (QR Libélula o Tarjeta ya confirmada con Stripe)
   Future<Map<String, dynamic>> pagarVentaDigital({
     required int ventaId,
     required String metodoPago,
-    String? referenciaTransaccion,
-    Map<String, dynamic>? datosTarjeta,
+    String? pasarela,
+    String? stripePaymentIntentId,
   }) async {
     final body = {
       'metodo_pago': metodoPago,
-      if (referenciaTransaccion != null)
-        'referencia_transaccion': referenciaTransaccion,
-      if (datosTarjeta != null)
-        'datos_tarjeta': datosTarjeta,
+      if (pasarela != null) 'pasarela': pasarela,
+      if (stripePaymentIntentId != null)
+        'stripe_payment_intent_id': stripePaymentIntentId,
     };
     final res = await post('/api/v1/ventas/$ventaId/pagar-digital', body);
     return Map<String, dynamic>.from(res);
+  }
+
+  // Crea un PaymentIntent real en Stripe para el pago con tarjeta; devuelve el client_secret.
+  Future<String> crearIntentoPagoStripe(int ventaId) async {
+    final res = await post('/api/v1/ventas/$ventaId/crear-intento-pago', {});
+    return res['client_secret'] as String;
   }
 
   // Obtener comprobante digital oficial de venta
