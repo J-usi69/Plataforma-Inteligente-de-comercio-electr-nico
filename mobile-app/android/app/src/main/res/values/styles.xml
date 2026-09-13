@@ -12,7 +12,9 @@
          running.
 
          This Theme is only used starting with V2 of Flutter's Android embedding. -->
-    <style name="NormalTheme" parent="@android:style/Theme.Light.NoTitleBar">
+    <!-- MaterialComponents (en vez del tema plano de Android): flutter_stripe lo
+         exige para sus componentes nativos de pago (CardField, etc). -->
+    <style name="NormalTheme" parent="Theme.MaterialComponents.Light.NoActionBar">
         <item name="android:windowBackground">?android:colorBackground</item>
     </style>
 </resources>
