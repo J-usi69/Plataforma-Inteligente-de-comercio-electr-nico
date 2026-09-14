@@ -7,7 +7,8 @@ INSERT INTO rol (id, nombre, descripcion, estado) VALUES
 (1, 'Administrador', 'Acceso total y configuración del sistema', true),
 (2, 'Cliente', 'Usuario final para navegación, reservas y compras', true),
 (3, 'Encargado', 'Encargado de atención en sucursal e inventario', true),
-(4, 'Cajero', 'Registro de ventas y cobros en punto de venta', true)
+(4, 'Cajero', 'Registro de ventas y cobros en punto de venta', true),
+(5, 'Proveedor', 'Proveedor con acceso propio para registrar productos e informar disponibilidad', true)
 ON CONFLICT (id) DO NOTHING;
 
 SELECT setval('rol_id_seq', (SELECT MAX(id) FROM rol));

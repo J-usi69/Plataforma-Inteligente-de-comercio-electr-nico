@@ -15,6 +15,26 @@
     </div>
   </div>
 
+  <!-- CU-28: Recomendaciones de productos (IA) -->
+  <div *ngIf="recomendaciones().length" style="margin-bottom: 2rem;">
+    <h3 style="font-size: 1.1rem; margin-bottom: 0.85rem; display: flex; align-items: center; gap: 0.4rem;">
+      ✨ Recomendado para ti
+    </h3>
+    <div style="display: flex; gap: 1rem; overflow-x: auto; padding-bottom: 6px;">
+      <div
+        *ngFor="let p of recomendaciones()"
+        (click)="verPrenda(p)"
+        style="min-width: 200px; max-width: 200px; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 1rem; cursor: pointer; transition: all 0.2s;"
+      >
+        <div style="font-size: 0.7rem; font-weight: 700; text-transform: uppercase; color: #4f46e5; margin-bottom: 0.3rem;">
+          {{ p.categoria_nombre || 'FashionStore' }}
+        </div>
+        <div style="font-weight: 700; font-size: 0.95rem; margin-bottom: 0.4rem;">{{ p.nombre }}</div>
+        <div style="font-weight: 800; color: #0f172a;">Bs. {{ p.precio_base }}</div>
+      </div>
+    </div>
+  </div>
+
   <!-- Filters & Search Bar -->
   <div class="filters-section">
     <div class="category-chips">

@@ -164,6 +164,8 @@ export class Login {
           this.router.navigate(['/encargado']);
         } else if (res.usuario.roles.includes('Cajero') || res.usuario.personal?.cargo === 'Cajero') {
           this.router.navigate(['/caja']);
+        } else if (res.usuario.roles.includes('Proveedor')) {
+          this.router.navigate(['/proveedor']);
         } else {
           this.router.navigate(['/catalogo']);
         }

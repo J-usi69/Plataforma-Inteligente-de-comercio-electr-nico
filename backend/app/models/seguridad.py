@@ -46,6 +46,7 @@ class Usuario(Base):
     creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
     personal: Mapped["Personal | None"] = relationship(back_populates="usuario", uselist=False)
+    proveedor: Mapped["Proveedor | None"] = relationship(back_populates="usuario", uselist=False)
 
 
 class UsuarioRol(Base):

@@ -1,0 +1,26 @@
+<button class="chat-fab" (click)="toggle()" title="Asistente FashionStore">
+  {{ abierto() ? '✕' : '💬' }}
+</button>
+
+<div class="chat-panel" *ngIf="abierto()">
+  <div class="chat-header">
+    <span>Asistente FashionStore</span>
+  </div>
+  <div class="chat-body">
+    <div *ngFor="let m of mensajes()" class="chat-bubble" [ngClass]="m.autor">
+      {{ m.texto }}
+    </div>
+    <div *ngIf="enviando()" class="chat-bubble asistente">Escribiendo...</div>
+  </div>
+  <form class="chat-input-bar" (ngSubmit)="enviar()">
+    <input
+      type="text"
+      [(ngModel)]="mensajeActual"
+      name="mensaje"
+      placeholder="Escribí tu consulta..."
+      style="flex: 1; padding: 0.5rem 0.7rem; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 0.85rem;"
+      [disabled]="enviando()"
+    />
+    <button type="submit" class="btn btn-primary btn-sm" [disabled]="enviando()">Enviar</button>
+  </form>
+</div>

@@ -7,14 +7,19 @@ import {
   Ciudad,
   Coleccion,
   Color,
+  DashboardReporte,
   Permiso,
   Personal,
   Prenda,
+  PrendaVendida,
   Proveedor,
+  QuiebreStock,
   Rol,
   Sucursal,
   Talla,
+  Temporada,
   VariantePrenda,
+  VentaPorSucursal,
 } from '../../../core/models/user.model';
 import { AuthService } from '../../../core/services/auth.service';
 import { BusinessService } from '../../../core/services/business.service';
@@ -148,7 +153,7 @@ export class Dashboard implements OnInit {
   private readonly business = inject(BusinessService);
   readonly authService = inject(AuthService);
 
-  activeTab = signal<'roles' | 'personal' | 'sucursales' | 'proveedores' | 'prendas' | 'catalogo-maestro' | 'bitacora'>('roles');
+  activeTab = signal<'roles' | 'personal' | 'sucursales' | 'proveedores' | 'temporadas' | 'prendas' | 'catalogo-maestro' | 'reportes' | 'bitacora'>('roles');
   isLoading = signal(false);
   filtroTexto = signal('');
   alertMessage = signal<{ type: 'success' | 'danger'; text: string } | null>(null);
@@ -160,6 +165,8 @@ export class Dashboard implements OnInit {
   sucursales = signal<Sucursal[]>([]);
   ciudades = signal<Ciudad[]>([]);
   proveedores = signal<Proveedor[]>([]);
+  temporadas = signal<Temporada[]>([]);
+  coleccionesAdmin = signal<Coleccion[]>([]);
   prendas = signal<Prenda[]>([]);
   categorias = signal<Categoria[]>([]);
   colecciones = signal<Coleccion[]>([]);
@@ -168,6 +175,14 @@ export class Dashboard implements OnInit {
   variantesPrendaActual = signal<VariantePrenda[]>([]);
   prendaSeleccionadaVariantes = signal<Prenda | null>(null);
   bitacora = signal<Bitacora[]>([]);
+  dashboardReporte = signal<DashboardReporte | null>(null);
+  reporteVentas = signal<VentaPorSucursal[]>([]);
+  reportePrendas = signal<PrendaVendida[]>([]);
+  reporteFiltros = { desde: '', hasta: '' };
+  reporteIAPrompt = '';
+  reporteIACargando = signal(false);
+  reporteIAResultado = signal<{ tipo: string; datos: any } | null>(null);
+  reporteIAError = signal<string | null>(null);
 
   // Computed KPIs
   totalSucursales = computed(() => this.sucursales().length);
@@ -205,7 +220,9 @@ export class Dashboard implements OnInit {
   nuevaTallaNombre = '';
   nuevoColorForm = { nombre: '', hex: '#4f46e5' };
   nuevaVarianteForm = { talla_id: null as number | null, color_id: null as number | null };
-  proveedorForm = { id: 0, nombre_empresa: '', contacto: '' };
+  proveedorForm = { id: 0, nombre_empresa: '', contacto: '', correo: '', password: '' };
+  temporadaForm = { id: 0, nombre: '', tipo: '', fecha_inicio: '', fecha_fin: '' };
+  coleccionForm = { id: 0, nombre: '', descripcion: '', temporada_id: null as number | null };
   prendaForm = {
     id: 0,
     nombre: '',
@@ -254,6 +271,21 @@ export class Dashboard implements OnInit {
     return this.prendas().filter((p) => p.nombre.toLowerCase().includes(q) || (p.categoria_nombre && p.categoria_nombre.toLowerCase().includes(q)));
   });
 
+  temporadasFiltradas = computed(() => {
+    const q = this.filtroTexto().toLowerCase().trim();
+    if (!q) return this.temporadas();
+    return this.temporadas().filter((t) => t.nombre.toLowerCase().includes(q) || (t.tipo && t.tipo.toLowerCase().includes(q)));
+  });
+
+  coleccionesAdminFiltradas = computed(() => {
+    const q = this.filtroTexto().toLowerCase().trim();
+    if (!q) return this.coleccionesAdmin();
+    return this.coleccionesAdmin().filter((c) => c.nombre.toLowerCase().includes(q) || (c.temporada_nombre && c.temporada_nombre.toLowerCase().includes(q)));
+  });
+
+  maxTotalVentaSucursal = computed(() => Math.max(1, ...this.reporteVentas().map((v) => v.total_ventas)));
+  maxCantidadPrendaVendida = computed(() => Math.max(1, ...this.reportePrendas().map((p) => p.cantidad_vendida)));
+
   ngOnInit(): void {
     this.cargarDatosIniciales();
   }
@@ -272,7 +304,7 @@ export class Dashboard implements OnInit {
     this.cambiarTab(this.activeTab());
   }
 
-  cambiarTab(tab: 'roles' | 'personal' | 'sucursales' | 'proveedores' | 'prendas' | 'catalogo-maestro' | 'bitacora'): void {
+  cambiarTab(tab: 'roles' | 'personal' | 'sucursales' | 'proveedores' | 'temporadas' | 'prendas' | 'catalogo-maestro' | 'reportes' | 'bitacora'): void {
     this.activeTab.set(tab);
     this.alertMessage.set(null);
     this.filtroTexto.set('');
@@ -298,6 +330,12 @@ export class Dashboard implements OnInit {
         next: (data) => { this.proveedores.set(data); this.isLoading.set(false); },
         error: () => this.isLoading.set(false),
       });
+    } else if (tab === 'temporadas') {
+      this.business.listarTemporadas().subscribe({ next: (data) => this.temporadas.set(data) });
+      this.business.listarColeccionesAdmin().subscribe({
+        next: (data) => { this.coleccionesAdmin.set(data); this.isLoading.set(false); },
+        error: () => this.isLoading.set(false),
+      });
     } else if (tab === 'prendas') {
       this.business.getPrendas().subscribe({
         next: (data) => { this.prendas.set(data); this.isLoading.set(false); },
@@ -310,12 +348,54 @@ export class Dashboard implements OnInit {
         next: (data) => { this.colores.set(data); this.isLoading.set(false); },
         error: () => this.isLoading.set(false),
       });
+    } else if (tab === 'reportes') {
+      this.cargarReportes();
     } else if (tab === 'bitacora') {
       this.business.getBitacora().subscribe({
         next: (data) => { this.bitacora.set(data); this.isLoading.set(false); },
         error: () => this.isLoading.set(false),
       });
     }
+  }
+
+  // --- CU-31 / CU-32: Reportes e Indicadores ---
+  cargarReportes(): void {
+    this.isLoading.set(true);
+    const filtros = {
+      desde: this.reporteFiltros.desde || undefined,
+      hasta: this.reporteFiltros.hasta || undefined,
+    };
+    this.business.getDashboard(filtros).subscribe({
+      next: (data) => this.dashboardReporte.set(data),
+      error: () => this.mostrarAlerta('danger', 'No se pudo cargar el dashboard de indicadores'),
+    });
+    this.business.getReporteVentas(filtros).subscribe({ next: (data) => this.reporteVentas.set(data) });
+    this.business.getPrendasMasVendidas({ ...filtros, limit: 10 }).subscribe({
+      next: (data) => { this.reportePrendas.set(data); this.isLoading.set(false); },
+      error: () => this.isLoading.set(false),
+    });
+  }
+
+  aplicarFiltrosReporte(): void {
+    this.cargarReportes();
+  }
+
+  // --- CU-30: Generar reporte mediante IA (prompt) ---
+  generarReporteConIA(): void {
+    if (!this.reporteIAPrompt.trim()) return;
+    this.reporteIACargando.set(true);
+    this.reporteIAError.set(null);
+    this.reporteIAResultado.set(null);
+    this.business.generarReporteIA(this.reporteIAPrompt).subscribe({
+      next: (res) => {
+        this.reporteIAResultado.set(res);
+        this.reporteIACargando.set(false);
+      },
+      error: (err) => {
+        this.reporteIAError.set(err.error?.detail || 'No se pudo generar el reporte con IA');
+        this.reporteIACargando.set(false);
+      },
+    });
   }
 
   mostrarAlerta(type: 'success' | 'danger', text: string): void {
@@ -522,9 +602,9 @@ export class Dashboard implements OnInit {
   // --- CU-07 Proveedores ---
   abrirModalProveedor(p?: Proveedor): void {
     if (p) {
-      this.proveedorForm = { id: p.id, nombre_empresa: p.nombre_empresa, contacto: p.contacto || '' };
+      this.proveedorForm = { id: p.id, nombre_empresa: p.nombre_empresa, contacto: p.contacto || '', correo: p.correo || '', password: '' };
     } else {
-      this.proveedorForm = { id: 0, nombre_empresa: '', contacto: '' };
+      this.proveedorForm = { id: 0, nombre_empresa: '', contacto: '', correo: '', password: '' };
     }
     this.showModal.set('proveedor');
   }
@@ -559,6 +639,110 @@ export class Dashboard implements OnInit {
         this.cambiarTab('proveedores');
       },
       error: (err) => this.mostrarAlerta('danger', err.error?.detail || 'Error al eliminar proveedor'),
+    });
+  }
+
+  // --- CU-10 Temporadas ---
+  abrirModalTemporada(t?: Temporada): void {
+    if (t) {
+      this.temporadaForm = {
+        id: t.id,
+        nombre: t.nombre,
+        tipo: t.tipo || '',
+        fecha_inicio: t.fecha_inicio || '',
+        fecha_fin: t.fecha_fin || '',
+      };
+    } else {
+      this.temporadaForm = { id: 0, nombre: '', tipo: '', fecha_inicio: '', fecha_fin: '' };
+    }
+    this.showModal.set('temporada');
+  }
+
+  guardarTemporada(): void {
+    if (this.temporadaForm.id === 0) {
+      this.business.crearTemporada(this.temporadaForm).subscribe({
+        next: () => {
+          this.mostrarAlerta('success', 'Temporada creada exitosamente');
+          this.cerrarModal();
+          this.cambiarTab('temporadas');
+        },
+        error: (err) => this.mostrarAlerta('danger', err.error?.detail || 'Error al crear la temporada'),
+      });
+    } else {
+      this.business.actualizarTemporada(this.temporadaForm.id, this.temporadaForm).subscribe({
+        next: () => {
+          this.mostrarAlerta('success', 'Temporada actualizada');
+          this.cerrarModal();
+          this.cambiarTab('temporadas');
+        },
+        error: (err) => this.mostrarAlerta('danger', err.error?.detail || 'Error al actualizar la temporada'),
+      });
+    }
+  }
+
+  toggleTemporadaEstado(t: Temporada): void {
+    this.business.actualizarTemporada(t.id, { estado: !t.estado }).subscribe({
+      next: (actualizada) => {
+        this.temporadas.update((prev) => prev.map((x) => (x.id === actualizada.id ? actualizada : x)));
+        this.mostrarAlerta('success', actualizada.estado ? 'Temporada activada' : 'Temporada desactivada');
+      },
+      error: (err) => this.mostrarAlerta('danger', err.error?.detail || 'Error al actualizar la temporada'),
+    });
+  }
+
+  // --- CU-10 Colecciones ---
+  abrirModalColeccion(c?: Coleccion): void {
+    if (c) {
+      this.coleccionForm = { id: c.id, nombre: c.nombre, descripcion: c.descripcion || '', temporada_id: c.temporada_id };
+    } else {
+      this.coleccionForm = {
+        id: 0,
+        nombre: '',
+        descripcion: '',
+        temporada_id: this.temporadas().length ? this.temporadas()[0].id : null,
+      };
+    }
+    this.showModal.set('coleccion');
+  }
+
+  guardarColeccion(): void {
+    if (!this.coleccionForm.temporada_id) return;
+    if (this.coleccionForm.id === 0) {
+      this.business.crearColeccionAdmin({
+        nombre: this.coleccionForm.nombre,
+        descripcion: this.coleccionForm.descripcion,
+        temporada_id: this.coleccionForm.temporada_id,
+      }).subscribe({
+        next: () => {
+          this.mostrarAlerta('success', 'Colección creada exitosamente');
+          this.cerrarModal();
+          this.cambiarTab('temporadas');
+        },
+        error: (err) => this.mostrarAlerta('danger', err.error?.detail || 'Error al crear la colección'),
+      });
+    } else {
+      this.business.actualizarColeccionAdmin(this.coleccionForm.id, {
+        nombre: this.coleccionForm.nombre,
+        descripcion: this.coleccionForm.descripcion,
+        temporada_id: this.coleccionForm.temporada_id ?? undefined,
+      }).subscribe({
+        next: () => {
+          this.mostrarAlerta('success', 'Colección actualizada');
+          this.cerrarModal();
+          this.cambiarTab('temporadas');
+        },
+        error: (err) => this.mostrarAlerta('danger', err.error?.detail || 'Error al actualizar la colección'),
+      });
+    }
+  }
+
+  toggleColeccionEstado(c: Coleccion): void {
+    this.business.actualizarColeccionAdmin(c.id, { estado: !c.estado }).subscribe({
+      next: (actualizada) => {
+        this.coleccionesAdmin.update((prev) => prev.map((x) => (x.id === actualizada.id ? actualizada : x)));
+        this.mostrarAlerta('success', actualizada.estado ? 'Colección activada' : 'Colección desactivada');
+      },
+      error: (err) => this.mostrarAlerta('danger', err.error?.detail || 'Error al actualizar la colección'),
     });
   }
 

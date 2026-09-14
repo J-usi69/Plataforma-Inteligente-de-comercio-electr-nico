@@ -8,17 +8,23 @@ import {
   Coleccion,
   Color,
   ComprobanteVenta,
+  DashboardReporte,
+  DisponibilidadProveedor,
   DisponibilidadSucursal,
   Permiso,
   Personal,
   Prenda,
+  PrendaVendida,
   Proveedor,
+  QuiebreStock,
   Reserva,
   Rol,
   Sucursal,
   Talla,
+  Temporada,
   VariantePrenda,
   Venta,
+  VentaPorSucursal,
 } from '../models/user.model';
 
 @Injectable({ providedIn: 'root' })
@@ -124,7 +130,7 @@ export class BusinessService {
     return this.http.get<Proveedor[]>(`${this.apiBase}/proveedores`);
   }
 
-  createProveedor(proveedor: { nombre_empresa: string; contacto?: string }): Observable<Proveedor> {
+  createProveedor(proveedor: { nombre_empresa: string; contacto?: string; correo?: string; password?: string }): Observable<Proveedor> {
     return this.http.post<Proveedor>(`${this.apiBase}/proveedores`, proveedor);
   }
 
@@ -134,6 +140,75 @@ export class BusinessService {
 
   deleteProveedor(id: number): Observable<{ message: string }> {
     return this.http.delete<{ message: string }>(`${this.apiBase}/proveedores/${id}`);
+  }
+
+  getDisponibilidadProveedor(proveedorId: number): Observable<DisponibilidadProveedor[]> {
+    return this.http.get<DisponibilidadProveedor[]>(`${this.apiBase}/proveedores/${proveedorId}/disponibilidad`);
+  }
+
+  // --- CU-33 / CU-34: Panel de Proveedor (self-service) ---
+  getMisProductosProveedor(): Observable<Prenda[]> {
+    return this.http.get<Prenda[]>(`${this.apiBase}/proveedor/prendas`);
+  }
+
+  registrarProductoProveedor(datos: {
+    nombre: string;
+    descripcion?: string;
+    categoria_id: number;
+    precio_base: number;
+    modelo_3d_url?: string;
+    forzar?: boolean;
+  }): Observable<Prenda> {
+    return this.http.post<Prenda>(`${this.apiBase}/proveedor/prendas`, datos);
+  }
+
+  informarDisponibilidad(prendaId: number, datos: { cantidad: number; fecha_estimada: string }): Observable<DisponibilidadProveedor> {
+    return this.http.post<DisponibilidadProveedor>(`${this.apiBase}/proveedor/prendas/${prendaId}/disponibilidad`, datos);
+  }
+
+  getMiDisponibilidad(): Observable<DisponibilidadProveedor[]> {
+    return this.http.get<DisponibilidadProveedor[]>(`${this.apiBase}/proveedor/disponibilidad`);
+  }
+
+  // --- CU-10: Temporadas y Colecciones (administración) ---
+  // Nota: getColecciones() (más abajo) apunta a /prendas/colecciones (listado simple,
+  // solo activas, usado por el combo del formulario de Prenda) y NO debe tocarse.
+  // Estos métodos administran el CRUD completo vía /temporadas y /colecciones.
+  listarTemporadas(): Observable<Temporada[]> {
+    return this.http.get<Temporada[]>(`${this.apiBase}/temporadas`);
+  }
+
+  crearTemporada(datos: { nombre: string; tipo?: string; fecha_inicio?: string; fecha_fin?: string }): Observable<Temporada> {
+    return this.http.post<Temporada>(`${this.apiBase}/temporadas`, datos);
+  }
+
+  actualizarTemporada(id: number, datos: {
+    nombre?: string;
+    tipo?: string;
+    fecha_inicio?: string;
+    fecha_fin?: string;
+    estado?: boolean;
+  }): Observable<Temporada> {
+    return this.http.put<Temporada>(`${this.apiBase}/temporadas/${id}`, datos);
+  }
+
+  listarColeccionesAdmin(temporadaId?: number): Observable<Coleccion[]> {
+    const params: any = {};
+    if (temporadaId) params.temporada_id = temporadaId;
+    return this.http.get<Coleccion[]>(`${this.apiBase}/colecciones`, { params });
+  }
+
+  crearColeccionAdmin(datos: { nombre: string; descripcion?: string; temporada_id: number }): Observable<Coleccion> {
+    return this.http.post<Coleccion>(`${this.apiBase}/colecciones`, datos);
+  }
+
+  actualizarColeccionAdmin(id: number, datos: {
+    nombre?: string;
+    descripcion?: string;
+    temporada_id?: number;
+    estado?: boolean;
+  }): Observable<Coleccion> {
+    return this.http.put<Coleccion>(`${this.apiBase}/colecciones/${id}`, datos);
   }
 
   // --- CU-08 / CU-12: Catálogo de Prendas, Categorías y Colecciones ---
@@ -338,5 +413,49 @@ export class BusinessService {
   // --- Bitácora de Auditoría ---
   getBitacora(): Observable<Bitacora[]> {
     return this.http.get<Bitacora[]>(`${this.apiBase}/auth/bitacora`);
+  }
+
+  // --- CU-31 / CU-32: Reportes e Indicadores ---
+  getDashboard(filtros?: { sucursalId?: number; ciudadId?: number; desde?: string; hasta?: string }): Observable<DashboardReporte> {
+    const params: any = {};
+    if (filtros?.sucursalId) params.sucursal_id = filtros.sucursalId;
+    if (filtros?.ciudadId) params.ciudad_id = filtros.ciudadId;
+    if (filtros?.desde) params.desde = filtros.desde;
+    if (filtros?.hasta) params.hasta = filtros.hasta;
+    return this.http.get<DashboardReporte>(`${this.apiBase}/reportes/dashboard`, { params });
+  }
+
+  getReporteVentas(filtros?: { desde?: string; hasta?: string }): Observable<VentaPorSucursal[]> {
+    const params: any = {};
+    if (filtros?.desde) params.desde = filtros.desde;
+    if (filtros?.hasta) params.hasta = filtros.hasta;
+    return this.http.get<VentaPorSucursal[]>(`${this.apiBase}/reportes/ventas`, { params });
+  }
+
+  getPrendasMasVendidas(filtros?: { desde?: string; hasta?: string; limit?: number }): Observable<PrendaVendida[]> {
+    const params: any = {};
+    if (filtros?.desde) params.desde = filtros.desde;
+    if (filtros?.hasta) params.hasta = filtros.hasta;
+    if (filtros?.limit) params.limit = filtros.limit;
+    return this.http.get<PrendaVendida[]>(`${this.apiBase}/reportes/prendas-mas-vendidas`, { params });
+  }
+
+  getReporteInventario(sucursalId?: number): Observable<QuiebreStock[]> {
+    const params: any = {};
+    if (sucursalId) params.sucursal_id = sucursalId;
+    return this.http.get<QuiebreStock[]>(`${this.apiBase}/reportes/inventario`, { params });
+  }
+
+  // --- CU-28 / CU-29 / CU-30: Inteligencia Artificial ---
+  getRecomendaciones(): Observable<{ prendas: Prenda[]; fuente: string }> {
+    return this.http.post<{ prendas: Prenda[]; fuente: string }>(`${this.apiBase}/ia/recomendaciones`, {});
+  }
+
+  enviarMensajeChat(mensaje: string): Observable<{ respuesta: string }> {
+    return this.http.post<{ respuesta: string }>(`${this.apiBase}/ia/chat`, { mensaje });
+  }
+
+  generarReporteIA(prompt: string): Observable<{ tipo: string; parametros: any; datos: any }> {
+    return this.http.post<{ tipo: string; parametros: any; datos: any }>(`${this.apiBase}/ia/reportes`, { prompt });
   }
 }

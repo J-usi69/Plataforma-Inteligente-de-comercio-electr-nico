@@ -19,6 +19,7 @@ from app.models.sucursal import Sucursal
 from app.schemas.auth import (
     BitacoraOut,
     PersonalBriefOut,
+    ProveedorBriefOut,
     TokenResponse,
     UsuarioLogin,
     UsuarioOut,
@@ -43,6 +44,13 @@ def _construir_usuario_out(db: Session, usuario: Usuario) -> UsuarioOut:
             sucursal_id=usuario.personal.sucursal_id,
             sucursal_nombre=sucursal.nombre if sucursal else None,
         )
+    proveedor_out = None
+    if usuario.proveedor:
+        proveedor_out = ProveedorBriefOut(
+            id=usuario.proveedor.id,
+            nombre_empresa=usuario.proveedor.nombre_empresa,
+            contacto=usuario.proveedor.contacto,
+        )
     return UsuarioOut(
         id=usuario.id,
         correo=usuario.correo,
@@ -52,6 +60,7 @@ def _construir_usuario_out(db: Session, usuario: Usuario) -> UsuarioOut:
         permisos=permisos,
         creado_en=usuario.creado_en,
         personal=personal_out,
+        proveedor=proveedor_out,
     )
 
 

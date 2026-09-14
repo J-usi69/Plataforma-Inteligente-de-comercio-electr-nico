@@ -31,6 +31,15 @@ class PersonalBriefOut(BaseModel):
         from_attributes = True
 
 
+class ProveedorBriefOut(BaseModel):
+    id: int
+    nombre_empresa: str
+    contacto: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+
 class UsuarioOut(BaseModel):
     id: int
     correo: str
@@ -40,6 +49,7 @@ class UsuarioOut(BaseModel):
     permisos: List[str] = []
     creado_en: Optional[datetime] = None
     personal: Optional[PersonalBriefOut] = None
+    proveedor: Optional[ProveedorBriefOut] = None
 
     class Config:
         from_attributes = True

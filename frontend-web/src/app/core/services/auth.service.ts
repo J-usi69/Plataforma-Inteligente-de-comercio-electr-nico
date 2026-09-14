@@ -25,6 +25,7 @@ export class AuthService {
     const u = this._currentUser();
     return u?.roles.includes('Cajero') || u?.personal?.cargo === 'Cajero';
   });
+  readonly isProveedor = computed(() => this._currentUser()?.roles.includes('Proveedor') ?? false);
   readonly sucursalId = computed(() => {
     return this._currentUser()?.personal?.sucursal_id ?? 1;
   });

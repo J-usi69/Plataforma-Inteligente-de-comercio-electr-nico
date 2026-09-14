@@ -122,6 +122,31 @@
     </button>
     <button
       class="nav-pill-btn"
+      [class.active]="activeTab() === 'temporadas'"
+      (click)="cambiarTab('temporadas')"
+    >
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <rect x="3" y="4" width="18" height="18" rx="2"/>
+        <line x1="16" y1="2" x2="16" y2="6"/>
+        <line x1="8" y1="2" x2="8" y2="6"/>
+        <line x1="3" y1="10" x2="21" y2="10"/>
+      </svg>
+      Temporadas
+    </button>
+    <button
+      class="nav-pill-btn"
+      [class.active]="activeTab() === 'reportes'"
+      (click)="cambiarTab('reportes')"
+    >
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <line x1="18" y1="20" x2="18" y2="10"/>
+        <line x1="12" y1="20" x2="12" y2="4"/>
+        <line x1="6" y1="20" x2="6" y2="14"/>
+      </svg>
+      Reportes
+    </button>
+    <button
+      class="nav-pill-btn"
       [class.active]="activeTab() === 'bitacora'"
       (click)="cambiarTab('bitacora')"
     >
@@ -397,6 +422,7 @@
               <td>{{ prov.contacto || 'Sin contacto registrado' }}</td>
               <td>
                 <span class="badge badge-success">Activo</span>
+                <span class="badge" style="margin-left: 4px;" *ngIf="prov.correo">Con acceso propio</span>
               </td>
               <td>
                 <button class="btn btn-secondary btn-sm" (click)="abrirModalProveedor(prov)">Editar</button>
@@ -601,6 +627,264 @@
               Sin colores registrados
             </div>
           </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB: TEMPORADAS Y COLECCIONES -->
+    <section *ngIf="activeTab() === 'temporadas'">
+      <div class="action-header">
+        <div class="header-title-box">
+          <h3>Temporadas de la Cadena</h3>
+          <p style="font-size: 0.85rem;">Temporadas comerciales bajo las cuales se organizan las colecciones</p>
+        </div>
+        <div style="display: flex; gap: 0.75rem; align-items: center;">
+          <div class="search-filter-box">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            </svg>
+            <input type="text" [(ngModel)]="filtroTexto" placeholder="Buscar temporada o colección..." />
+          </div>
+          <button class="btn btn-primary" (click)="abrirModalTemporada()">
+            + Nueva Temporada
+          </button>
+        </div>
+      </div>
+
+      <div class="table-responsive">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Nombre</th>
+              <th>Tipo</th>
+              <th>Vigencia</th>
+              <th>Estado</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let t of temporadasFiltradas()">
+              <td>#{{ t.id }}</td>
+              <td><strong>{{ t.nombre }}</strong></td>
+              <td>{{ t.tipo || '—' }}</td>
+              <td>{{ t.fecha_inicio || '—' }} a {{ t.fecha_fin || '—' }}</td>
+              <td>
+                <span class="badge" [ngClass]="t.estado ? 'badge-success' : 'badge-danger'">{{ t.estado ? 'Activa' : 'Inactiva' }}</span>
+              </td>
+              <td>
+                <button class="btn btn-secondary btn-sm" (click)="abrirModalTemporada(t)">Editar</button>
+                <button class="btn btn-danger btn-sm" style="margin-left: 6px;" (click)="toggleTemporadaEstado(t)">
+                  {{ t.estado ? 'Desactivar' : 'Activar' }}
+                </button>
+              </td>
+            </tr>
+            <tr *ngIf="!temporadasFiltradas().length">
+              <td colspan="6" style="text-align: center; color: #94a3b8; padding: 1.25rem 0;">Sin temporadas registradas</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="action-header" style="margin-top: 2rem;">
+        <div class="header-title-box">
+          <h3>Colecciones</h3>
+          <p style="font-size: 0.85rem;">Colecciones asociadas a cada temporada</p>
+        </div>
+        <button class="btn btn-primary" (click)="abrirModalColeccion()" [disabled]="!temporadas().length">
+          + Nueva Colección
+        </button>
+      </div>
+
+      <div class="table-responsive">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Nombre</th>
+              <th>Temporada</th>
+              <th>Estado</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let c of coleccionesAdminFiltradas()">
+              <td>#{{ c.id }}</td>
+              <td><strong>{{ c.nombre }}</strong></td>
+              <td>{{ c.temporada_nombre || '—' }}</td>
+              <td>
+                <span class="badge" [ngClass]="c.estado ? 'badge-success' : 'badge-danger'">{{ c.estado ? 'Activa' : 'Inactiva' }}</span>
+              </td>
+              <td>
+                <button class="btn btn-secondary btn-sm" (click)="abrirModalColeccion(c)">Editar</button>
+                <button class="btn btn-danger btn-sm" style="margin-left: 6px;" (click)="toggleColeccionEstado(c)">
+                  {{ c.estado ? 'Desactivar' : 'Activar' }}
+                </button>
+              </td>
+            </tr>
+            <tr *ngIf="!coleccionesAdminFiltradas().length">
+              <td colspan="5" style="text-align: center; color: #94a3b8; padding: 1.25rem 0;">Sin colecciones registradas</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- TAB: REPORTES E INDICADORES -->
+    <section *ngIf="activeTab() === 'reportes'">
+      <div class="action-header">
+        <div class="header-title-box">
+          <h3>Reportes e Indicadores</h3>
+          <p style="font-size: 0.85rem;">Ventas, prendas más vendidas y quiebres de stock consolidados</p>
+        </div>
+        <div style="display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
+          <input type="date" [(ngModel)]="reporteFiltros.desde" style="padding: 0.5rem 0.7rem; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 0.85rem;" />
+          <span style="color: #94a3b8; font-size: 0.85rem;">a</span>
+          <input type="date" [(ngModel)]="reporteFiltros.hasta" style="padding: 0.5rem 0.7rem; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 0.85rem;" />
+          <button class="btn btn-primary btn-sm" (click)="aplicarFiltrosReporte()">Aplicar</button>
+        </div>
+      </div>
+
+      <div class="card" style="margin-bottom: 1.5rem; background: #f8fafc;">
+        <h4 style="margin-bottom: 0.5rem; font-size: 0.95rem;">✨ Generar Reporte con IA</h4>
+        <p style="font-size: 0.8rem; color: #64748b; margin-bottom: 0.75rem;">
+          Describí el reporte que necesitás en lenguaje natural, por ejemplo: "ventas del último mes" o "prendas más vendidas".
+        </p>
+        <div style="display: flex; gap: 0.5rem;">
+          <input
+            type="text"
+            [(ngModel)]="reporteIAPrompt"
+            placeholder="ej. ventas de este mes"
+            style="flex: 1; padding: 0.55rem 0.85rem; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 0.85rem;"
+            (keyup.enter)="generarReporteConIA()"
+          />
+          <button class="btn btn-primary btn-sm" [disabled]="reporteIACargando()" (click)="generarReporteConIA()">
+            {{ reporteIACargando() ? 'Generando...' : 'Generar' }}
+          </button>
+        </div>
+        <div *ngIf="reporteIAError()" class="alert alert-danger" style="margin-top: 0.75rem;">{{ reporteIAError() }}</div>
+        <div *ngIf="reporteIAResultado() as resultado" style="margin-top: 1rem;">
+          <p style="font-size: 0.8rem; font-weight: 700; margin-bottom: 0.5rem;">Tipo de reporte: {{ resultado.tipo }}</p>
+          <div class="table-responsive" *ngIf="resultado.tipo === 'ventas'">
+            <table class="table">
+              <thead><tr><th>Sucursal</th><th>Ventas</th><th>Total</th></tr></thead>
+              <tbody>
+                <tr *ngFor="let v of resultado.datos">
+                  <td>{{ v.sucursal_nombre }}</td><td>{{ v.cantidad_ventas }}</td><td>Bs. {{ v.total_ventas }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="table-responsive" *ngIf="resultado.tipo === 'prendas_vendidas'">
+            <table class="table">
+              <thead><tr><th>Prenda</th><th>Cantidad</th><th>Total</th></tr></thead>
+              <tbody>
+                <tr *ngFor="let p of resultado.datos">
+                  <td>{{ p.prenda_nombre }}</td><td>{{ p.cantidad_vendida }}</td><td>Bs. {{ p.total_vendido }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="table-responsive" *ngIf="resultado.tipo === 'inventario'">
+            <table class="table">
+              <thead><tr><th>Prenda</th><th>Sucursal</th><th>Disponible</th><th>Mínimo</th></tr></thead>
+              <tbody>
+                <tr *ngFor="let q of resultado.datos">
+                  <td>{{ q.prenda_nombre }}</td><td>{{ q.sucursal_nombre }}</td><td>{{ q.stock_disponible }}</td><td>{{ q.stock_minimo }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-icon-wrapper" style="background: #eef2ff; color: #4f46e5;">💰</div>
+          <div class="stat-data">
+            <span class="stat-value">Bs. {{ (dashboardReporte()?.total_ventas ?? 0) | number:'1.2-2' }}</span>
+            <span class="stat-label">Ventas del periodo ({{ dashboardReporte()?.cantidad_ventas ?? 0 }})</span>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon-wrapper" style="background: #ecfdf5; color: #059669;">🎟️</div>
+          <div class="stat-data">
+            <span class="stat-value">Bs. {{ (dashboardReporte()?.ticket_promedio ?? 0) | number:'1.2-2' }}</span>
+            <span class="stat-label">Ticket promedio</span>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon-wrapper" style="background: #fffbeb; color: #d97706;">📅</div>
+          <div class="stat-data">
+            <span class="stat-value">{{ dashboardReporte()?.reservas_pendientes ?? 0 }}</span>
+            <span class="stat-label">Reservas pendientes</span>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon-wrapper" style="background: #fef2f2; color: #dc2626;">⚠️</div>
+          <div class="stat-data">
+            <span class="stat-value">{{ dashboardReporte()?.variantes_bajo_minimo ?? 0 }}</span>
+            <span class="stat-label">Variantes en quiebre de stock</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top: 1.5rem;">
+        <h4 style="margin-bottom: 1rem;">Ventas por Sucursal</h4>
+        <div *ngFor="let v of reporteVentas()" style="margin-bottom: 0.75rem;">
+          <div style="display: flex; justify-content: space-between; font-size: 0.85rem; margin-bottom: 0.25rem;">
+            <strong>{{ v.sucursal_nombre }}</strong>
+            <span>Bs. {{ v.total_ventas | number:'1.2-2' }} · {{ v.cantidad_ventas }} venta(s)</span>
+          </div>
+          <div style="background: #f1f5f9; border-radius: 6px; height: 10px; overflow: hidden;">
+            <div style="background: #4f46e5; height: 100%;" [style.width.%]="(v.total_ventas / maxTotalVentaSucursal()) * 100"></div>
+          </div>
+        </div>
+        <p *ngIf="!reporteVentas().length" style="color: #94a3b8; font-size: 0.85rem; text-align: center; padding: 1rem 0;">
+          No hay ventas registradas en el rango consultado
+        </p>
+      </div>
+
+      <div class="card" style="margin-top: 1.5rem;">
+        <h4 style="margin-bottom: 1rem;">Prendas Más Vendidas</h4>
+        <div *ngFor="let p of reportePrendas()" style="margin-bottom: 0.75rem;">
+          <div style="display: flex; justify-content: space-between; font-size: 0.85rem; margin-bottom: 0.25rem;">
+            <strong>{{ p.prenda_nombre }}</strong>
+            <span>{{ p.cantidad_vendida }} unidad(es) · Bs. {{ p.total_vendido | number:'1.2-2' }}</span>
+          </div>
+          <div style="background: #f1f5f9; border-radius: 6px; height: 10px; overflow: hidden;">
+            <div style="background: #db2777; height: 100%;" [style.width.%]="(p.cantidad_vendida / maxCantidadPrendaVendida()) * 100"></div>
+          </div>
+        </div>
+        <p *ngIf="!reportePrendas().length" style="color: #94a3b8; font-size: 0.85rem; text-align: center; padding: 1rem 0;">
+          No hay ventas registradas en el rango consultado
+        </p>
+      </div>
+
+      <div class="card" style="margin-top: 1.5rem;">
+        <h4 style="margin-bottom: 1rem;">Quiebres de Stock</h4>
+        <div class="table-responsive">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Prenda</th>
+                <th>Sucursal</th>
+                <th>Stock Disponible</th>
+                <th>Stock Mínimo</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let q of dashboardReporte()?.quiebres">
+                <td>{{ q.prenda_nombre }}</td>
+                <td>{{ q.sucursal_nombre }}</td>
+                <td><span class="badge badge-danger">{{ q.stock_disponible }}</span></td>
+                <td>{{ q.stock_minimo }}</td>
+              </tr>
+              <tr *ngIf="!dashboardReporte()?.quiebres?.length">
+                <td colspan="4" style="text-align: center; color: #94a3b8; padding: 1.25rem 0;">Sin quiebres de stock detectados</td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </div>
     </section>
@@ -813,9 +1097,89 @@
         <input type="text" [(ngModel)]="proveedorForm.contacto" name="pr_contacto" placeholder="Teléfono, correo o dirección" />
       </div>
 
+      <p style="font-size: 0.8rem; color: #64748b; margin-bottom: 0.5rem;">
+        Acceso propio al panel de proveedor (opcional): déjalo en blanco si este proveedor no debe iniciar sesión.
+      </p>
+      <div class="grid-2">
+        <div class="form-group">
+          <label>Correo de Acceso</label>
+          <input type="email" [(ngModel)]="proveedorForm.correo" name="pr_correo" [disabled]="proveedorForm.id !== 0" />
+        </div>
+        <div class="form-group" *ngIf="proveedorForm.id === 0">
+          <label>Contraseña</label>
+          <input type="password" [(ngModel)]="proveedorForm.password" name="pr_password" />
+        </div>
+      </div>
+
       <div style="display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 1.5rem;">
         <button type="button" class="btn btn-secondary" (click)="cerrarModal()">Cancelar</button>
         <button type="submit" class="btn btn-primary">Guardar Proveedor</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal Temporada -->
+<div *ngIf="showModal() === 'temporada'" class="modal-overlay">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3>{{ temporadaForm.id === 0 ? 'Registrar Temporada' : 'Editar Temporada' }}</h3>
+      <button class="btn btn-secondary btn-icon" (click)="cerrarModal()">✕</button>
+    </div>
+    <form (ngSubmit)="guardarTemporada()">
+      <div class="form-group">
+        <label>Nombre de la Temporada *</label>
+        <input type="text" [(ngModel)]="temporadaForm.nombre" name="temp_nombre" placeholder="ej. Verano 2026" required />
+      </div>
+      <div class="form-group">
+        <label>Tipo</label>
+        <input type="text" [(ngModel)]="temporadaForm.tipo" name="temp_tipo" placeholder="ej. Verano, Invierno, Especial" />
+      </div>
+      <div class="grid-2">
+        <div class="form-group">
+          <label>Fecha de Inicio</label>
+          <input type="date" [(ngModel)]="temporadaForm.fecha_inicio" name="temp_inicio" />
+        </div>
+        <div class="form-group">
+          <label>Fecha de Fin</label>
+          <input type="date" [(ngModel)]="temporadaForm.fecha_fin" name="temp_fin" />
+        </div>
+      </div>
+
+      <div style="display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 1.5rem;">
+        <button type="button" class="btn btn-secondary" (click)="cerrarModal()">Cancelar</button>
+        <button type="submit" class="btn btn-primary">Guardar Temporada</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal Colección -->
+<div *ngIf="showModal() === 'coleccion'" class="modal-overlay">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3>{{ coleccionForm.id === 0 ? 'Registrar Colección' : 'Editar Colección' }}</h3>
+      <button class="btn btn-secondary btn-icon" (click)="cerrarModal()">✕</button>
+    </div>
+    <form (ngSubmit)="guardarColeccion()">
+      <div class="form-group">
+        <label>Nombre de la Colección *</label>
+        <input type="text" [(ngModel)]="coleccionForm.nombre" name="col_nombre" placeholder="ej. Colección Urbana Santa Cruz" required />
+      </div>
+      <div class="form-group">
+        <label>Descripción</label>
+        <textarea [(ngModel)]="coleccionForm.descripcion" name="col_desc" rows="2"></textarea>
+      </div>
+      <div class="form-group">
+        <label>Temporada *</label>
+        <select [(ngModel)]="coleccionForm.temporada_id" name="col_temporada" required>
+          <option *ngFor="let t of temporadas()" [ngValue]="t.id">{{ t.nombre }}</option>
+        </select>
+      </div>
+
+      <div style="display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 1.5rem;">
+        <button type="button" class="btn btn-secondary" (click)="cerrarModal()">Cancelar</button>
+        <button type="submit" class="btn btn-primary">Guardar Colección</button>
       </div>
     </form>
   </div>

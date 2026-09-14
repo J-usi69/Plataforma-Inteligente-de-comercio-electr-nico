@@ -7,6 +7,12 @@ export interface PersonalBrief {
   sucursal_nombre?: string | null;
 }
 
+export interface ProveedorBrief {
+  id: number;
+  nombre_empresa: string;
+  contacto?: string | null;
+}
+
 export interface Usuario {
   id: number;
   correo: string;
@@ -16,6 +22,7 @@ export interface Usuario {
   permisos: string[];
   creado_en?: string;
   personal?: PersonalBrief | null;
+  proveedor?: ProveedorBrief | null;
 }
 
 export interface TokenResponse {
@@ -76,6 +83,17 @@ export interface Proveedor {
   nombre_empresa: string;
   contacto?: string | null;
   estado: boolean;
+  correo?: string | null;
+  celular?: string | null;
+}
+
+export interface DisponibilidadProveedor {
+  id: number;
+  prenda_id: number;
+  prenda_nombre: string;
+  cantidad: number;
+  fecha_estimada: string;
+  fecha_registro: string;
 }
 
 export interface Prenda {
@@ -101,11 +119,21 @@ export interface Categoria {
   estado: boolean;
 }
 
+export interface Temporada {
+  id: number;
+  nombre: string;
+  tipo?: string | null;
+  fecha_inicio?: string | null;
+  fecha_fin?: string | null;
+  estado: boolean;
+}
+
 export interface Coleccion {
   id: number;
   nombre: string;
   descripcion?: string | null;
   temporada_id: number;
+  temporada_nombre?: string | null;
   estado: boolean;
 }
 
@@ -226,6 +254,38 @@ export interface ComprobanteItem {
   cantidad: number;
   precio_unitario: number;
   subtotal: number;
+}
+
+export interface VentaPorSucursal {
+  sucursal_id: number;
+  sucursal_nombre: string;
+  cantidad_ventas: number;
+  total_ventas: number;
+}
+
+export interface PrendaVendida {
+  prenda_id?: number | null;
+  prenda_nombre: string;
+  cantidad_vendida: number;
+  total_vendido: number;
+}
+
+export interface QuiebreStock {
+  variante_id: number;
+  prenda_nombre: string;
+  sucursal_id: number;
+  sucursal_nombre: string;
+  stock_disponible: number;
+  stock_minimo: number;
+}
+
+export interface DashboardReporte {
+  cantidad_ventas: number;
+  total_ventas: number;
+  ticket_promedio: number;
+  reservas_pendientes: number;
+  variantes_bajo_minimo: number;
+  quiebres: QuiebreStock[];
 }
 
 export interface ComprobanteVenta {

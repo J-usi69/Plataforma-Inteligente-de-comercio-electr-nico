@@ -13,6 +13,8 @@ class Settings(BaseSettings):
     stripe_secret_key: str = ""
     stripe_webhook_secret: str = ""
     ai_api_key: str = ""
+    anthropic_api_key: str = ""
+    anthropic_model: str = "claude-haiku-4-5-20251001"
     replicate_api_token: str = ""
     tryon_replicate_model: str = "prunaai/p-image-try-on"
 

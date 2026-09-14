@@ -298,6 +298,9 @@ export class Listado implements OnInit {
   reservaError = signal<string | null>(null);
   reservaExito = signal(false);
 
+  // --- CU-28: Recomendaciones de productos (IA) ---
+  recomendaciones = signal<Prenda[]>([]);
+
   prendasFiltradas = computed(() => {
     let list = this.prendas();
     const query = this.busqueda().toLowerCase().trim();
@@ -320,6 +323,13 @@ export class Listado implements OnInit {
     this.cargarPrendas();
     this.business.getTallas().subscribe((data) => this.tallas.set(data));
     this.business.getColores().subscribe((data) => this.colores.set(data));
+    if (this.isLoggedIn()) {
+      // CU-28: widget silencioso; si la IA no está disponible o falla, simplemente no se muestra nada.
+      this.business.getRecomendaciones().subscribe({
+        next: (data) => this.recomendaciones.set(data.prendas || []),
+        error: () => this.recomendaciones.set([]),
+      });
+    }
   }
 
   cargarCategorias(): void {

@@ -1,6 +1,6 @@
-from datetime import date
+from datetime import date, datetime
 
-from sqlalchemy import Boolean, Date, ForeignKey, Index, Numeric, String, Text, UniqueConstraint
+from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Index, Integer, Numeric, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.session import Base
@@ -56,9 +56,12 @@ class Proveedor(Base):
     __tablename__ = "proveedor"
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    usuario_id: Mapped[int | None] = mapped_column(ForeignKey("usuario.id", ondelete="SET NULL"), unique=True)
     nombre_empresa: Mapped[str] = mapped_column(String(150))
     contacto: Mapped[str | None] = mapped_column(String(150))
     estado: Mapped[bool] = mapped_column(Boolean, default=True)
+
+    usuario: Mapped["Usuario | None"] = relationship(back_populates="proveedor")
 
 
 class Prenda(Base):
@@ -97,3 +100,15 @@ class VariantePrenda(Base):
     estado: Mapped[bool] = mapped_column(Boolean, default=True)
 
     prenda: Mapped["Prenda"] = relationship(back_populates="variantes")
+
+
+class DisponibilidadProveedor(Base):
+    __tablename__ = "disponibilidad_proveedor"
+    __table_args__ = (Index("idx_disponibilidad_prenda", "prenda_id"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    prenda_id: Mapped[int] = mapped_column(ForeignKey("prenda.id", ondelete="CASCADE"))
+    proveedor_id: Mapped[int] = mapped_column(ForeignKey("proveedor.id", ondelete="CASCADE"))
+    cantidad: Mapped[int] = mapped_column(Integer)
+    fecha_estimada: Mapped[date] = mapped_column(Date)
+    fecha_registro: Mapped[datetime] = mapped_column(DateTime(timezone=True))

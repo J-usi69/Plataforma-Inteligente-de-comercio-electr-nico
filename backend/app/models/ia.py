@@ -15,4 +15,5 @@ class InteraccionIA(Base):
     tipo_consulta: Mapped[str | None] = mapped_column(String(30))
     prompt_consulta: Mapped[str | None] = mapped_column(Text)
     prendas_sugeridas_ids: Mapped[str | None] = mapped_column(Text)
+    respuesta: Mapped[str | None] = mapped_column(Text)
     fecha: Mapped[datetime] = mapped_column(DateTime(timezone=True))

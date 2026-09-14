@@ -31,11 +31,16 @@
       💳 Caja POS
     </a>
 
+    <!-- Enlaces de Proveedor -->
+    <a *ngIf="authService.isProveedor()" routerLink="/proveedor" routerLinkActive="active" style="color: #d97706; font-weight: 700;">
+      📦 Panel de Proveedor
+    </a>
+
     <!-- Enlaces de Cliente -->
-    <a *ngIf="authService.isLoggedIn() && !authService.isAdmin() && !authService.isEncargado() && !authService.isCajero()" routerLink="/reservas" routerLinkActive="active">
+    <a *ngIf="authService.isLoggedIn() && !authService.isAdmin() && !authService.isEncargado() && !authService.isCajero() && !authService.isProveedor()" routerLink="/reservas" routerLinkActive="active">
       Mis Reservas
     </a>
-    <a *ngIf="authService.isLoggedIn() && !authService.isAdmin() && !authService.isEncargado() && !authService.isCajero()" routerLink="/mis-compras" routerLinkActive="active">
+    <a *ngIf="authService.isLoggedIn() && !authService.isAdmin() && !authService.isEncargado() && !authService.isCajero() && !authService.isProveedor()" routerLink="/mis-compras" routerLinkActive="active">
       Mis Compras
     </a>
 
@@ -98,6 +103,9 @@
 <main>
   <router-outlet></router-outlet>
 </main>
+
+<!-- CU-29: Asistente conversacional, visible solo para clientes autenticados -->
+<app-chat-widget *ngIf="authService.isLoggedIn() && !authService.isAdmin() && !authService.isEncargado() && !authService.isCajero() && !authService.isProveedor()"></app-chat-widget>
 
 <footer class="footer">
   <div style="max-width: 1200px; margin: 0 auto; display: flex; flex-direction: column; align-items: center; gap: 0.5rem;">

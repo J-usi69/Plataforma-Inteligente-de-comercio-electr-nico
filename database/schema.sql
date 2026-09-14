@@ -148,6 +148,7 @@ CREATE TABLE coleccion (
 
 CREATE TABLE proveedor (
     id SERIAL PRIMARY KEY,
+    usuario_id INTEGER UNIQUE REFERENCES usuario(id) ON DELETE SET NULL,
     nombre_empresa VARCHAR(150) NOT NULL,
     contacto VARCHAR(150),
     estado BOOLEAN NOT NULL DEFAULT TRUE
@@ -175,6 +176,16 @@ CREATE TABLE variante_prenda (
     estado BOOLEAN NOT NULL DEFAULT TRUE,
     UNIQUE (prenda_id, talla_id, color_id)
 );
+
+CREATE TABLE disponibilidad_proveedor (
+    id SERIAL PRIMARY KEY,
+    prenda_id INTEGER NOT NULL REFERENCES prenda(id) ON DELETE CASCADE,
+    proveedor_id INTEGER NOT NULL REFERENCES proveedor(id) ON DELETE CASCADE,
+    cantidad INTEGER NOT NULL,
+    fecha_estimada DATE NOT NULL,
+    fecha_registro TIMESTAMPTZ NOT NULL
+);
+CREATE INDEX idx_disponibilidad_prenda ON disponibilidad_proveedor(prenda_id);
 
 -- ============================================================
 -- 4. Inventario
@@ -271,6 +282,7 @@ CREATE TABLE interaccion_ia (
     tipo_consulta VARCHAR(30),
     prompt_consulta TEXT,
     prendas_sugeridas_ids TEXT,
+    respuesta TEXT,
     fecha TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 

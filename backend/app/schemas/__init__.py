@@ -30,7 +30,20 @@ from app.schemas.catalogo import (
     VariantePrendaUpdate,
 )
 from app.schemas.personal import PersonalCreate, PersonalOut, PersonalUpdate
-from app.schemas.proveedor import ProveedorCreate, ProveedorOut, ProveedorUpdate
+from app.schemas.proveedor import (
+    DisponibilidadCreate,
+    DisponibilidadOut,
+    PrendaProveedorCreate,
+    ProveedorCreate,
+    ProveedorOut,
+    ProveedorUpdate,
+)
+from app.schemas.reporte import (
+    DashboardOut,
+    PrendaVendidaOut,
+    QuiebreStockOut,
+    VentaPorSucursalOut,
+)
 from app.schemas.seguridad import (
     AsignarRolesUsuario,
     PermisoOut,
@@ -87,6 +100,9 @@ __all__ = [
     "ProveedorCreate",
     "ProveedorUpdate",
     "ProveedorOut",
+    "PrendaProveedorCreate",
+    "DisponibilidadCreate",
+    "DisponibilidadOut",
     "CategoriaCreate",
     "CategoriaUpdate",
     "CategoriaOut",
@@ -108,5 +124,9 @@ __all__ = [
     "VariantePrendaCreate",
     "VariantePrendaUpdate",
     "VariantePrendaOut",
+    "VentaPorSucursalOut",
+    "PrendaVendidaOut",
+    "QuiebreStockOut",
+    "DashboardOut",
 ]
 
