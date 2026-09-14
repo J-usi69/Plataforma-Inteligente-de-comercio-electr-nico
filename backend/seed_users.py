@@ -44,6 +44,23 @@ def seed():
             ON CONFLICT (usuario_id) DO UPDATE SET sucursal_id = 1, cargo = 'Cajero de Sucursal';
         """), {"u": u_k})
 
+        # 4. Proveedor (CU-33, CU-34)
+        h_prov = get_password_hash("Proveedor123*")
+        conn.execute(text("""
+            INSERT INTO usuario (correo, password_hash, celular, estado, verificado, creado_en)
+            VALUES ('proveedor@fashionstore.com', :h, '74567890', true, now(), now())
+            ON CONFLICT (correo) DO UPDATE SET password_hash = :h;
+        """), {"h": h_prov})
+        u_p = conn.execute(text("SELECT id FROM usuario WHERE correo = 'proveedor@fashionstore.com'")).scalar()
+        rol_proveedor_id = conn.execute(text("SELECT id FROM rol WHERE nombre = 'Proveedor'")).scalar()
+        if rol_proveedor_id:
+            conn.execute(text("INSERT INTO usuario_rol (usuario_id, rol_id) VALUES (:u, :r) ON CONFLICT DO NOTHING"), {"u": u_p, "r": rol_proveedor_id})
+        conn.execute(text("""
+            INSERT INTO proveedor (usuario_id, nombre_empresa, contacto, estado)
+            VALUES (:u, 'Proveedor Demo S.R.L.', '74567890', true)
+            ON CONFLICT (usuario_id) DO UPDATE SET nombre_empresa = 'Proveedor Demo S.R.L.';
+        """), {"u": u_p})
+
         # Asegurar stock en inventario para variantes de prueba
         conn.execute(text("""
             INSERT INTO inventario_sucursal (variante_id, sucursal_id, stock_disponible, stock_reservado, stock_minimo)

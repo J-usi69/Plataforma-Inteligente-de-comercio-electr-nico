@@ -185,7 +185,8 @@ Válidas contra la Supabase compartida. Úsalas contra `POST /api/v1/auth/login`
 | Administrador | `admin@fashionstore.com` | `Admin123*` | Dashboard admin completo: roles/permisos, personal, sucursales, proveedores, catálogo maestro (categorías/tallas/colores/temporadas/colecciones), prendas y variantes. |
 | Cliente | `cliente@fashionstore.com` | `Cliente123*` | Catálogo público, filtros por talla/color/temporada, reservar prenda en sucursal, ver/cancelar "Mis Reservas", vestidor virtual con IA. |
 | Encargado | `encargado@fashionstore.com` | `Encargado123*` | Vinculado como personal de "Sucursal Central Equipetrol" (`id=1`). Gestiona las reservas recibidas por su sucursal en `/encargado`. |
-| Cajero | `cajero@fashionstore.com` | `Cajero123*` | Vinculado a la misma sucursal. Pensado para el módulo de ventas/POS (todavía no implementado). |
+| Cajero | `cajero@fashionstore.com` | `Cajero123*` | Vinculado a la misma sucursal. Registra ventas presenciales y procesa el cobro en caja (efectivo/tarjeta/QR) en `/caja`. |
+| Proveedor | `proveedor@fashionstore.com` | `Proveedor123*` | Vinculado a "Proveedor Demo S.R.L.". Registra productos e informa disponibilidad en `/proveedor` (CU-33, CU-34); los productos quedan inactivos hasta que el Administrador los valida. |
 
 ### Cómo probar el flujo completo (guía rápida para Jhonny)
 
