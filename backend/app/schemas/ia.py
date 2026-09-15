@@ -10,8 +10,15 @@ class RecomendacionOut(BaseModel):
     fuente: str  # "ia" o "mas_vendidas" (fallback documentado en la excepción de CU-28)
 
 
+class MensajeHistorialIn(BaseModel):
+    """Un turno previo de la conversación, para que el chat tenga memoria entre mensajes."""
+    rol: str  # "user" o "asistente"
+    contenido: str
+
+
 class ChatRequest(BaseModel):
     mensaje: str
+    historial: Optional[List[MensajeHistorialIn]] = None
 
 
 class ChatResponse(BaseModel):

@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_db, require_roles
+from app.api.deps import get_db, get_optional_current_user, require_roles
 from app.models.catalogo import Categoria, Coleccion, Prenda
 from app.models.ia import InteraccionIA
 from app.models.reserva import DetalleReserva, Reserva
@@ -15,7 +15,7 @@ from app.models.venta import DetalleVenta, Venta
 from app.schemas.catalogo import PrendaOut
 from app.schemas.ia import ChatRequest, ChatResponse, RecomendacionOut, ReporteIARequest, ReporteIAResponse
 from app.services import reportes_service
-from app.services.ia_service import IAServiceError, llamar_claude
+from app.services.ia_service import IAServiceError, llamar_gemini, llamar_groq, llamar_mistral
 
 router = APIRouter()
 
@@ -114,7 +114,7 @@ def obtener_recomendaciones(
     prendas_recomendadas: List[Prenda] = []
     fuente = "ia"
     try:
-        respuesta = llamar_claude(
+        respuesta = llamar_gemini(
             system_prompt="Sos el asistente de recomendaciones de productos de FashionStore, una tienda de ropa.",
             user_prompt=prompt,
             max_tokens=200,
@@ -148,26 +148,39 @@ def _prenda_de_variante(db: Session, variante_id: int) -> Optional[Prenda]:
 def chat_asistente(
     datos: ChatRequest,
     db: Session = Depends(get_db),
-    current_user: Usuario = Depends(require_roles(["Cliente"])),
+    current_user: Optional[Usuario] = Depends(get_optional_current_user),
 ):
-    """CU-29: asistente conversacional sobre prendas, tallas, disponibilidad y reservas."""
+    """CU-29: asistente conversacional sobre prendas, tallas, disponibilidad y reservas.
+    Funciona también para visitantes sin sesión iniciada; si hay un Cliente autenticado,
+    además se registra la interacción para su historial."""
     categorias = db.scalars(select(Categoria).where(Categoria.estado.is_(True))).all()
     contexto = f"Categorías disponibles en la tienda: {', '.join(c.nombre for c in categorias)}."
 
+    # Se limita a los últimos 12 turnos para no inflar el prompt en conversaciones largas.
+    historial = [
+        {"role": "user" if m.rol == "user" else "assistant", "content": m.contenido}
+        for m in (datos.historial or [])[-12:]
+    ]
+
     try:
-        respuesta = llamar_claude(
+        respuesta = llamar_groq(
             system_prompt=(
-                "Sos el asistente virtual de FashionStore, una tienda de ropa con sucursales físicas y venta "
-                "online. Ayudás a clientes con preguntas sobre prendas, tallas, disponibilidad y el proceso de "
-                "reserva o compra. Sé breve y concreto. " + contexto
+                "Sos el asistente virtual de FashionStore, una tienda de ropa BOLIVIANA con sucursales físicas "
+                "en Bolivia y venta online. Usá SIEMPRE bolivianos (Bs.) como moneda, nunca otra. Reservar una "
+                "prenda es GRATIS, no tiene ningún costo. No inventes precios, stock, plazos ni políticas que no "
+                "te haya dado este mensaje o el cliente: si no sabés un dato específico, decí que lo puede "
+                "confirmar en el catálogo o la sucursal. Ayudás a clientes con preguntas sobre prendas, tallas, "
+                "disponibilidad y el proceso de reserva o compra. Sé breve y concreto. " + contexto
             ),
             user_prompt=datos.mensaje,
             max_tokens=400,
+            historial=historial,
         )
     except IAServiceError:
         respuesta = _MENSAJE_LIMITACION_CHAT
 
-    _registrar_interaccion(db, current_user.id, "chatbot", datos.mensaje[:2000], respuesta=respuesta[:4000])
+    if current_user:
+        _registrar_interaccion(db, current_user.id, "chatbot", datos.mensaje[:2000], respuesta=respuesta[:4000])
     return ChatResponse(respuesta=respuesta)
 
 
@@ -186,7 +199,7 @@ def generar_reporte_ia(
         '"hasta": "YYYY-MM-DD"|null, "sucursal_id": entero|null}. Sin texto adicional.'
     )
     try:
-        respuesta = llamar_claude(system_prompt=system_prompt, user_prompt=datos.prompt, max_tokens=200)
+        respuesta = llamar_mistral(system_prompt=system_prompt, user_prompt=datos.prompt, max_tokens=200)
         parametros = json.loads(respuesta)
         tipo = parametros.get("tipo")
         if tipo not in _TIPOS_REPORTE_VALIDOS:

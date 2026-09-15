@@ -35,7 +35,7 @@ def test_cu28_recomendaciones_camino_feliz():
     assert catalogo, "se necesita al menos una prenda activa en el catálogo para esta prueba"
     ids_validos = [p["id"] for p in catalogo[:3]]
 
-    with patch("app.api.v1.endpoints.ia.llamar_claude", return_value=json.dumps(ids_validos)):
+    with patch("app.api.v1.endpoints.ia.llamar_gemini", return_value=json.dumps(ids_validos)):
         res = client.post("/api/v1/ia/recomendaciones", headers=headers)
 
     assert res.status_code == 200, res.text
@@ -49,7 +49,7 @@ def test_cu28_recomendaciones_fallback_a_mas_vendidas():
     token = _crear_y_loguear_cliente()
     headers = {"Authorization": f"Bearer {token}"}
 
-    with patch("app.api.v1.endpoints.ia.llamar_claude", side_effect=IAServiceError("timeout simulado")):
+    with patch("app.api.v1.endpoints.ia.llamar_gemini", side_effect=IAServiceError("timeout simulado")):
         res = client.post("/api/v1/ia/recomendaciones", headers=headers)
 
     assert res.status_code == 200, res.text
@@ -60,8 +60,17 @@ def test_cu29_chat_camino_feliz():
     token = _crear_y_loguear_cliente()
     headers = {"Authorization": f"Bearer {token}"}
 
-    with patch("app.api.v1.endpoints.ia.llamar_claude", return_value="Tenemos poleras disponibles en varias tallas."):
+    with patch("app.api.v1.endpoints.ia.llamar_groq", return_value="Tenemos poleras disponibles en varias tallas."):
         res = client.post("/api/v1/ia/chat", headers=headers, json={"mensaje": "¿Tienen poleras?"})
+
+    assert res.status_code == 200, res.text
+    assert "poleras" in res.json()["respuesta"].lower()
+
+
+def test_cu29_chat_funciona_sin_sesion():
+    """El chatbot debe atender también a visitantes anónimos, sin token."""
+    with patch("app.api.v1.endpoints.ia.llamar_groq", return_value="Tenemos poleras disponibles."):
+        res = client.post("/api/v1/ia/chat", json={"mensaje": "¿Tienen poleras?"})
 
     assert res.status_code == 200, res.text
     assert "poleras" in res.json()["respuesta"].lower()
@@ -71,7 +80,7 @@ def test_cu29_chat_mensaje_de_limitacion_si_ia_no_disponible():
     token = _crear_y_loguear_cliente()
     headers = {"Authorization": f"Bearer {token}"}
 
-    with patch("app.api.v1.endpoints.ia.llamar_claude", side_effect=IAServiceError("sin api key")):
+    with patch("app.api.v1.endpoints.ia.llamar_groq", side_effect=IAServiceError("sin api key")):
         res = client.post("/api/v1/ia/chat", headers=headers, json={"mensaje": "hola"})
 
     assert res.status_code == 200, res.text
@@ -83,7 +92,7 @@ def test_cu30_reporte_ia_camino_feliz():
     headers = {"Authorization": f"Bearer {token}"}
 
     respuesta_ia = json.dumps({"tipo": "ventas", "desde": None, "hasta": None, "sucursal_id": None})
-    with patch("app.api.v1.endpoints.ia.llamar_claude", return_value=respuesta_ia):
+    with patch("app.api.v1.endpoints.ia.llamar_mistral", return_value=respuesta_ia):
         res = client.post("/api/v1/ia/reportes", headers=headers, json={"prompt": "ventas totales"})
 
     assert res.status_code == 200, res.text
@@ -96,7 +105,7 @@ def test_cu30_reporte_ia_solicitud_ambigua():
     token = _login_admin()
     headers = {"Authorization": f"Bearer {token}"}
 
-    with patch("app.api.v1.endpoints.ia.llamar_claude", return_value="esto no es JSON válido"):
+    with patch("app.api.v1.endpoints.ia.llamar_mistral", return_value="esto no es JSON válido"):
         res = client.post("/api/v1/ia/reportes", headers=headers, json={"prompt": "algo muy ambiguo"})
 
     assert res.status_code == 422, res.text

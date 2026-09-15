@@ -13,10 +13,15 @@ class Settings(BaseSettings):
     stripe_secret_key: str = ""
     stripe_webhook_secret: str = ""
     ai_api_key: str = ""
-    anthropic_api_key: str = ""
-    anthropic_model: str = "claude-haiku-4-5-20251001"
+    gemini_api_key: str = ""
+    gemini_model: str = "gemini-3.6-flash"
+    groq_api_key: str = ""
+    groq_model: str = "openai/gpt-oss-120b"
+    mistral_api_key: str = ""
+    mistral_model: str = "mistral-small-latest"
     replicate_api_token: str = ""
     tryon_replicate_model: str = "prunaai/p-image-try-on"
+    firebase_credentials_json: str = ""
 
     model_config = SettingsConfigDict(
         env_file=find_dotenv(usecwd=True),

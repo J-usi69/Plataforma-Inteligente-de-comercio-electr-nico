@@ -101,6 +101,26 @@ def get_current_active_user(
     return current_user
 
 
+def get_optional_current_user(
+    token: Optional[str] = Depends(oauth2_scheme),
+    db: Session = Depends(get_db),
+) -> Optional[Usuario]:
+    """Como get_current_user, pero sin exigir sesión: usado en endpoints que también
+    deben funcionar para visitantes anónimos (ej. el chatbot, CU-29)."""
+    if not token:
+        return None
+    payload = decode_access_token(token)
+    if not payload:
+        return None
+    user_id = payload.get("sub")
+    if not user_id:
+        return None
+    user = db.get(Usuario, int(user_id))
+    if not user or not user.estado or user.fecha_eliminacion is not None:
+        return None
+    return user
+
+
 def require_roles(allowed_roles: List[str]) -> Callable:
     def role_checker(
         current_user: Usuario = Depends(get_current_active_user),
