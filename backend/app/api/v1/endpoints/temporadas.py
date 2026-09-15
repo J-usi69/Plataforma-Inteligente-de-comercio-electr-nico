@@ -14,6 +14,7 @@ from app.schemas.catalogo import (
     TemporadaOut,
     TemporadaUpdate,
 )
+from app.services import push_service
 
 router = APIRouter()
 
@@ -179,11 +180,19 @@ def actualizar_coleccion(
         coleccion.nombre = datos.nombre
     if datos.descripcion is not None:
         coleccion.descripcion = datos.descripcion
+    estaba_inactiva = not coleccion.estado
     if datos.estado is not None:
         coleccion.estado = datos.estado
 
     db.commit()
     db.refresh(coleccion)
+
+    if estaba_inactiva and coleccion.estado:
+        push_service.enviar_push_broadcast_clientes(
+            db, "Nueva colección disponible",
+            f'La colección "{coleccion.nombre}" ya está disponible.',
+            data={"coleccion_id": coleccion.id},
+        )
 
     temporada = db.get(Temporada, coleccion.temporada_id)
     return ColeccionOut(

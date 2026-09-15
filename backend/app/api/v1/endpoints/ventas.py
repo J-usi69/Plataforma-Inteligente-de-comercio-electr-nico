@@ -30,6 +30,7 @@ from app.schemas.venta import (
     VentaOut,
     VentaPresencialCreate,
 )
+from app.services import push_service
 
 router = APIRouter()
 
@@ -283,6 +284,13 @@ def procesar_pago_en_caja(
     client_ip = get_client_ip(request)
     registrar_bitacora(db, current_user.id, f"Cobro en caja de venta #{venta.id} por Bs. {venta.total}", client_ip)
 
+    if venta.usuario_id is not None:
+        push_service.enviar_push_a_usuario(
+            db, venta.usuario_id,
+            "Pago aprobado",
+            f"Tu pago de Bs. {venta.total} fue aprobado. ¡Gracias por tu compra!",
+        )
+
     return _venta_a_out(db, venta)
 
 
@@ -496,6 +504,13 @@ def procesar_pago_electronico(
 
     client_ip = get_client_ip(request)
     registrar_bitacora(db, current_user.id, f"Pago electrónico aprobado para venta #{venta.id} ({transaccion_id})", client_ip)
+
+    if venta.usuario_id is not None:
+        push_service.enviar_push_a_usuario(
+            db, venta.usuario_id,
+            "Pago aprobado",
+            f"Tu pedido #{venta.id} ya está pagado y listo para entrega/retiro.",
+        )
 
     return _venta_a_out(db, venta)
 

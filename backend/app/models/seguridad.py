@@ -65,3 +65,16 @@ class Bitacora(Base):
     accion: Mapped[str] = mapped_column(String(100))
     ip: Mapped[str | None] = mapped_column(String(45))
     fecha: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class PushToken(Base):
+    """Token de FCM de un dispositivo de la app móvil, para notificaciones push."""
+    __tablename__ = "push_token"
+    __table_args__ = (Index("idx_push_token_usuario", "usuario_id"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    usuario_id: Mapped[int] = mapped_column(ForeignKey("usuario.id", ondelete="CASCADE"))
+    token: Mapped[str] = mapped_column(String(255), unique=True)
+    plataforma: Mapped[str] = mapped_column(String(20), default="android")
+    creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    actualizado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True))

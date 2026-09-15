@@ -18,6 +18,7 @@ from app.models.reserva import DetalleReserva, Reserva
 from app.models.seguridad import Usuario
 from app.models.sucursal import Sucursal
 from app.schemas.reserva import DetalleReservaOut, ReservaCreate, ReservaOut
+from app.services import push_service
 
 router = APIRouter()
 
@@ -214,6 +215,11 @@ def confirmar_preparacion_reserva(
 
     client_ip = get_client_ip(request)
     registrar_bitacora(db, current_user.id, f"Reserva #{reserva.id} confirmada/apartada", client_ip)
+    push_service.enviar_push_a_usuario(
+        db, reserva.usuario_id,
+        "Reserva confirmada",
+        f"Tu reserva #{reserva.id} fue confirmada, ya apartamos tus prendas en la sucursal.",
+    )
     return _reserva_a_out(db, reserva)
 
 
@@ -243,6 +249,11 @@ def confirmar_recepcion_cliente(
 
     client_ip = get_client_ip(request)
     registrar_bitacora(db, current_user.id, f"Cliente recibido en sucursal - Reserva #{reserva.id} atendida", client_ip)
+    push_service.enviar_push_a_usuario(
+        db, reserva.usuario_id,
+        "Reserva atendida",
+        f"¡Gracias por tu visita! Tu reserva #{reserva.id} fue atendida.",
+    )
     return _reserva_a_out(db, reserva)
 
 
@@ -295,6 +306,11 @@ def marcar_reserva_no_show(
 
     client_ip = get_client_ip(request)
     registrar_bitacora(db, current_user.id, f"Reserva #{reserva.id} marcada no-show (stock liberado)", client_ip)
+    push_service.enviar_push_a_usuario(
+        db, reserva.usuario_id,
+        "Reserva vencida",
+        f"Tu reserva #{reserva.id} venció por no haberse presentado a la sucursal.",
+    )
     return _reserva_a_out(db, reserva)
 
 

@@ -12,7 +12,7 @@ from app.models.catalogo import (
 from app.models.ia import InteraccionIA
 from app.models.inventario import InventarioSucursal, MovimientoInventario
 from app.models.reserva import DetalleReserva, Reserva
-from app.models.seguridad import Bitacora, Permiso, Rol, RolPermiso, Usuario, UsuarioRol
+from app.models.seguridad import Bitacora, Permiso, PushToken, Rol, RolPermiso, Usuario, UsuarioRol
 from app.models.sucursal import Ciudad, Personal, Sucursal
 from app.models.venta import DetalleVenta, Pago, Venta
 
@@ -33,6 +33,7 @@ __all__ = [
     "Reserva",
     "Bitacora",
     "Permiso",
+    "PushToken",
     "Rol",
     "RolPermiso",
     "Usuario",

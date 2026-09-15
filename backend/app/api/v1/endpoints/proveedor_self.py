@@ -9,6 +9,7 @@ from app.models.catalogo import Categoria, Coleccion, DisponibilidadProveedor, P
 from app.models.seguridad import Usuario
 from app.schemas.catalogo import PrendaOut
 from app.schemas.proveedor import DisponibilidadCreate, DisponibilidadOut, PrendaProveedorCreate
+from app.services import push_service
 
 router = APIRouter()
 
@@ -127,6 +128,14 @@ def informar_disponibilidad(
     db.add(nueva)
     db.commit()
     db.refresh(nueva)
+
+    push_service.enviar_push_a_administradores(
+        db, "Disponibilidad informada por proveedor",
+        f'{proveedor.nombre_empresa} informó {nueva.cantidad} unidades de "{prenda.nombre}" '
+        f"para el {nueva.fecha_estimada.isoformat()}.",
+        data={"prenda_id": prenda.id, "proveedor_id": proveedor.id},
+    )
+
     return DisponibilidadOut(
         id=nueva.id,
         prenda_id=nueva.prenda_id,

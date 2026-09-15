@@ -72,6 +72,16 @@ CREATE TABLE bitacora (
     fecha TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+-- Tokens de FCM de los dispositivos móviles, para notificaciones push
+CREATE TABLE push_token (
+    id SERIAL PRIMARY KEY,
+    usuario_id INTEGER NOT NULL REFERENCES usuario(id) ON DELETE CASCADE,
+    token VARCHAR(255) UNIQUE NOT NULL,
+    plataforma VARCHAR(20) NOT NULL DEFAULT 'android',
+    creado_en TIMESTAMPTZ NOT NULL DEFAULT now(),
+    actualizado_en TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
 -- ============================================================
 -- 2. Sucursales y personal
 -- ============================================================
@@ -302,3 +312,4 @@ CREATE INDEX idx_venta_usuario ON venta(usuario_id);
 CREATE INDEX idx_detalle_venta_venta ON detalle_venta(venta_id);
 CREATE INDEX idx_bitacora_usuario ON bitacora(usuario_id);
 CREATE INDEX idx_interaccion_ia_usuario ON interaccion_ia(usuario_id);
+CREATE INDEX idx_push_token_usuario ON push_token(usuario_id);

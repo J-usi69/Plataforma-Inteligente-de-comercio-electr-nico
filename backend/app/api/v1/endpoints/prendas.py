@@ -13,6 +13,7 @@ from app.schemas.catalogo import (
     PrendaOut,
     PrendaUpdate,
 )
+from app.services import push_service
 
 router = APIRouter()
 
@@ -224,11 +225,19 @@ def actualizar_prenda(
         prenda.modelo_3d_url = datos.modelo_3d_url
     if datos.imagen_url is not None:
         prenda.imagen_url = datos.imagen_url
+    estaba_inactiva = not prenda.estado
     if datos.estado is not None:
         prenda.estado = datos.estado
 
     db.commit()
     db.refresh(prenda)
+
+    if estaba_inactiva and prenda.estado:
+        push_service.enviar_push_broadcast_clientes(
+            db, "Nueva prenda disponible",
+            f'"{prenda.nombre}" ya está disponible en el catálogo.',
+            data={"prenda_id": prenda.id},
+        )
 
     cat = db.get(Categoria, prenda.categoria_id) if prenda.categoria_id else None
     col = db.get(Coleccion, prenda.coleccion_id) if prenda.coleccion_id else None

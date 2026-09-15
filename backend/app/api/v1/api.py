@@ -5,6 +5,7 @@ from app.api.v1.endpoints import (
     catalogo_maestro,
     ia,
     inventario,
+    notificaciones,
     personal,
     prendas,
     proveedor_self,
@@ -37,4 +38,5 @@ api_router.include_router(reservas.router, prefix="/reservas", tags=["Reservas (
 api_router.include_router(ventas.router, prefix="/ventas", tags=["Ventas, Caja y Pagos"])
 api_router.include_router(reportes.router, prefix="/reportes", tags=["Reportes e Indicadores (CU-31, CU-32)"])
 api_router.include_router(ia.router, prefix="/ia", tags=["Inteligencia Artificial (CU-28, CU-29, CU-30)"])
+api_router.include_router(notificaciones.router, prefix="/notificaciones", tags=["Notificaciones Push"])
 
