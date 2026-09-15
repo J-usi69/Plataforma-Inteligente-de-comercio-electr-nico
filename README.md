@@ -36,22 +36,44 @@ Esquema completo (25 tablas) ya aplicado en Supabase: usuarios/personal separado
 - **CU-15**: reservar una o varias prendas en una sucursal, con validación de stock disponible y actualización automática de `inventario_sucursal` (descuenta `stock_disponible`, incrementa `stock_reservado`).
 - **CU-16**: consultar y cancelar reservas propias (libera el stock reservado; no permite cancelar una reserva que ya no está pendiente).
 
-También implementado: gestión de reservas recibidas por sucursal (Encargado), ventas presenciales y digitales con pagos, comprobante oficial e historial de compras del cliente — a cargo de Jhonny.
+También implementado (CU-17 a CU-27, a cargo de Jhonny): roles y permisos, personal, proveedores, temporadas/colecciones, gestión de reservas recibidas por sucursal (Encargado), ventas presenciales y digitales con pago electrónico (Stripe, modo test), comprobante oficial e historial de compras del cliente.
+
+- **CU-28**: recomendaciones de prendas por IA (Gemini) para el Cliente, a partir de su historial de compras/reservas y el catálogo activo; si Gemini no responde a tiempo, cae en un fallback con las prendas más vendidas.
+- **CU-29**: asistente conversacional (chatbot) con IA (Groq), disponible **incluso sin sesión iniciada** — funciona igual para un visitante que para un Cliente logueado (a un logueado además se le guarda el historial de interacción). Mantiene memoria de la conversación (se manda el historial de turnos en cada mensaje) y su prompt está anclado a datos reales del negocio (moneda en Bolivianos, reserva sin costo) para no inventar precios ni políticas.
+- **CU-30**: generación de reportes en lenguaje natural por IA (Mistral) para el Administrador, reusando los mismos endpoints de reportes predefinidos.
+- **CU-31/CU-32**: reportes predefinidos (ventas por sucursal, prendas más vendidas, quiebres de stock) y dashboard de indicadores con datos reales agregados en el backend.
+- **CU-33/CU-34**: rol **Proveedor** con login propio — registra sus propios productos (quedan inactivos hasta que el Administrador los valida) e informa disponibilidad futura de stock; el Administrador puede consultar ese historial para planificar reposición.
+- **Notificaciones push** (Firebase Cloud Messaging, solo app móvil): se disparan solas, sin que el usuario tenga que refrescar nada, cuando cambia el estado de una reserva (confirmada / atendida / no-show por vencimiento), cuando se aprueba un pago, cuando el Administrador reactiva una prenda o colección dada de baja (aviso a todos los Clientes), y cuando un Proveedor informa disponibilidad (aviso a los Administradores). Un fallo al enviar un push nunca rompe el flujo que lo disparó — queda solo logueado.
+
+### Inteligencia Artificial: por qué 3 proveedores distintos
+
+El módulo de IA no usa un solo proveedor — cada función tiene el suyo, para que el límite gratuito (rate limit) de uno no tumbe a los demás:
+
+| Función | Proveedor | Por qué |
+|---|---|---|
+| Recomendaciones (CU-28) | **Gemini** (`gemini-3.6-flash`) | Se llama poco (una vez por carga de catálogo), no necesita el tier más generoso. |
+| Chatbot (CU-29) | **Groq** (`openai/gpt-oss-120b`) | Es la función que más se llama (cada mensaje del chat), así que necesita el proveedor con más cuota gratis. |
+| Reportes por IA (CU-30) | **Mistral** (`mistral-small-latest`) | Solo lo usa el Administrador ocasionalmente. |
+
+Las tres integraciones son HTTP directo (`httpx`) contra la API de cada proveedor, sin SDK — ver `backend/app/services/ia_service.py`. Si a un proveedor le falta la API key en el `.env` o la llamada falla, esa función responde con un mensaje de "no disponible por ahora" (o el fallback de prendas más vendidas, en el caso de recomendaciones) en vez de romper el resto del sistema.
+
+**El chatbot es la única función de IA que también funciona sin haber iniciado sesión** (recomendaciones y reportes sí necesitan estar logueado) — así un visitante puede preguntar sobre tallas, disponibilidad o el proceso de reserva antes de crear una cuenta. El asistente recibe el historial de la conversación en cada mensaje (no tiene memoria del lado del servidor) y su prompt está anclado a datos reales del negocio (moneda en Bolivianos, reserva gratuita) para no inventar precios ni políticas que no existen.
 
 ### Flujo actual por rol de usuario
 
 El sistema diferencia el rol en el login y cada uno tiene su propia pantalla.
 
-- **Administrador** (`admin@fashionstore.com`): al loguearse entra directo al **Dashboard admin** (`/admin`) — ahí gestiona roles y permisos, personal, sucursales, proveedores y todo el catálogo maestro (categorías, tallas, colores, temporadas, colecciones, prendas y variantes).
-- **Cliente** (`cliente@fashionstore.com`): al loguearse cae en el **catálogo público** (`/catalogo`, misma pantalla que ve un visitante sin cuenta) y desde ahí puede filtrar prendas, reservar una variante en la sucursal con stock disponible, ver/cancelar sus reservas (`/reservas`), comprar desde el carrito con pago por pasarela digital simulada (`/carrito`), consultar su historial de compras (`/mis-compras`) y usar el vestidor virtual con IA (**solo disponible en la app móvil por ahora**, no en la web).
-- **Encargado** (`encargado@fashionstore.com`, vinculado como personal de la Sucursal Central Equipetrol): tiene su propia pantalla (`/encargado`) para ver las reservas entrantes de su sucursal, confirmar que apartó las prendas, confirmar la recepción del cliente o marcarla como no presentada.
+- **Administrador** (`admin@fashionstore.com`): al loguearse entra directo al **Dashboard admin** (`/admin`) — ahí gestiona roles y permisos, personal, sucursales, proveedores, todo el catálogo maestro (categorías, tallas, colores, temporadas, colecciones, prendas y variantes), el dashboard de indicadores y reportes (predefinidos o generados con IA en lenguaje natural).
+- **Cliente** (`cliente@fashionstore.com`): al loguearse cae en el **catálogo público** (`/catalogo`, misma pantalla que ve un visitante sin cuenta) y desde ahí puede filtrar prendas, tocar cualquier tarjeta de producto para ver su detalle completo, reservar una variante en la sucursal con stock disponible, ver/cancelar sus reservas (`/reservas`), comprar desde el carrito con pago por pasarela digital (Stripe, modo test), consultar su historial de compras (`/mis-compras`), ver un carrusel de "Recomendado para ti" (IA), chatear con el asistente virtual y usar el vestidor virtual con IA (**solo disponible en la app móvil por ahora**, no en la web). En la app móvil además recibe notificaciones push sobre sus reservas y compras.
+- **Encargado** (`encargado@fashionstore.com`, vinculado como personal de la Sucursal Central Equipetrol): tiene su propia pantalla (`/encargado`) para ver las reservas entrantes de su sucursal, confirmar que apartó las prendas ("Apartar Prendas"), confirmar la recepción del cliente ("Atender Cliente") o marcarla como no presentada ("No se presentó") — cada una de estas tres acciones le manda un push al celular del Cliente.
 - **Cajero** (`cajero@fashionstore.com`, misma sucursal): tiene su propia pantalla de caja (`/caja`) para cargar una reserva ya atendida o agregar prendas de mostrador, cobrar la venta y emitir el comprobante.
+- **Proveedor** (`proveedor@fashionstore.com`, vinculado a "Proveedor Demo S.R.L."): tiene su propia pantalla (`/proveedor`) para registrar sus propios productos (quedan inactivos hasta que el Administrador los valida y reactiva — eso dispara un push a todos los Clientes) e informar disponibilidad futura de stock (dispara un push a los Administradores).
 
 ### Frontend web (Angular)
-Login/registro funcionales contra la API real, interceptor de autenticación JWT, dashboard administrativo con listados (roles, personal, sucursales, proveedores, catálogo), servicios `AuthService`/`ApiService`/`BusinessService`.
+Login/registro funcionales contra la API real, interceptor de autenticación JWT, dashboard administrativo con listados (roles, personal, sucursales, proveedores, catálogo, reportes/dashboard), panel propio de Proveedor, asistente conversacional flotante (disponible sin sesión iniciada), catálogo con tarjetas de producto clickeables, servicios `AuthService`/`ApiService`/`BusinessService`.
 
 ### App móvil (Flutter)
-Login/registro/perfil funcionales contra la API real, listado de sucursales, catálogo de prendas con filtros por talla/color, reserva de variante en sucursal (`/reservar`) y gestión de "Mis Reservas" (`/reservas`), y vestidor virtual con IA funcional (`/vestidor-ar` — cámara + Replicate, único lugar donde el CU-14 está integrado por ahora).
+Login/registro/perfil funcionales contra la API real, listado de sucursales, catálogo de prendas con filtros por talla/color y tarjetas de producto clickeables (abren el detalle completo: categoría, descripción, variantes, accesos directos a 3D RA/Reservar/Comprar), reserva de variante en sucursal (`/reservar`) y gestión de "Mis Reservas" (`/reservas`), vestidor virtual con IA (`/vestidor-ar` — cámara + Replicate, único lugar donde el CU-14 está integrado por ahora), carrusel de recomendaciones y pantalla de chat con el asistente (`/asistente`, funciona sin sesión iniciada), y notificaciones push nativas vía Firebase Cloud Messaging (se registra el token del dispositivo al iniciar sesión).
 
 ### Diagramas y documentación
 - `docs/diseno_logico.md` — diseño lógico de las 25 tablas en formato visual (header + PK + FKs).
@@ -77,20 +99,22 @@ backend/
     db/session.py                  # Engine, SessionLocal, Base declarativa
     models/                         # Modelos SQLAlchemy (fuente de verdad del esquema)
     schemas/                         # Schemas Pydantic (request/response por módulo)
-    api/v1/endpoints/                 # Un archivo por caso de uso/módulo (auth, prendas, roles, etc.)
+    services/                         # ia_service.py, push_service.py, reportes_service.py (lógica reusable)
+    api/v1/endpoints/                 # Un archivo por caso de uso/módulo (auth, prendas, roles, ia, notificaciones, etc.)
     main.py                            # App FastAPI (CORS + router /api/v1)
   alembic/                              # Migraciones (ver backend/README.md para el flujo)
-  tests/                                 # Tests de CU-01 a CU-08
+  tests/                                 # Tests de CU-01 a CU-08 + IA + notificaciones
   requirements.txt
 frontend-web/                            # Angular
   Dockerfile
   nginx.conf
   src/app/core/                           # AuthService, ApiService, BusinessService, interceptor JWT
-  src/app/features/                        # Un folder por módulo: auth, catalogo, reservas, ventas, admin
+  src/app/features/                        # Un folder por módulo: auth, catalogo, reservas, ventas, admin, asistente, proveedor
 mobile-app/                                # Flutter
-  lib/core/                                 # Config (Env) y ApiService (singleton con token/currentUser)
-  lib/features/                              # auth, catalogo, reservas, sucursales, ventas, vestidor_ar
-docker-compose.yml                           # backend + frontend (conectados a Supabase vía .env)
+  android/app/google-services.json          # Config de Firebase para notificaciones push
+  lib/core/                                  # Config (Env), ApiService, PushNotificationService, router (RouteObserver)
+  lib/features/                               # auth, catalogo, reservas, sucursales, ventas, vestidor_ar, asistente
+docker-compose.yml                            # backend + frontend (conectados a Supabase vía .env)
 ```
 
 ## Configuración inicial (para cada integrante del equipo)
@@ -112,21 +136,35 @@ SUPABASE_SERVICE_ROLE_KEY=
 JWT_SECRET_KEY=cambia-esto-por-una-clave-larga-y-aleatoria
 ENVIRONMENT=development
 
-# --- Pasarela de pago (completar cuando se integre) ---
-PAYMENT_GATEWAY_API_KEY=
+# --- Pasarela de pago (Stripe, modo test) ---
+STRIPE_SECRET_KEY=
+STRIPE_WEBHOOK_SECRET=
 
-# --- IA (completar cuando se integre) ---
-AI_API_KEY=
+# --- IA: 3 proveedores gratuitos distintos, uno por función (ver sección de arriba) ---
+# Gemini (CU-28, recomendaciones): clave en aistudio.google.com/apikey
+GEMINI_API_KEY=
+GEMINI_MODEL=gemini-3.6-flash
+# Groq (CU-29, chatbot): clave en console.groq.com/keys
+GROQ_API_KEY=
+GROQ_MODEL=openai/gpt-oss-120b
+# Mistral (CU-30, reportes por IA): clave en console.mistral.ai/api-keys
+MISTRAL_API_KEY=
+MISTRAL_MODEL=mistral-small-latest
 
 # --- Vestidor virtual / Try-On con IA (CU-14) ---
 # Token de Replicate: https://replicate.com/account/api-tokens (cada integrante debe generar el suyo)
 REPLICATE_API_TOKEN=
 TRYON_REPLICATE_MODEL=prunaai/p-image-try-on
+
+# --- Notificaciones push (Firebase Cloud Messaging, solo app móvil) ---
+# JSON de la cuenta de servicio, en una sola línea: Firebase Console > Configuración
+# del proyecto > Cuentas de servicio > Generar nueva clave privada.
+FIREBASE_CREDENTIALS_JSON=
 ```
 
 `.env.example` tiene la misma plantilla sin valores reales, por si se pierde este archivo.
 
-**`REPLICATE_API_TOKEN` queda vacío a propósito** — es una clave personal de facturación por uso, cada integrante debe crear su propia cuenta gratuita en [replicate.com](https://replicate.com) y generar su token. Sin ese token, todo el resto del sistema funciona normal; solo el vestidor virtual (CU-14) responde "no configurado".
+**`REPLICATE_API_TOKEN`, las claves de IA y `FIREBASE_CREDENTIALS_JSON` quedan vacías a propósito** — son claves personales/de facturación por uso, cada integrante (o quien despliegue el sistema) debe generar las suyas en la consola de cada proveedor. Sin ellas, el resto del sistema funciona normal; solo la función correspondiente responde "no disponible por ahora" (vestidor virtual, recomendaciones, chatbot, reportes por IA o notificaciones push, según cuál falte).
 
 ### 2. Levantar todo con Docker (recomendado)
 
@@ -174,7 +212,9 @@ flutter pub get
 flutter run
 ```
 
-Por defecto apunta a `http://10.0.2.2:8000` (así el emulador de Android ve el backend corriendo en tu máquina). Para apuntar a otra URL: `flutter run --dart-define=API_URL=http://tu-ip:8000`.
+Por defecto apunta a `http://10.0.2.2:8000` (así el emulador de Android ve el backend corriendo en tu máquina). Para apuntar a otra URL (por ejemplo, un dispositivo físico con `adb reverse tcp:8000 tcp:8000`, o el backend ya desplegado en Railway): `flutter run --dart-define=API_URL=http://tu-ip:8000` o `--dart-define=API_URL=https://fashionstore-backend-production-4c32.up.railway.app`.
+
+**Notificaciones push**: para que `mobile-app/android/app/google-services.json` (ya incluido en el repo) sirva de verdad, el backend necesita `FIREBASE_CREDENTIALS_JSON` configurado en su `.env` (ver sección 1) con la clave de cuenta de servicio del mismo proyecto de Firebase. Sin eso, la app sigue funcionando normal — solo no llegan los push.
 
 ### Credenciales de prueba
 
@@ -183,7 +223,7 @@ Válidas contra la Supabase compartida. Úsalas contra `POST /api/v1/auth/login`
 | Rol | Correo | Contraseña | Para probar |
 |---|---|---|---|
 | Administrador | `admin@fashionstore.com` | `Admin123*` | Dashboard admin completo: roles/permisos, personal, sucursales, proveedores, catálogo maestro (categorías/tallas/colores/temporadas/colecciones), prendas y variantes. |
-| Cliente | `cliente@fashionstore.com` | `Cliente123*` | Catálogo público, filtros por talla/color/temporada, reservar prenda en sucursal, ver/cancelar "Mis Reservas", vestidor virtual con IA. |
+| Cliente | `cliente@fashionstore.com` | `Cliente123*` | Catálogo público, filtros por talla/color/temporada, reservar prenda en sucursal, ver/cancelar "Mis Reservas", vestidor virtual con IA, recomendaciones y chatbot con IA, notificaciones push (app móvil). |
 | Encargado | `encargado@fashionstore.com` | `Encargado123*` | Vinculado como personal de "Sucursal Central Equipetrol" (`id=1`). Gestiona las reservas recibidas por su sucursal en `/encargado`. |
 | Cajero | `cajero@fashionstore.com` | `Cajero123*` | Vinculado a la misma sucursal. Registra ventas presenciales y procesa el cobro en caja (efectivo/tarjeta/QR) en `/caja`. |
 | Proveedor | `proveedor@fashionstore.com` | `Proveedor123*` | Vinculado a "Proveedor Demo S.R.L.". Registra productos e informa disponibilidad en `/proveedor` (CU-33, CU-34); los productos quedan inactivos hasta que el Administrador los valida. |
@@ -209,6 +249,20 @@ Válidas contra la Supabase compartida. Úsalas contra `POST /api/v1/auth/login`
   ```
   Se levanta en `localhost:5433` con usuario/clave/DB `fashionstore` / `fashionstore` / `fashionstore` (mismo valor los tres, definido en `docker-compose.yml`) y corre automáticamente `database/schema.sql` + `database/init-seeds.sql` al crearse por primera vez.
 - `database/schema.sql` es la referencia histórica del diseño original — el esquema real y vivo se gestiona desde `backend/app/models/` + Alembic.
+
+## Backend desplegado (Railway)
+
+Además de correr local con Docker, el backend está desplegado en **Railway** para que se pueda probar la app (sobre todo la móvil) sin tener que levantar nada localmente: `https://fashionstore-backend-production-4c32.up.railway.app` (mismo `/docs` para Swagger, mismo `/health`). Se conecta a la misma Supabase compartida, así que ve los mismos datos que el entorno local.
+
+- Se despliega automáticamente en cada push a `main` (Root Directory = `backend`, usa `backend/Dockerfile`).
+- Las variables de entorno se configuran en Railway → servicio → pestaña **Variables** (mismo contenido que el `.env` local).
+- **Ojo con el puerto**: Railway asigna su propio puerto dinámico vía la variable `PORT` y a veces no respeta un `PORT` fijado a mano en Variables. El `Dockerfile` ya escucha en `${PORT:-8000}`, pero si Railway devuelve **502 "Application failed to respond"**, hay que revisar en Settings → Networking en qué puerto quedó escuchando Uvicorn (mirando los Deploy Logs) y editar ahí el puerto del dominio público para que coincida — no alcanza con solo declarar la variable `PORT`.
+- El APK de release para compartir con alguien fuera del equipo se compila apuntando a esta URL:
+  ```bash
+  cd mobile-app
+  flutter build apk --release --dart-define=API_URL=https://fashionstore-backend-production-4c32.up.railway.app
+  ```
+  El archivo queda en `mobile-app/build/app/outputs/flutter-apk/app-release.apk`. **WhatsApp bloquea el envío de archivos `.apk` directo por chat** (los detecta por contenido, no solo por extensión) — para pasarlo hay que subirlo a Drive/Telegram/un link y compartir eso, o comprimirlo en un `.zip` antes.
 
 ## Ramas
 
