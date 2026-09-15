@@ -102,7 +102,7 @@
 
   <!-- Product Grid -->
   <div *ngIf="!isLoading()" class="product-grid">
-    <div *ngFor="let p of prendasFiltradas()" class="product-card">
+    <div *ngFor="let p of prendasFiltradas()" class="product-card" (click)="verPrenda(p)">
       <div class="product-banner">
         <span *ngIf="p.modelo_3d_url" class="ar-badge">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
@@ -130,7 +130,7 @@
             <span class="price-label">Precio Retail</span>
             <span class="price-val">Bs. {{ p.precio_base }}</span>
           </div>
-          <button class="btn btn-secondary btn-sm" (click)="verPrenda(p)">
+          <button class="btn btn-secondary btn-sm" (click)="$event.stopPropagation(); verPrenda(p)">
             Detalles
           </button>
         </div>

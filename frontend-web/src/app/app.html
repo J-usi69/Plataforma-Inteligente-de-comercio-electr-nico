@@ -104,8 +104,8 @@
   <router-outlet></router-outlet>
 </main>
 
-<!-- CU-29: Asistente conversacional, visible solo para clientes autenticados -->
-<app-chat-widget *ngIf="authService.isLoggedIn() && !authService.isAdmin() && !authService.isEncargado() && !authService.isCajero() && !authService.isProveedor()"></app-chat-widget>
+<!-- CU-29: Asistente conversacional, disponible incluso sin sesión iniciada; oculto para el personal (tienen sus propios paneles) -->
+<app-chat-widget *ngIf="!authService.isAdmin() && !authService.isEncargado() && !authService.isCajero() && !authService.isProveedor()"></app-chat-widget>
 
 <footer class="footer">
   <div style="max-width: 1200px; margin: 0 auto; display: flex; flex-direction: column; align-items: center; gap: 0.5rem;">

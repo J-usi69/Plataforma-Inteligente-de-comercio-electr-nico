@@ -115,11 +115,17 @@ export class ChatWidget {
     const texto = this.mensajeActual.trim();
     if (!texto || this.enviando()) return;
 
+    // Se arma antes de agregar el mensaje nuevo: son los turnos previos de la conversación.
+    const historial = this.mensajes().map((m) => ({
+      rol: (m.autor === 'cliente' ? 'user' : 'asistente') as 'user' | 'asistente',
+      contenido: m.texto,
+    }));
+
     this.mensajes.update((prev) => [...prev, { autor: 'cliente', texto }]);
     this.mensajeActual = '';
     this.enviando.set(true);
 
-    this.business.enviarMensajeChat(texto).subscribe({
+    this.business.enviarMensajeChat(texto, historial).subscribe({
       next: (res) => {
         this.mensajes.update((prev) => [...prev, { autor: 'asistente', texto: res.respuesta }]);
         this.enviando.set(false);

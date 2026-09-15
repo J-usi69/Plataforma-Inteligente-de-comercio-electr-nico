@@ -451,8 +451,8 @@ export class BusinessService {
     return this.http.post<{ prendas: Prenda[]; fuente: string }>(`${this.apiBase}/ia/recomendaciones`, {});
   }
 
-  enviarMensajeChat(mensaje: string): Observable<{ respuesta: string }> {
-    return this.http.post<{ respuesta: string }>(`${this.apiBase}/ia/chat`, { mensaje });
+  enviarMensajeChat(mensaje: string, historial?: { rol: 'user' | 'asistente'; contenido: string }[]): Observable<{ respuesta: string }> {
+    return this.http.post<{ respuesta: string }>(`${this.apiBase}/ia/chat`, { mensaje, historial });
   }
 
   generarReporteIA(prompt: string): Observable<{ tipo: string; parametros: any; datos: any }> {
