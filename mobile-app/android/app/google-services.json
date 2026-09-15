@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "501347924065",
+    "project_id": "fashionstore-notifica",
+    "storage_bucket": "fashionstore-notifica.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:501347924065:android:808a5e3d92b0a6daba9220",
+        "android_client_info": {
+          "package_name": "com.fashionstore.fashionstore"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCEtwX7VROJZC3TodVRZy2Gtx3KM-eR6QY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

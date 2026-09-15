@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/services/api_service.dart';
+import '../../core/services/push_notification_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -38,6 +41,7 @@ class _LoginScreenState extends State<LoginScreen> {
         login: _loginController.text.trim(),
         password: _passwordController.text,
       );
+      unawaited(PushNotificationService().registrarTokenSiCorresponde());
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(

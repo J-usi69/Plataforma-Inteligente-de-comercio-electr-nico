@@ -316,4 +316,23 @@ class ApiService {
     final res = await get('/api/v1/ventas/mis-compras');
     return res is List ? res : [];
   }
+
+  // --- Asistente de IA para el Cliente (CU-28, CU-29) ---
+
+  // CU-28: Recomendaciones de prendas según historial del cliente
+  Future<Map<String, dynamic>> getRecomendaciones() async {
+    final res = await post('/api/v1/ia/recomendaciones', {});
+    return Map<String, dynamic>.from(res);
+  }
+
+  // CU-29: Chat con el asistente virtual. Funciona con o sin sesión iniciada.
+  // `historial` son los turnos previos de esta conversación (para que el
+  // asistente tenga memoria), como [{'rol': 'user'|'asistente', 'contenido': '...'}].
+  Future<String> enviarMensajeChat(String mensaje, {List<Map<String, String>>? historial}) async {
+    final res = await post('/api/v1/ia/chat', {
+      'mensaje': mensaje,
+      if (historial != null && historial.isNotEmpty) 'historial': historial,
+    });
+    return Map<String, dynamic>.from(res)['respuesta'] as String;
+  }
 }

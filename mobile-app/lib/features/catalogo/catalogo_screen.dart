@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import '../../core/router.dart';
 import '../../core/services/api_service.dart';
 import '../../core/services/cart_service.dart';
 
@@ -10,25 +11,43 @@ class CatalogoScreen extends StatefulWidget {
   State<CatalogoScreen> createState() => _CatalogoScreenState();
 }
 
-class _CatalogoScreenState extends State<CatalogoScreen> {
+class _CatalogoScreenState extends State<CatalogoScreen> with RouteAware {
   final _apiService = ApiService();
   final _cartService = CartService();
   bool _isLoading = true;
   List<dynamic> _prendas = [];
   List<dynamic> _categorias = [];
   int? _selectedCategoriaId;
+  List<dynamic> _recomendaciones = [];
 
   @override
   void initState() {
     super.initState();
     _cartService.addListener(_onCartChanged);
     _cargarDatos();
+    _cargarRecomendaciones();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    routeObserver.subscribe(this, ModalRoute.of(context) as PageRoute);
   }
 
   @override
   void dispose() {
+    routeObserver.unsubscribe(this);
     _cartService.removeListener(_onCartChanged);
     super.dispose();
+  }
+
+  // Se llama cuando una ruta apilada encima de esta (ej. /login) se cierra y
+  // este catálogo vuelve a quedar visible: refresca lo que depende de sesión
+  // sin que el usuario tenga que hacer pull-to-refresh a mano.
+  @override
+  void didPopNext() {
+    setState(() {});
+    _cargarRecomendaciones();
   }
 
   void _onCartChanged() {
@@ -57,6 +76,19 @@ class _CatalogoScreenState extends State<CatalogoScreen> {
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  // CU-28: recomendaciones de IA; se ignora en silencio si falla o no hay sesión,
+  // igual que en la versión web, para no interrumpir la navegación del catálogo.
+  Future<void> _cargarRecomendaciones() async {
+    if (!_apiService.isLoggedIn) return;
+    try {
+      final res = await _apiService.getRecomendaciones();
+      final prendas = res['prendas'];
+      if (mounted && prendas is List) {
+        setState(() => _recomendaciones = prendas);
+      }
+    } catch (_) {}
   }
 
   @override
@@ -108,7 +140,13 @@ class _CatalogoScreenState extends State<CatalogoScreen> {
                 case 'perfil':
                   context.push('/perfil');
                 case 'login':
-                  context.push('/login');
+                  // El login se apila arriba del catálogo (no lo reemplaza), así que
+                  // al volver hay que refrescar a mano: nadie avisa que ya hay sesión.
+                  context.push('/login').then((_) {
+                    if (!mounted) return;
+                    setState(() {});
+                    _cargarRecomendaciones();
+                  });
               }
             },
             itemBuilder: (context) => [
@@ -155,10 +193,88 @@ class _CatalogoScreenState extends State<CatalogoScreen> {
           ),
         ],
       ),
+      // CU-29: el chat funciona también sin sesión iniciada.
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => context.push('/asistente'),
+        backgroundColor: const Color(0xFF4F46E5),
+        icon: const Icon(Icons.chat_bubble_outline, color: Colors.white),
+        label: const Text('Asistente', style: TextStyle(color: Colors.white)),
+      ),
       body: RefreshIndicator(
-        onRefresh: _cargarDatos,
+        onRefresh: () async {
+          await _cargarDatos();
+          await _cargarRecomendaciones();
+        },
         child: Column(
           children: [
+            // CU-28: Recomendaciones de IA
+            if (_recomendaciones.isNotEmpty) ...[
+              const Padding(
+                padding: EdgeInsets.fromLTRB(16, 12, 16, 0),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    '✨ Recomendado para ti',
+                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Color(0xFF334155)),
+                  ),
+                ),
+              ),
+              SizedBox(
+                height: 172,
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  itemCount: _recomendaciones.length,
+                  itemBuilder: (context, index) {
+                    final p = _recomendaciones[index];
+                    return GestureDetector(
+                      onTap: () => _mostrarModalAgregarBolsa(Map<String, dynamic>.from(p)),
+                      child: Container(
+                        width: 130,
+                        margin: const EdgeInsets.only(right: 10),
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFEEF2FF),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(8),
+                              child: SizedBox(
+                                height: 55,
+                                width: double.infinity,
+                                child: (p['imagen_url'] as String?)?.isNotEmpty == true
+                                    ? Image.network(
+                                        p['imagen_url'],
+                                        fit: BoxFit.cover,
+                                        errorBuilder: (_, __, ___) => const Icon(Icons.checkroom, color: Color(0xFF4F46E5), size: 26),
+                                      )
+                                    : const Icon(Icons.checkroom, color: Color(0xFF4F46E5), size: 26),
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              p['nombre'] ?? '',
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12.5),
+                            ),
+                            const Spacer(),
+                            Text(
+                              'Bs. ${p['precio_base']}',
+                              style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF4F46E5), fontSize: 12.5),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+              const Divider(height: 1),
+            ],
             // Categorías Chips
             if (_categorias.isNotEmpty)
               SingleChildScrollView(
@@ -223,7 +339,9 @@ class _CatalogoScreenState extends State<CatalogoScreen> {
                         final tieneImagen =
                             imagenUrl != null && imagenUrl.isNotEmpty;
 
-                        return Card(
+                        return GestureDetector(
+                          onTap: () => _mostrarModalAgregarBolsa(p),
+                          child: Card(
                           margin: const EdgeInsets.only(bottom: 16),
                           elevation: 2,
                           shape: RoundedRectangleBorder(
@@ -384,7 +502,13 @@ class _CatalogoScreenState extends State<CatalogoScreen> {
                                                 extra: p,
                                               );
                                             } else {
-                                              context.push('/login');
+                                              // Igual que en el menú: el login se apila
+                                              // arriba, así que al volver refrescamos a mano.
+                                              context.push('/login').then((_) {
+                                                if (!mounted) return;
+                                                setState(() {});
+                                                _cargarRecomendaciones();
+                                              });
                                             }
                                           },
                                           icon: const Icon(
@@ -412,6 +536,7 @@ class _CatalogoScreenState extends State<CatalogoScreen> {
                               ),
                             ],
                           ),
+                          ),
                         );
                       },
                     ),
@@ -427,14 +552,23 @@ class _CatalogoScreenState extends State<CatalogoScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (ctx) => _ModalSeleccionarVariante(prenda: prenda),
+      builder: (ctx) => _ModalSeleccionarVariante(
+        prenda: prenda,
+        // El login se apila arriba, así que al volver de ahí refrescamos a mano.
+        onRegresoLogin: () {
+          if (!mounted) return;
+          setState(() {});
+          _cargarRecomendaciones();
+        },
+      ),
     );
   }
 }
 
 class _ModalSeleccionarVariante extends StatefulWidget {
   final Map<String, dynamic> prenda;
-  const _ModalSeleccionarVariante({required this.prenda});
+  final VoidCallback? onRegresoLogin;
+  const _ModalSeleccionarVariante({required this.prenda, this.onRegresoLogin});
 
   @override
   State<_ModalSeleccionarVariante> createState() => _ModalSeleccionarVarianteState();
@@ -543,12 +677,13 @@ class _ModalSeleccionarVarianteState extends State<_ModalSeleccionarVariante> {
           ),
           const SizedBox(height: 16),
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               ClipRRect(
                 borderRadius: BorderRadius.circular(10),
                 child: Container(
-                  width: 60,
-                  height: 60,
+                  width: 90,
+                  height: 90,
                   color: const Color(0xFFEEF2FF),
                   child: widget.prenda['imagen_url'] != null
                       ? Image.network(
@@ -564,18 +699,63 @@ class _ModalSeleccionarVarianteState extends State<_ModalSeleccionarVariante> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    if (widget.prenda['categoria_nombre'] != null)
+                      Text(
+                        widget.prenda['categoria_nombre'],
+                        style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: Colors.indigo.shade600),
+                      ),
+                    const SizedBox(height: 2),
                     Text(
                       widget.prenda['nombre'],
                       style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(height: 2),
+                    const SizedBox(height: 4),
                     Text(
                       'Precio: Bs. ${precio.toStringAsFixed(2)}',
                       style: const TextStyle(color: Color(0xFF4F46E5), fontWeight: FontWeight.bold),
                     ),
                   ],
+                ),
+              ),
+            ],
+          ),
+          if ((widget.prenda['descripcion'] as String?)?.isNotEmpty == true) ...[
+            const SizedBox(height: 12),
+            Text(
+              widget.prenda['descripcion'],
+              style: const TextStyle(fontSize: 13, color: Colors.black87, height: 1.4),
+            ),
+          ],
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () {
+                    final router = GoRouter.of(context);
+                    Navigator.of(context).pop();
+                    router.push('/vestidor-ar', extra: widget.prenda);
+                  },
+                  icon: const Icon(Icons.view_in_ar, size: 16),
+                  label: const Text('3D RA'),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () {
+                    final router = GoRouter.of(context);
+                    final logueado = _apiService.isLoggedIn;
+                    final onRegresoLogin = widget.onRegresoLogin;
+                    Navigator.of(context).pop();
+                    final future = router.push(
+                      logueado ? '/reservar' : '/login',
+                      extra: logueado ? widget.prenda : null,
+                    );
+                    if (!logueado) future.then((_) => onRegresoLogin?.call());
+                  },
+                  icon: const Icon(Icons.event_available, size: 16),
+                  label: const Text('Reservar'),
                 ),
               ),
             ],

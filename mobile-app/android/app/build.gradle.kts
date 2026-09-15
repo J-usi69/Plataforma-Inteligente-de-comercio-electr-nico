@@ -4,6 +4,13 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+// Notificaciones push (Firebase Cloud Messaging): solo se aplica si existe
+// google-services.json, para que el build no se rompa en un checkout sin ese
+// archivo (por ejemplo, un fork sin proyecto de Firebase propio todavía).
+if (file("google-services.json").exists()) {
+    apply(plugin = "com.google.gms.google-services")
+}
+
 android {
     namespace = "com.fashionstore.fashionstore"
     compileSdk = flutter.compileSdkVersion
