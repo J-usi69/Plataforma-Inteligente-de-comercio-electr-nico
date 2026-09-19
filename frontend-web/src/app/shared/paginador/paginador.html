@@ -1,0 +1,9 @@
+<div class="paginador" *ngIf="totalPaginas > 1">
+  <button class="paginador-btn" [disabled]="paginaActual <= 1" (click)="ir(paginaActual - 1)">
+    « Anterior
+  </button>
+  <span class="paginador-info">Página {{ paginaActual }} de {{ totalPaginas }}</span>
+  <button class="paginador-btn" [disabled]="paginaActual >= totalPaginas" (click)="ir(paginaActual + 1)">
+    Siguiente »
+  </button>
+</div>

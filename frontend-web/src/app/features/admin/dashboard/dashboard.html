@@ -210,7 +210,7 @@
             </tr>
           </thead>
           <tbody>
-            <tr *ngFor="let r of rolesFiltrados()">
+            <tr *ngFor="let r of rolesPagina().items">
               <td><strong>#{{ r.id }}</strong></td>
               <td>
                 <span class="avatar-badge">{{ r.nombre.charAt(0) }}</span>
@@ -237,6 +237,11 @@
             </tr>
           </tbody>
         </table>
+        <app-paginador
+          [paginaActual]="rolesPagina().actual"
+          [totalPaginas]="rolesPagina().total"
+          (cambiarPagina)="paginaRoles.set($event)"
+        ></app-paginador>
       </div>
     </section>
 
@@ -275,7 +280,7 @@
             </tr>
           </thead>
           <tbody>
-            <tr *ngFor="let p of personalFiltrado()">
+            <tr *ngFor="let p of personalPagina().items">
               <td>#{{ p.id }}</td>
               <td>
                 <span class="avatar-badge">{{ p.nombres.charAt(0) }}</span>
@@ -302,6 +307,11 @@
             </tr>
           </tbody>
         </table>
+        <app-paginador
+          [paginaActual]="personalPagina().actual"
+          [totalPaginas]="personalPagina().total"
+          (cambiarPagina)="paginaPersonal.set($event)"
+        ></app-paginador>
       </div>
     </section>
 
@@ -340,7 +350,7 @@
             </tr>
           </thead>
           <tbody>
-            <tr *ngFor="let s of sucursalesFiltradas()">
+            <tr *ngFor="let s of sucursalesPagina().items">
               <td>#{{ s.id }}</td>
               <td>
                 <strong>{{ s.nombre }}</strong>
@@ -361,6 +371,11 @@
             </tr>
           </tbody>
         </table>
+        <app-paginador
+          [paginaActual]="sucursalesPagina().actual"
+          [totalPaginas]="sucursalesPagina().total"
+          (cambiarPagina)="paginaSucursales.set($event)"
+        ></app-paginador>
       </div>
 
       <!-- Quick Add City Box -->
@@ -413,7 +428,7 @@
             </tr>
           </thead>
           <tbody>
-            <tr *ngFor="let prov of proveedoresFiltrados()">
+            <tr *ngFor="let prov of proveedoresPagina().items">
               <td>#{{ prov.id }}</td>
               <td>
                 <span class="avatar-badge">{{ prov.nombre_empresa.charAt(0) }}</span>
@@ -431,6 +446,11 @@
             </tr>
           </tbody>
         </table>
+        <app-paginador
+          [paginaActual]="proveedoresPagina().actual"
+          [totalPaginas]="proveedoresPagina().total"
+          (cambiarPagina)="paginaProveedores.set($event)"
+        ></app-paginador>
       </div>
     </section>
 
@@ -469,7 +489,7 @@
             </tr>
           </thead>
           <tbody>
-            <tr *ngFor="let p of prendasFiltradas()">
+            <tr *ngFor="let p of prendasPagina().items">
               <td>#{{ p.id }}</td>
               <td>
                 <div style="display: flex; align-items: center; gap: 0.6rem;">
@@ -505,6 +525,11 @@
             </tr>
           </tbody>
         </table>
+        <app-paginador
+          [paginaActual]="prendasPagina().actual"
+          [totalPaginas]="prendasPagina().total"
+          (cambiarPagina)="paginaPrendas.set($event)"
+        ></app-paginador>
       </div>
     </section>
 
@@ -664,7 +689,7 @@
             </tr>
           </thead>
           <tbody>
-            <tr *ngFor="let t of temporadasFiltradas()">
+            <tr *ngFor="let t of temporadasPagina().items">
               <td>#{{ t.id }}</td>
               <td><strong>{{ t.nombre }}</strong></td>
               <td>{{ t.tipo || '—' }}</td>
@@ -684,6 +709,11 @@
             </tr>
           </tbody>
         </table>
+        <app-paginador
+          [paginaActual]="temporadasPagina().actual"
+          [totalPaginas]="temporadasPagina().total"
+          (cambiarPagina)="paginaTemporadas.set($event)"
+        ></app-paginador>
       </div>
 
       <div class="action-header" style="margin-top: 2rem;">
@@ -708,7 +738,7 @@
             </tr>
           </thead>
           <tbody>
-            <tr *ngFor="let c of coleccionesAdminFiltradas()">
+            <tr *ngFor="let c of coleccionesAdminPagina().items">
               <td>#{{ c.id }}</td>
               <td><strong>{{ c.nombre }}</strong></td>
               <td>{{ c.temporada_nombre || '—' }}</td>
@@ -727,6 +757,11 @@
             </tr>
           </tbody>
         </table>
+        <app-paginador
+          [paginaActual]="coleccionesAdminPagina().actual"
+          [totalPaginas]="coleccionesAdminPagina().total"
+          (cambiarPagina)="paginaColecciones.set($event)"
+        ></app-paginador>
       </div>
     </section>
 
@@ -834,7 +869,7 @@
           <h4 style="margin: 0;">Ventas por Sucursal</h4>
           <button class="btn btn-secondary btn-sm" [disabled]="!reporteVentas().length" (click)="descargarReporteVentas()">⬇️ Descargar CSV</button>
         </div>
-        <div *ngFor="let v of reporteVentas()" style="margin-bottom: 0.75rem;">
+        <div *ngFor="let v of reporteVentasPagina().items" style="margin-bottom: 0.75rem;">
           <div style="display: flex; justify-content: space-between; font-size: 0.85rem; margin-bottom: 0.25rem;">
             <strong>{{ v.sucursal_nombre }}</strong>
             <span>Bs. {{ v.total_ventas | number:'1.2-2' }} · {{ v.cantidad_ventas }} venta(s)</span>
@@ -846,6 +881,11 @@
         <p *ngIf="!reporteVentas().length" style="color: #94a3b8; font-size: 0.85rem; text-align: center; padding: 1rem 0;">
           No hay ventas registradas en el rango consultado
         </p>
+        <app-paginador
+          [paginaActual]="reporteVentasPagina().actual"
+          [totalPaginas]="reporteVentasPagina().total"
+          (cambiarPagina)="paginaReporteVentas.set($event)"
+        ></app-paginador>
       </div>
 
       <div class="card" style="margin-top: 1.5rem;">
@@ -853,7 +893,7 @@
           <h4 style="margin: 0;">Prendas Más Vendidas</h4>
           <button class="btn btn-secondary btn-sm" [disabled]="!reportePrendas().length" (click)="descargarReportePrendas()">⬇️ Descargar CSV</button>
         </div>
-        <div *ngFor="let p of reportePrendas()" style="margin-bottom: 0.75rem;">
+        <div *ngFor="let p of reportePrendasPagina().items" style="margin-bottom: 0.75rem;">
           <div style="display: flex; justify-content: space-between; font-size: 0.85rem; margin-bottom: 0.25rem;">
             <strong>{{ p.prenda_nombre }}</strong>
             <span>{{ p.cantidad_vendida }} unidad(es) · Bs. {{ p.total_vendido | number:'1.2-2' }}</span>
@@ -865,6 +905,11 @@
         <p *ngIf="!reportePrendas().length" style="color: #94a3b8; font-size: 0.85rem; text-align: center; padding: 1rem 0;">
           No hay ventas registradas en el rango consultado
         </p>
+        <app-paginador
+          [paginaActual]="reportePrendasPagina().actual"
+          [totalPaginas]="reportePrendasPagina().total"
+          (cambiarPagina)="paginaReportePrendas.set($event)"
+        ></app-paginador>
       </div>
 
       <div class="card" style="margin-top: 1.5rem;">
@@ -938,7 +983,7 @@
               </tr>
             </thead>
             <tbody>
-              <tr *ngFor="let item of inventarioGlobal()">
+              <tr *ngFor="let item of inventarioGlobalPagina().items">
                 <td>{{ item.prenda_nombre }}</td>
                 <td>{{ item.categoria_nombre || '—' }}</td>
                 <td>{{ item.talla_nombre || '—' }}</td>
@@ -957,6 +1002,11 @@
               </tr>
             </tbody>
           </table>
+          <app-paginador
+            [paginaActual]="inventarioGlobalPagina().actual"
+            [totalPaginas]="inventarioGlobalPagina().total"
+            (cambiarPagina)="paginaInventarioGlobal.set($event)"
+          ></app-paginador>
         </div>
       </div>
     </section>
@@ -982,7 +1032,7 @@
             </tr>
           </thead>
           <tbody>
-            <tr *ngFor="let b of bitacora()">
+            <tr *ngFor="let b of bitacoraPagina().items">
               <td>#{{ b.id }}</td>
               <td><strong>Usuario #{{ b.usuario_id }}</strong></td>
               <td>
@@ -993,6 +1043,11 @@
             </tr>
           </tbody>
         </table>
+        <app-paginador
+          [paginaActual]="bitacoraPagina().actual"
+          [totalPaginas]="bitacoraPagina().total"
+          (cambiarPagina)="paginaBitacora.set($event)"
+        ></app-paginador>
       </div>
     </section>
   </div>

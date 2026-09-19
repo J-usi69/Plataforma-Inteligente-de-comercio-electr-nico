@@ -24,11 +24,12 @@ import {
 } from '../../../core/models/user.model';
 import { AuthService } from '../../../core/services/auth.service';
 import { BusinessService } from '../../../core/services/business.service';
+import { Paginador } from '../../../shared/paginador/paginador';
 
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, Paginador],
   templateUrl: './dashboard.html',
   styles: [`
     .admin-hero {
@@ -293,6 +294,40 @@ export class Dashboard implements OnInit {
   maxTotalVentaSucursal = computed(() => Math.max(1, ...this.reporteVentas().map((v) => v.total_ventas)));
   maxCantidadPrendaVendida = computed(() => Math.max(1, ...this.reportePrendas().map((p) => p.cantidad_vendida)));
 
+  // --- Paginación de las listas largas del panel admin ---
+  private readonly PAGINA_TAM = 10;
+
+  paginaRoles = signal(1);
+  paginaPersonal = signal(1);
+  paginaSucursales = signal(1);
+  paginaProveedores = signal(1);
+  paginaPrendas = signal(1);
+  paginaTemporadas = signal(1);
+  paginaColecciones = signal(1);
+  paginaBitacora = signal(1);
+  paginaInventarioGlobal = signal(1);
+  paginaReporteVentas = signal(1);
+  paginaReportePrendas = signal(1);
+
+  private paginar<T>(lista: T[], pagina: number): { items: T[]; actual: number; total: number } {
+    const total = Math.max(1, Math.ceil(lista.length / this.PAGINA_TAM));
+    const actual = Math.min(Math.max(1, pagina), total);
+    const inicio = (actual - 1) * this.PAGINA_TAM;
+    return { items: lista.slice(inicio, inicio + this.PAGINA_TAM), actual, total };
+  }
+
+  rolesPagina = computed(() => this.paginar(this.rolesFiltrados(), this.paginaRoles()));
+  personalPagina = computed(() => this.paginar(this.personalFiltrado(), this.paginaPersonal()));
+  sucursalesPagina = computed(() => this.paginar(this.sucursalesFiltradas(), this.paginaSucursales()));
+  proveedoresPagina = computed(() => this.paginar(this.proveedoresFiltrados(), this.paginaProveedores()));
+  prendasPagina = computed(() => this.paginar(this.prendasFiltradas(), this.paginaPrendas()));
+  temporadasPagina = computed(() => this.paginar(this.temporadasFiltradas(), this.paginaTemporadas()));
+  coleccionesAdminPagina = computed(() => this.paginar(this.coleccionesAdminFiltradas(), this.paginaColecciones()));
+  bitacoraPagina = computed(() => this.paginar(this.bitacora(), this.paginaBitacora()));
+  inventarioGlobalPagina = computed(() => this.paginar(this.inventarioGlobal(), this.paginaInventarioGlobal()));
+  reporteVentasPagina = computed(() => this.paginar(this.reporteVentas(), this.paginaReporteVentas()));
+  reportePrendasPagina = computed(() => this.paginar(this.reportePrendas(), this.paginaReportePrendas()));
+
   ngOnInit(): void {
     this.cargarDatosIniciales();
   }
@@ -316,6 +351,14 @@ export class Dashboard implements OnInit {
     this.alertMessage.set(null);
     this.filtroTexto.set('');
     this.isLoading.set(true);
+    this.paginaRoles.set(1);
+    this.paginaPersonal.set(1);
+    this.paginaSucursales.set(1);
+    this.paginaProveedores.set(1);
+    this.paginaPrendas.set(1);
+    this.paginaTemporadas.set(1);
+    this.paginaColecciones.set(1);
+    this.paginaBitacora.set(1);
 
     if (tab === 'roles') {
       this.business.getRoles().subscribe({
@@ -368,6 +411,8 @@ export class Dashboard implements OnInit {
   // --- CU-31 / CU-32: Reportes e Indicadores ---
   cargarReportes(): void {
     this.isLoading.set(true);
+    this.paginaReporteVentas.set(1);
+    this.paginaReportePrendas.set(1);
     const filtros = {
       desde: this.reporteFiltros.desde || undefined,
       hasta: this.reporteFiltros.hasta || undefined,
@@ -394,6 +439,7 @@ export class Dashboard implements OnInit {
   // --- CU-27: Consulta de inventario global ---
   cargarInventarioGlobal(): void {
     this.inventarioGlobalCargando.set(true);
+    this.paginaInventarioGlobal.set(1);
     this.business.getInventarioGlobal({
       ciudadId: this.inventarioGlobalFiltros.ciudad_id,
       categoriaId: this.inventarioGlobalFiltros.categoria_id,
