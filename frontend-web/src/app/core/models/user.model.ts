@@ -289,6 +289,22 @@ export interface MovimientoManual {
   fecha: string;
 }
 
+export interface InventarioGlobalItem {
+  variante_id: number;
+  prenda_nombre: string;
+  categoria_id?: number | null;
+  categoria_nombre?: string | null;
+  talla_nombre?: string | null;
+  color_nombre?: string | null;
+  sucursal_id: number;
+  sucursal_nombre: string;
+  ciudad_id: number;
+  ciudad_nombre: string;
+  stock_disponible: number;
+  stock_minimo: number;
+  es_quiebre: boolean;
+}
+
 export interface QuiebreStock {
   variante_id: number;
   prenda_nombre: string;

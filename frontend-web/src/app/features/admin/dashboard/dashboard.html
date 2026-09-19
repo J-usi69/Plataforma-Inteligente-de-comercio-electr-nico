@@ -887,6 +887,66 @@
           </table>
         </div>
       </div>
+
+      <!-- CU-27: Consulta de Inventario Global -->
+      <div class="card" style="margin-top: 1.5rem;">
+        <h4 style="margin-bottom: 1rem;">Inventario Global (todas las sucursales)</h4>
+        <div style="display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: flex-end; margin-bottom: 1rem;">
+          <div>
+            <label style="display: block; font-size: 0.8rem; font-weight: 600; color: #64748b; margin-bottom: 0.25rem;">Ciudad</label>
+            <select [(ngModel)]="inventarioGlobalFiltros.ciudad_id" style="min-width: 180px; padding: 0.5rem 0.75rem; border: 1px solid #cbd5e1; border-radius: 8px;">
+              <option [ngValue]="null">Todas</option>
+              <option *ngFor="let c of ciudades()" [ngValue]="c.id">{{ c.nombre }}</option>
+            </select>
+          </div>
+          <div>
+            <label style="display: block; font-size: 0.8rem; font-weight: 600; color: #64748b; margin-bottom: 0.25rem;">Categoría</label>
+            <select [(ngModel)]="inventarioGlobalFiltros.categoria_id" style="min-width: 180px; padding: 0.5rem 0.75rem; border: 1px solid #cbd5e1; border-radius: 8px;">
+              <option [ngValue]="null">Todas</option>
+              <option *ngFor="let cat of categorias()" [ngValue]="cat.id">{{ cat.nombre }}</option>
+            </select>
+          </div>
+          <button class="btn btn-primary btn-sm" [disabled]="inventarioGlobalCargando()" (click)="cargarInventarioGlobal()">
+            {{ inventarioGlobalCargando() ? 'Buscando...' : 'Aplicar filtros' }}
+          </button>
+        </div>
+
+        <div class="table-responsive">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Prenda</th>
+                <th>Categoría</th>
+                <th>Talla</th>
+                <th>Color</th>
+                <th>Sucursal</th>
+                <th>Ciudad</th>
+                <th>Disponible</th>
+                <th>Mínimo</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let item of inventarioGlobal()">
+                <td>{{ item.prenda_nombre }}</td>
+                <td>{{ item.categoria_nombre || '—' }}</td>
+                <td>{{ item.talla_nombre || '—' }}</td>
+                <td>{{ item.color_nombre || '—' }}</td>
+                <td>{{ item.sucursal_nombre }}</td>
+                <td>{{ item.ciudad_nombre }}</td>
+                <td>
+                  <span class="badge" [ngClass]="item.es_quiebre ? 'badge-danger' : 'badge-success'">{{ item.stock_disponible }}</span>
+                </td>
+                <td>{{ item.stock_minimo }}</td>
+              </tr>
+              <tr *ngIf="inventarioGlobalBuscado() && !inventarioGlobalCargando() && !inventarioGlobal().length">
+                <td colspan="8" style="text-align: center; color: #94a3b8; padding: 1.25rem 0;">
+                  No existen registros para ese filtro. Probá ampliar el criterio de búsqueda (por ejemplo, quitando la categoría o la ciudad).
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
     </section>
 
     <!-- TAB 6: BITÁCORA DE AUDITORÍA -->

@@ -11,6 +11,7 @@ import {
   DashboardReporte,
   DisponibilidadProveedor,
   DisponibilidadSucursal,
+  InventarioGlobalItem,
   InventarioVariante,
   MovimientoManual,
   Permiso,
@@ -455,6 +456,14 @@ export class BusinessService {
     const params: any = {};
     if (sucursalId) params.sucursal_id = sucursalId;
     return this.http.get<QuiebreStock[]>(`${this.apiBase}/reportes/inventario`, { params });
+  }
+
+  // --- CU-27: Consulta de inventario global (todas las sucursales) ---
+  getInventarioGlobal(filtros?: { ciudadId?: number | null; categoriaId?: number | null }): Observable<InventarioGlobalItem[]> {
+    const params: any = {};
+    if (filtros?.ciudadId) params.ciudad_id = filtros.ciudadId;
+    if (filtros?.categoriaId) params.categoria_id = filtros.categoriaId;
+    return this.http.get<InventarioGlobalItem[]>(`${this.apiBase}/reportes/inventario-global`, { params });
   }
 
   // --- CU-28 / CU-29 / CU-30: Inteligencia Artificial ---

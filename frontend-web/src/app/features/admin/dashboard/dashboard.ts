@@ -8,6 +8,7 @@ import {
   Coleccion,
   Color,
   DashboardReporte,
+  InventarioGlobalItem,
   Permiso,
   Personal,
   Prenda,
@@ -183,6 +184,12 @@ export class Dashboard implements OnInit {
   reporteIACargando = signal(false);
   reporteIAResultado = signal<{ tipo: string; datos: any } | null>(null);
   reporteIAError = signal<string | null>(null);
+
+  // CU-27: inventario global (todas las sucursales, filtrable por ciudad/categoría)
+  inventarioGlobal = signal<InventarioGlobalItem[]>([]);
+  inventarioGlobalFiltros = { ciudad_id: null as number | null, categoria_id: null as number | null };
+  inventarioGlobalCargando = signal(false);
+  inventarioGlobalBuscado = signal(false);
 
   // Computed KPIs
   totalSucursales = computed(() => this.sucursales().length);
@@ -374,10 +381,33 @@ export class Dashboard implements OnInit {
       next: (data) => { this.reportePrendas.set(data); this.isLoading.set(false); },
       error: () => this.isLoading.set(false),
     });
+    if (!this.categorias().length) {
+      this.business.getCategorias().subscribe({ next: (data) => this.categorias.set(data) });
+    }
+    this.cargarInventarioGlobal();
   }
 
   aplicarFiltrosReporte(): void {
     this.cargarReportes();
+  }
+
+  // --- CU-27: Consulta de inventario global ---
+  cargarInventarioGlobal(): void {
+    this.inventarioGlobalCargando.set(true);
+    this.business.getInventarioGlobal({
+      ciudadId: this.inventarioGlobalFiltros.ciudad_id,
+      categoriaId: this.inventarioGlobalFiltros.categoria_id,
+    }).subscribe({
+      next: (data) => {
+        this.inventarioGlobal.set(data);
+        this.inventarioGlobalCargando.set(false);
+        this.inventarioGlobalBuscado.set(true);
+      },
+      error: () => {
+        this.inventarioGlobalCargando.set(false);
+        this.inventarioGlobalBuscado.set(true);
+      },
+    });
   }
 
   // --- CU-30: Generar reporte mediante IA (prompt) ---

@@ -6,11 +6,11 @@ from typing import Optional
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.models.catalogo import Prenda, VariantePrenda
+from app.models.catalogo import Categoria, Color, Prenda, Talla, VariantePrenda
 from app.models.enums import EstadoReserva, EstadoVenta
 from app.models.inventario import InventarioSucursal
 from app.models.reserva import Reserva
-from app.models.sucursal import Sucursal
+from app.models.sucursal import Ciudad, Sucursal
 from app.models.venta import DetalleVenta, Venta
 
 
@@ -92,6 +92,46 @@ def quiebres_stock(db: Session, sucursal_id: Optional[int] = None) -> list[dict]
             "sucursal_nombre": sucursal.nombre if sucursal else "Sucursal eliminada",
             "stock_disponible": inv.stock_disponible,
             "stock_minimo": inv.stock_minimo,
+        })
+    return resultado
+
+
+def inventario_global(db: Session, ciudad_id: Optional[int] = None, categoria_id: Optional[int] = None) -> list[dict]:
+    """CU-27: existencias de todas las sucursales activas, consolidadas, con filtros
+    opcionales por ciudad y categoría."""
+    stmt = (
+        select(InventarioSucursal, VariantePrenda, Prenda, Talla, Color, Sucursal, Ciudad, Categoria)
+        .join(VariantePrenda, VariantePrenda.id == InventarioSucursal.variante_id)
+        .join(Prenda, Prenda.id == VariantePrenda.prenda_id)
+        .outerjoin(Talla, Talla.id == VariantePrenda.talla_id)
+        .outerjoin(Color, Color.id == VariantePrenda.color_id)
+        .join(Sucursal, Sucursal.id == InventarioSucursal.sucursal_id)
+        .join(Ciudad, Ciudad.id == Sucursal.ciudad_id)
+        .outerjoin(Categoria, Categoria.id == Prenda.categoria_id)
+        .where(Sucursal.estado.is_(True), Sucursal.fecha_eliminacion.is_(None))
+    )
+    if ciudad_id:
+        stmt = stmt.where(Ciudad.id == ciudad_id)
+    if categoria_id:
+        stmt = stmt.where(Prenda.categoria_id == categoria_id)
+    stmt = stmt.order_by(Ciudad.nombre, Sucursal.nombre, Prenda.nombre)
+
+    resultado = []
+    for inv, variante, prenda, talla, color, sucursal, ciudad, categoria in db.execute(stmt).all():
+        resultado.append({
+            "variante_id": variante.id,
+            "prenda_nombre": prenda.nombre,
+            "categoria_id": categoria.id if categoria else None,
+            "categoria_nombre": categoria.nombre if categoria else None,
+            "talla_nombre": talla.nombre if talla else None,
+            "color_nombre": color.nombre if color else None,
+            "sucursal_id": sucursal.id,
+            "sucursal_nombre": sucursal.nombre,
+            "ciudad_id": ciudad.id,
+            "ciudad_nombre": ciudad.nombre,
+            "stock_disponible": inv.stock_disponible,
+            "stock_minimo": inv.stock_minimo,
+            "es_quiebre": inv.stock_disponible < inv.stock_minimo,
         })
     return resultado
 

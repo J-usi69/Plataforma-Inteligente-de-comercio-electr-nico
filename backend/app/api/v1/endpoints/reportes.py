@@ -4,7 +4,13 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends
 
 from app.api.deps import get_db, require_roles
-from app.schemas.reporte import DashboardOut, PrendaVendidaOut, QuiebreStockOut, VentaPorSucursalOut
+from app.schemas.reporte import (
+    DashboardOut,
+    InventarioGlobalItemOut,
+    PrendaVendidaOut,
+    QuiebreStockOut,
+    VentaPorSucursalOut,
+)
 from app.services import reportes_service
 
 router = APIRouter()
@@ -56,3 +62,15 @@ def obtener_reporte_inventario(
 ):
     """CU-31: variantes con stockDisponible por debajo del stockMinimo (quiebres)."""
     return reportes_service.quiebres_stock(db, sucursal_id=sucursal_id)
+
+
+@router.get("/inventario-global", response_model=List[InventarioGlobalItemOut])
+def obtener_inventario_global(
+    ciudad_id: Optional[int] = None,
+    categoria_id: Optional[int] = None,
+    db=Depends(get_db),
+    current_user=Depends(require_roles(_ROLES_REPORTES)),
+):
+    """CU-27: existencias consolidadas de todas las sucursales, con filtros por
+    ciudad y categoría y marca de quiebre de stock."""
+    return reportes_service.inventario_global(db, ciudad_id=ciudad_id, categoria_id=categoria_id)
