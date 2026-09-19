@@ -313,6 +313,33 @@ def confirmar_recepcion_cliente(
             detail=f"Solo se puede atender una reserva previamente confirmada (estado actual: {reserva.estado.value})",
         )
 
+    detalles = db.scalars(select(DetalleReserva).where(DetalleReserva.reserva_id == reserva.id)).all()
+    ahora = datetime.now(timezone.utc)
+    for detalle in detalles:
+        inventario = db.scalars(
+            select(InventarioSucursal).where(
+                InventarioSucursal.variante_id == detalle.variante_id,
+                InventarioSucursal.sucursal_id == reserva.sucursal_id,
+            )
+        ).first()
+        if inventario:
+            # La prenda ya se entrego al cliente: sale del stock reservado
+            # de forma definitiva (no vuelve a "disponible", fue vendida/entregada).
+            inventario.stock_reservado = max(0, inventario.stock_reservado - detalle.cantidad)
+
+        db.add(
+            MovimientoInventario(
+                variante_id=detalle.variante_id,
+                sucursal_id=reserva.sucursal_id,
+                tipo_movimiento=TipoMovimiento.venta,
+                cantidad=-detalle.cantidad,
+                referencia_id=reserva.id,
+                referencia_tipo="reserva_atendida",
+                usuario_id=current_user.id,
+                fecha=ahora,
+            )
+        )
+
     reserva.estado = EstadoReserva.atendida
     if current_user.personal:
         reserva.personal_id = current_user.personal.id
