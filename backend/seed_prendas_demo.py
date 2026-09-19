@@ -1,5 +1,16 @@
 """Carga prendas adicionales con imagen de referencia real, para ampliar el catalogo
-y tener mas variedad para probar el Vestidor Virtual (CU-14)."""
+y tener mas variedad para probar el Vestidor Virtual (CU-14).
+
+IMPORTANTE para el Vestidor Virtual: `imagen_url` se usa como "garment_images"
+en Replicate (prunaai/p-image-try-on). El modelo funciona bien con fotos
+aisladas del producto (flat lay, colgado, sobre superficie plana, sin
+persona); con fotos de una persona vistiendo la prenda -sobre todo si lleva
+otra prenda encima o debajo (una campera abierta sobre una camisa, un gorro,
+etc.)- el modelo se confunde sobre cual es "la prenda" y termina aplicando
+la equivocada o alucinando algo random. Las chaquetas son las mas propensas a
+este problema porque casi siempre se muestran puestas sobre otra prenda.
+Preferir siempre fotos sin persona para chaquetas/abrigos.
+"""
 
 from app.db.session import engine
 from sqlalchemy import text
@@ -29,12 +40,12 @@ PRENDAS = [
      "https://images.unsplash.com/photo-1515372039744-b8f02a3ae446?w=800&q=80"),
     ("Chaqueta Bomber Camel", 4, 1, 329.90,
      "https://images.unsplash.com/photo-1591047139829-d91aecb6caea?w=800&q=80"),
-    ("Chaqueta Parka Verde Olivo", 4, 1, 379.90,
-     "https://images.unsplash.com/photo-1548883354-94bcfe321cbb?w=800&q=80"),
+    ("Blazer Verde Salvia", 4, 1, 379.90,
+     "https://images.unsplash.com/photo-1783818413411-52c8917de289?w=800&q=80"),
     ("Chaqueta Shearling Camel", 4, 2, 429.90,
-     "https://images.unsplash.com/photo-1608063615781-e2ef8c73d114?w=800&q=80"),
+     "https://images.unsplash.com/photo-1572149913824-3e2005fe09fb?w=800&q=80"),
     ("Chaqueta de Cuero Motociclista Negra", 4, 1, 489.90,
-     "https://images.unsplash.com/photo-1520975954732-35dd22299614?w=800&q=80"),
+     "https://images.unsplash.com/photo-1727515546577-f7d82a47b51d?w=800&q=80"),
     ("Zapatillas Running Rojas", 5, 1, 299.90,
      "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=800&q=80"),
     ("Zapatillas Chunky Multicolor", 5, 1, 349.90,
