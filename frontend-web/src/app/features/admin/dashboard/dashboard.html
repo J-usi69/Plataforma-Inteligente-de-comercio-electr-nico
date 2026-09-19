@@ -830,7 +830,10 @@
       </div>
 
       <div class="card" style="margin-top: 1.5rem;">
-        <h4 style="margin-bottom: 1rem;">Ventas por Sucursal</h4>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+          <h4 style="margin: 0;">Ventas por Sucursal</h4>
+          <button class="btn btn-secondary btn-sm" [disabled]="!reporteVentas().length" (click)="descargarReporteVentas()">⬇️ Descargar CSV</button>
+        </div>
         <div *ngFor="let v of reporteVentas()" style="margin-bottom: 0.75rem;">
           <div style="display: flex; justify-content: space-between; font-size: 0.85rem; margin-bottom: 0.25rem;">
             <strong>{{ v.sucursal_nombre }}</strong>
@@ -846,7 +849,10 @@
       </div>
 
       <div class="card" style="margin-top: 1.5rem;">
-        <h4 style="margin-bottom: 1rem;">Prendas Más Vendidas</h4>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+          <h4 style="margin: 0;">Prendas Más Vendidas</h4>
+          <button class="btn btn-secondary btn-sm" [disabled]="!reportePrendas().length" (click)="descargarReportePrendas()">⬇️ Descargar CSV</button>
+        </div>
         <div *ngFor="let p of reportePrendas()" style="margin-bottom: 0.75rem;">
           <div style="display: flex; justify-content: space-between; font-size: 0.85rem; margin-bottom: 0.25rem;">
             <strong>{{ p.prenda_nombre }}</strong>
@@ -862,7 +868,10 @@
       </div>
 
       <div class="card" style="margin-top: 1.5rem;">
-        <h4 style="margin-bottom: 1rem;">Quiebres de Stock</h4>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+          <h4 style="margin: 0;">Quiebres de Stock</h4>
+          <button class="btn btn-secondary btn-sm" [disabled]="!dashboardReporte()?.quiebres?.length" (click)="descargarQuiebresStock()">⬇️ Descargar CSV</button>
+        </div>
         <div class="table-responsive">
           <table class="table">
             <thead>
@@ -890,7 +899,10 @@
 
       <!-- CU-27: Consulta de Inventario Global -->
       <div class="card" style="margin-top: 1.5rem;">
-        <h4 style="margin-bottom: 1rem;">Inventario Global (todas las sucursales)</h4>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+          <h4 style="margin: 0;">Inventario Global (todas las sucursales)</h4>
+          <button class="btn btn-secondary btn-sm" [disabled]="!inventarioGlobal().length" (click)="descargarInventarioGlobal()">⬇️ Descargar CSV</button>
+        </div>
         <div style="display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: flex-end; margin-bottom: 1rem;">
           <div>
             <label style="display: block; font-size: 0.8rem; font-weight: 600; color: #64748b; margin-bottom: 0.25rem;">Ciudad</label>

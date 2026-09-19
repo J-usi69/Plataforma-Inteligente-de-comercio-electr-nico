@@ -410,6 +410,55 @@ export class Dashboard implements OnInit {
     });
   }
 
+  // --- CU-31: Descargar el reporte generado como CSV ---
+  private descargarCsv(nombreArchivo: string, encabezados: string[], filas: (string | number)[][]): void {
+    const escapar = (valor: string | number) => `"${String(valor).replace(/"/g, '""')}"`;
+    const lineas = [encabezados.map(escapar).join(','), ...filas.map((fila) => fila.map(escapar).join(','))];
+    const contenido = '﻿' + lineas.join('\r\n'); // BOM para que Excel respete los acentos
+    const blob = new Blob([contenido], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = nombreArchivo;
+    link.click();
+    URL.revokeObjectURL(url);
+  }
+
+  descargarReporteVentas(): void {
+    this.descargarCsv(
+      'ventas_por_sucursal.csv',
+      ['Sucursal', 'Cantidad de ventas', 'Total (Bs.)'],
+      this.reporteVentas().map((v) => [v.sucursal_nombre, v.cantidad_ventas, v.total_ventas]),
+    );
+  }
+
+  descargarReportePrendas(): void {
+    this.descargarCsv(
+      'prendas_mas_vendidas.csv',
+      ['Prenda', 'Cantidad vendida', 'Total (Bs.)'],
+      this.reportePrendas().map((p) => [p.prenda_nombre, p.cantidad_vendida, p.total_vendido]),
+    );
+  }
+
+  descargarQuiebresStock(): void {
+    this.descargarCsv(
+      'quiebres_de_stock.csv',
+      ['Prenda', 'Sucursal', 'Stock disponible', 'Stock mínimo'],
+      (this.dashboardReporte()?.quiebres ?? []).map((q) => [q.prenda_nombre, q.sucursal_nombre, q.stock_disponible, q.stock_minimo]),
+    );
+  }
+
+  descargarInventarioGlobal(): void {
+    this.descargarCsv(
+      'inventario_global.csv',
+      ['Prenda', 'Categoría', 'Talla', 'Color', 'Sucursal', 'Ciudad', 'Disponible', 'Mínimo', 'Quiebre'],
+      this.inventarioGlobal().map((i) => [
+        i.prenda_nombre, i.categoria_nombre || '', i.talla_nombre || '', i.color_nombre || '',
+        i.sucursal_nombre, i.ciudad_nombre, i.stock_disponible, i.stock_minimo, i.es_quiebre ? 'Sí' : 'No',
+      ]),
+    );
+  }
+
   // --- CU-30: Generar reporte mediante IA (prompt) ---
   generarReporteConIA(): void {
     if (!this.reporteIAPrompt.trim()) return;
