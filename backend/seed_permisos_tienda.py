@@ -9,6 +9,9 @@ la logica de negocio real de una tienda de ropa (y de retail en general):
   sucursales, ni el catalogo maestro (eso es exclusivo del Administrador).
 - Cajero: registra ventas y cobros en caja (CU-17-24) y necesita ver las
   reservas para completarlas en una venta, ademas de consultar el catalogo.
+- Proveedor: registra sus propios productos (CU-33) e informa su disponibilidad
+  y fecha estimada de reposicion (CU-34); solo sobre lo suyo, no administra el
+  catalogo maestro ni ve datos de otros proveedores.
 
 De paso, desactiva los roles dinamicos que quedaron de pruebas automatizadas
 anteriores (aparecen como "Rol dinamico de prueba" y solo ensucian el listado).
@@ -25,6 +28,10 @@ NUEVOS_PERMISOS = [
     ("reservas:gestionar", "reservas", "Atender, marcar y cancelar reservas de clientes"),
     ("ventas:ver", "ventas", "Consultar ventas y comprobantes"),
     ("ventas:crear", "ventas", "Registrar ventas y cobros en caja"),
+    ("productos:ver", "productos", "Consultar los productos propios registrados"),
+    ("productos:crear", "productos", "Registrar nuevos productos propios"),
+    ("disponibilidad:ver", "disponibilidad", "Consultar el historial de disponibilidad informada"),
+    ("disponibilidad:informar", "disponibilidad", "Informar disponibilidad y fecha estimada de reposición"),
 ]
 
 # nombre del rol -> lista de codigos de permiso que le corresponden
@@ -44,6 +51,13 @@ PERMISOS_POR_ROL = {
         "ventas:ver",
         "ventas:crear",
         "reservas:ver",
+    ],
+    "Proveedor": [
+        "catalogo:ver",
+        "productos:ver",
+        "productos:crear",
+        "disponibilidad:ver",
+        "disponibilidad:informar",
     ],
 }
 
