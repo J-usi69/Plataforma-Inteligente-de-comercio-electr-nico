@@ -33,7 +33,7 @@ api_router.include_router(catalogo_maestro.router, prefix="/catalogo-maestro", t
 api_router.include_router(temporadas.router, tags=["Temporadas y Colecciones (CU-10)"])
 api_router.include_router(variantes.router, prefix="/prendas", tags=["Variantes de Prenda (CU-11)"])
 api_router.include_router(vestidor_ar.router, prefix="/vestidor-ar", tags=["Vestidor Virtual RA (CU-14)"])
-api_router.include_router(inventario.router, prefix="/inventario", tags=["Disponibilidad por Sucursal (CU-13)"])
+api_router.include_router(inventario.router, prefix="/inventario", tags=["Disponibilidad e Inventario por Sucursal (CU-13, CU-26)"])
 api_router.include_router(reservas.router, prefix="/reservas", tags=["Reservas (CU-15, CU-16)"])
 api_router.include_router(ventas.router, prefix="/ventas", tags=["Ventas, Caja y Pagos"])
 api_router.include_router(reportes.router, prefix="/reportes", tags=["Reportes e Indicadores (CU-31, CU-32)"])
