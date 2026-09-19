@@ -66,6 +66,79 @@ def _reserva_a_out(db: Session, reserva: Reserva) -> ReservaOut:
     )
 
 
+def _reservas_a_out_bulk(db: Session, reservas: List[Reserva]) -> List[ReservaOut]:
+    """Igual que _reserva_a_out pero para listados: precarga todo en pocas consultas
+    en lugar de una consulta por reserva y por detalle (evita el N+1 que hacia muy
+    lento el listado de reservas de una sucursal con varias decenas de reservas)."""
+    if not reservas:
+        return []
+
+    reserva_ids = [r.id for r in reservas]
+    sucursal_ids = {r.sucursal_id for r in reservas}
+    usuario_ids = {r.usuario_id for r in reservas}
+
+    sucursales = {s.id: s for s in db.scalars(select(Sucursal).where(Sucursal.id.in_(sucursal_ids)))}
+    usuarios = {u.id: u for u in db.scalars(select(Usuario).where(Usuario.id.in_(usuario_ids)))}
+
+    detalles = db.scalars(select(DetalleReserva).where(DetalleReserva.reserva_id.in_(reserva_ids))).all()
+    variante_ids = {d.variante_id for d in detalles}
+    variantes = {v.id: v for v in db.scalars(select(VariantePrenda).where(VariantePrenda.id.in_(variante_ids)))} if variante_ids else {}
+    prenda_ids = {v.prenda_id for v in variantes.values()}
+    talla_ids = {v.talla_id for v in variantes.values()}
+    color_ids = {v.color_id for v in variantes.values()}
+    prendas = {p.id: p for p in db.scalars(select(Prenda).where(Prenda.id.in_(prenda_ids)))} if prenda_ids else {}
+    tallas = {t.id: t for t in db.scalars(select(Talla).where(Talla.id.in_(talla_ids)))} if talla_ids else {}
+    colores = {c.id: c for c in db.scalars(select(Color).where(Color.id.in_(color_ids)))} if color_ids else {}
+
+    detalles_por_reserva: dict[int, list[DetalleReserva]] = {}
+    for d in detalles:
+        detalles_por_reserva.setdefault(d.reserva_id, []).append(d)
+
+    def _detalle_out(d: DetalleReserva) -> DetalleReservaOut:
+        variante = variantes.get(d.variante_id)
+        prenda = prendas.get(variante.prenda_id) if variante else None
+        talla = tallas.get(variante.talla_id) if variante else None
+        color = colores.get(variante.color_id) if variante else None
+        precio = float(prenda.precio_base) if prenda else 0.0
+        subtotal = round(precio * d.cantidad, 2)
+        return DetalleReservaOut(
+            id=d.id,
+            variante_id=d.variante_id,
+            cantidad=d.cantidad,
+            prenda_id=prenda.id if prenda else None,
+            prenda_nombre=prenda.nombre if prenda else None,
+            talla_nombre=talla.nombre if talla else None,
+            color_nombre=color.nombre if color else None,
+            codigo_barras=variante.codigo_barras if variante else None,
+            precio_unitario=precio,
+            subtotal=subtotal,
+        )
+
+    resultado = []
+    for r in reservas:
+        sucursal = sucursales.get(r.sucursal_id)
+        cliente = usuarios.get(r.usuario_id)
+        detalles_out = [_detalle_out(d) for d in detalles_por_reserva.get(r.id, [])]
+        total_estimado = round(sum(d.subtotal or 0.0 for d in detalles_out), 2)
+        resultado.append(
+            ReservaOut(
+                id=r.id,
+                usuario_id=r.usuario_id,
+                cliente_correo=cliente.correo if cliente else None,
+                cliente_celular=cliente.celular if cliente else None,
+                sucursal_id=r.sucursal_id,
+                sucursal_nombre=sucursal.nombre if sucursal else None,
+                personal_id=r.personal_id,
+                fecha_reserva=r.fecha_reserva,
+                horario_atencion=r.horario_atencion,
+                estado=r.estado.value,
+                total_estimado=total_estimado,
+                detalles=detalles_out,
+            )
+        )
+    return resultado
+
+
 @router.post("", response_model=ReservaOut, status_code=status.HTTP_201_CREATED)
 def crear_reserva(
     datos: ReservaCreate,
@@ -153,7 +226,7 @@ def listar_mis_reservas(
     """CU-16: Consultar las reservas del cliente autenticado"""
     stmt = select(Reserva).where(Reserva.usuario_id == current_user.id).order_by(Reserva.id.desc())
     reservas = db.scalars(stmt).all()
-    return [_reserva_a_out(db, r) for r in reservas]
+    return _reservas_a_out_bulk(db, reservas)
 
 
 @router.get("/sucursal/{sucursal_id}", response_model=List[ReservaOut])
@@ -169,7 +242,7 @@ def listar_reservas_sucursal(
         stmt = stmt.where(Reserva.estado == EstadoReserva(estado))
     stmt = stmt.order_by(Reserva.id.desc())
     reservas = db.scalars(stmt).all()
-    return [_reserva_a_out(db, r) for r in reservas]
+    return _reservas_a_out_bulk(db, reservas)
 
 
 @router.get("/{reserva_id}", response_model=ReservaOut)
