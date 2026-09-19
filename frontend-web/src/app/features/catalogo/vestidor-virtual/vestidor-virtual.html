@@ -1,0 +1,74 @@
+<div class="modal-overlay">
+  <div class="modal-content" style="max-width: 560px;">
+    <div class="modal-header">
+      <div>
+        <span style="font-size: 0.75rem; font-weight: 700; color: #4f46e5; text-transform: uppercase;">Vestidor Virtual · IA</span>
+        <h3 style="margin-top: 0.2rem;">Probando: {{ prenda?.nombre }}</h3>
+      </div>
+      <button class="btn btn-secondary btn-icon" (click)="cerrarModal()">✕</button>
+    </div>
+
+    <!-- Sin imagen de referencia configurada -->
+    <div *ngIf="!prendaTieneImagen" class="vestidor-estado">
+      <div style="font-size: 3rem; margin-bottom: 0.5rem;">🖼️</div>
+      <p>Esta prenda todavía no tiene una foto de referencia configurada por el administrador.</p>
+    </div>
+
+    <ng-container *ngIf="prendaTieneImagen">
+      <!-- Paso 1: cámara -->
+      <div *ngIf="estado() === 'camara'">
+        <p style="font-size: 0.9rem; color: #475569; margin-bottom: 1rem;">
+          Tómate una foto de cuerpo completo, con buena iluminación, para ver cómo te queda esta prenda generada con inteligencia artificial.
+        </p>
+
+        <ng-container *ngIf="camaraDisponible(); else sinCamara">
+          <video #video autoplay playsinline muted class="vestidor-video"></video>
+          <div style="display: flex; justify-content: center; margin-top: 1rem;">
+            <button class="btn btn-primary" (click)="tomarFotoDesdeCamara()" style="padding: 0.65rem 1.5rem; display: flex; align-items: center; gap: 0.5rem;">
+              📸 Tomar foto y probar
+            </button>
+          </div>
+        </ng-container>
+
+        <ng-template #sinCamara>
+          <div class="vestidor-estado" style="padding: 1.5rem 1rem;">
+            <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">📷</div>
+            <p>No se pudo acceder a la cámara de tu equipo (puede que hayas denegado el permiso). Puedes subir una foto tuya en su lugar:</p>
+          </div>
+        </ng-template>
+
+        <div style="text-align: center; margin-top: 0.75rem;">
+          <label class="btn btn-secondary btn-sm" style="cursor: pointer;">
+            📁 Subir una foto
+            <input type="file" accept="image/*" capture="user" (change)="onArchivoSeleccionado($event)" style="display: none;" />
+          </label>
+        </div>
+      </div>
+
+      <!-- Paso 2: generando -->
+      <div *ngIf="estado() === 'generando'" class="vestidor-estado">
+        <div style="font-size: 2.5rem; margin-bottom: 0.75rem;">⏳</div>
+        <p><strong>Generando tu imagen con IA...</strong></p>
+        <p style="font-size: 0.85rem; margin-top: 0.3rem;">Puede tardar unos segundos, no cierres esta ventana.</p>
+      </div>
+
+      <!-- Paso 3: resultado -->
+      <div *ngIf="estado() === 'listo'">
+        <img *ngIf="resultUrl()" [src]="resultUrl()" alt="Resultado del vestidor virtual" class="vestidor-foto" />
+        <p *ngIf="!resultUrl()" class="vestidor-estado">No se recibió una imagen de resultado.</p>
+        <div style="display: flex; justify-content: center; margin-top: 1rem;">
+          <button class="btn btn-secondary" (click)="probarOtraVez()">🔄 Probar otra foto</button>
+        </div>
+      </div>
+
+      <!-- Error -->
+      <div *ngIf="estado() === 'error'" class="vestidor-estado">
+        <div style="font-size: 2.5rem; margin-bottom: 0.5rem; color: #dc2626;">⚠️</div>
+        <p style="color: #dc2626;">{{ mensajeError() }}</p>
+        <div style="display: flex; justify-content: center; margin-top: 1rem;">
+          <button class="btn btn-secondary" (click)="probarOtraVez()">Reintentar</button>
+        </div>
+      </div>
+    </ng-container>
+  </div>
+</div>

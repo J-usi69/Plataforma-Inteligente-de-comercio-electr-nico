@@ -112,6 +112,20 @@ export interface Prenda {
   proveedor_nombre?: string | null;
 }
 
+// CU-14: Vestidor virtual (prueba de prendas con IA a partir de una foto de la persona)
+export interface VestidorCapabilities {
+  configured: boolean;
+  model: string;
+}
+
+export interface VestidorJob {
+  provider: string;
+  job_id: string;
+  status: 'QUEUED' | 'PROCESSING' | 'SUCCEEDED' | 'FAILED' | 'CANCELLED';
+  result_url?: string | null;
+  error?: string | null;
+}
+
 export interface Categoria {
   id: number;
   nombre: string;

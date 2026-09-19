@@ -104,11 +104,11 @@
   <div *ngIf="!isLoading()" class="product-grid">
     <div *ngFor="let p of prendasFiltradas()" class="product-card" (click)="verPrenda(p)">
       <div class="product-banner">
-        <span *ngIf="p.modelo_3d_url" class="ar-badge">
+        <span *ngIf="p.imagen_url" class="ar-badge">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
             <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
           </svg>
-          Vestidor RA
+          Vestidor Virtual
         </span>
         <img *ngIf="p.imagen_url" [src]="p.imagen_url" [alt]="p.nombre" class="product-photo" />
         <div *ngIf="!p.imagen_url" class="icon-box">
@@ -186,22 +186,24 @@
         <strong style="color: #0f172a; font-size: 1.25rem;">Bs. {{ prendaModal()?.precio_base }}</strong>
       </div>
       <div>
-        <span style="font-size: 0.75rem; color: #94a3b8; display: block;">Modelo 3D Vestidor RA:</span>
-        <span *ngIf="prendaModal()?.modelo_3d_url" class="badge badge-success">Configurado</span>
-        <span *ngIf="!prendaModal()?.modelo_3d_url" class="badge badge-warning">No asignado</span>
+        <span style="font-size: 0.75rem; color: #94a3b8; display: block;">Vestidor Virtual (IA):</span>
+        <span *ngIf="prendaModal()?.imagen_url" class="badge badge-success">Disponible</span>
+        <span *ngIf="!prendaModal()?.imagen_url" class="badge badge-warning">No disponible</span>
       </div>
     </div>
 
-    <div *ngIf="prendaModal()?.modelo_3d_url" style="background: #eef2ff; border: 1px solid #c7d2fe; border-radius: 12px; padding: 1rem; margin-bottom: 1.5rem;">
-      <div style="font-weight: 700; color: #3730a3; font-size: 0.85rem; margin-bottom: 0.25rem;">
-        📱 Disponible en la App Móvil FashionStore
+    <div *ngIf="prendaModal()?.imagen_url" style="background: #eef2ff; border: 1px solid #c7d2fe; border-radius: 12px; padding: 1rem; margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap;">
+      <div>
+        <div style="font-weight: 700; color: #3730a3; font-size: 0.85rem; margin-bottom: 0.25rem;">
+          📸 Vestidor Virtual con Inteligencia Artificial
+        </div>
+        <div style="font-size: 0.8rem; color: #4338ca;">
+          Tómate una foto con la cámara de tu equipo y mira cómo te queda esta prenda, generada con IA.
+        </div>
       </div>
-      <div style="font-size: 0.8rem; color: #4338ca;">
-        Abre tu cámara en la app Flutter para superponer esta prenda en Realidad Aumentada con el archivo:
-        <code style="display: block; margin-top: 0.4rem; background: #ffffff; padding: 0.25rem 0.5rem; border-radius: 4px; word-break: break-all;">
-          {{ prendaModal()?.modelo_3d_url }}
-        </code>
-      </div>
+      <button class="btn btn-primary" style="white-space: nowrap;" (click)="abrirVestidor(prendaModal()!)">
+        Probarme esta prenda
+      </button>
     </div>
 
     <!-- Selección de variante y compra directa -->
@@ -340,3 +342,10 @@
     </div>
   </div>
 </div>
+
+<!-- Modal Vestidor Virtual (CU-14) -->
+<app-vestidor-virtual
+  *ngIf="vestidorPrenda()"
+  [prenda]="vestidorPrenda()"
+  (cerrar)="cerrarVestidor()"
+></app-vestidor-virtual>

@@ -13,11 +13,12 @@ import {
 import { AuthService } from '../../../core/services/auth.service';
 import { BusinessService } from '../../../core/services/business.service';
 import { CartService } from '../../../core/services/cart.service';
+import { VestidorVirtual } from '../vestidor-virtual/vestidor-virtual';
 
 @Component({
   selector: 'app-listado',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule],
+  imports: [CommonModule, FormsModule, RouterModule, VestidorVirtual],
   templateUrl: './listado.html',
   styles: [`
     .hero-banner {
@@ -302,6 +303,9 @@ export class Listado implements OnInit {
   // --- CU-28: Recomendaciones de productos (IA) ---
   recomendaciones = signal<Prenda[]>([]);
 
+  // --- CU-14: Vestidor virtual ---
+  vestidorPrenda = signal<Prenda | null>(null);
+
   prendasFiltradas = computed(() => {
     let list = this.prendas();
     const query = this.busqueda().toLowerCase().trim();
@@ -467,5 +471,14 @@ export class Listado implements OnInit {
 
   cerrarModalReserva(): void {
     this.reservaPrenda.set(null);
+  }
+
+  // --- CU-14: Vestidor virtual ---
+  abrirVestidor(p: Prenda): void {
+    this.vestidorPrenda.set(p);
+  }
+
+  cerrarVestidor(): void {
+    this.vestidorPrenda.set(null);
   }
 }

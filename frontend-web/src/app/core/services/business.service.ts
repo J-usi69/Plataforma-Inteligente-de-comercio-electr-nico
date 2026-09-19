@@ -28,6 +28,8 @@ import {
   VariantePrenda,
   Venta,
   VentaPorSucursal,
+  VestidorCapabilities,
+  VestidorJob,
 } from '../models/user.model';
 
 @Injectable({ providedIn: 'root' })
@@ -477,5 +479,21 @@ export class BusinessService {
 
   generarReporteIA(prompt: string): Observable<{ tipo: string; parametros: any; datos: any }> {
     return this.http.post<{ tipo: string; parametros: any; datos: any }>(`${this.apiBase}/ia/reportes`, { prompt });
+  }
+
+  // --- CU-14: Vestidor virtual (probarse una prenda con una foto, generado con IA) ---
+  getVestidorCapabilities(): Observable<VestidorCapabilities> {
+    return this.http.get<VestidorCapabilities>(`${this.apiBase}/vestidor-ar/capabilities`);
+  }
+
+  crearVestidorJob(prendaId: number, foto: Blob): Observable<VestidorJob> {
+    const form = new FormData();
+    form.append('prenda_id', String(prendaId));
+    form.append('persona', foto, 'persona.jpg');
+    return this.http.post<VestidorJob>(`${this.apiBase}/vestidor-ar/jobs`, form);
+  }
+
+  getVestidorJob(jobId: string): Observable<VestidorJob> {
+    return this.http.get<VestidorJob>(`${this.apiBase}/vestidor-ar/jobs/${jobId}`);
   }
 }
