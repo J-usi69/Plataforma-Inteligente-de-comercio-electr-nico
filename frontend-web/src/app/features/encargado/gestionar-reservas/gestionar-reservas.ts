@@ -1,7 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { Reserva, Sucursal } from '../../../core/models/user.model';
+import { InventarioVariante, Reserva, Sucursal } from '../../../core/models/user.model';
 import { AuthService } from '../../../core/services/auth.service';
 import { BusinessService } from '../../../core/services/business.service';
 
@@ -108,6 +108,15 @@ export class GestionarReservas implements OnInit {
   isLoading = signal(true);
   accionandoId = signal<number | null>(null);
 
+  // CU-26: registro manual de movimientos de inventario
+  vista = signal<'reservas' | 'inventario'>('reservas');
+  variantesInventario = signal<InventarioVariante[]>([]);
+  cargandoInventario = signal(false);
+  varianteSeleccionadaId: number | null = null;
+  tipoMovimiento: 'ingreso' | 'devolucion' | 'merma' | 'ajuste' = 'ingreso';
+  cantidadMovimiento: number | null = null;
+  registrandoMovimiento = signal(false);
+
   ngOnInit(): void {
     const defaultSucursal = this.authService.sucursalId() || 1;
     this.sucursalSeleccionadaId.set(defaultSucursal);
@@ -115,6 +124,47 @@ export class GestionarReservas implements OnInit {
     this.business.getSucursales().subscribe((data) => {
       this.sucursales.set(data);
       this.cargarReservas();
+    });
+  }
+
+  cambiarVista(vista: 'reservas' | 'inventario'): void {
+    this.vista.set(vista);
+    if (vista === 'inventario' && !this.variantesInventario().length) {
+      this.cargarInventario();
+    }
+  }
+
+  cargarInventario(): void {
+    this.cargandoInventario.set(true);
+    this.business.getInventarioEncargado().subscribe({
+      next: (data) => {
+        this.variantesInventario.set(data);
+        this.cargandoInventario.set(false);
+      },
+      error: () => this.cargandoInventario.set(false),
+    });
+  }
+
+  registrarMovimiento(): void {
+    if (!this.varianteSeleccionadaId || !this.cantidadMovimiento || this.cantidadMovimiento <= 0) {
+      alert('Elegí una variante y una cantidad mayor a cero.');
+      return;
+    }
+    this.registrandoMovimiento.set(true);
+    this.business.registrarMovimientoInventario({
+      variante_id: this.varianteSeleccionadaId,
+      tipo: this.tipoMovimiento,
+      cantidad: this.cantidadMovimiento,
+    }).subscribe({
+      next: () => {
+        this.cantidadMovimiento = null;
+        this.registrandoMovimiento.set(false);
+        this.cargarInventario();
+      },
+      error: (err) => {
+        alert(err.error?.detail || 'Error al registrar el movimiento');
+        this.registrandoMovimiento.set(false);
+      },
     });
   }
 

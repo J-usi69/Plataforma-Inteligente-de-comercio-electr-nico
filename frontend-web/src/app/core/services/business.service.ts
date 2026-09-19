@@ -11,6 +11,8 @@ import {
   DashboardReporte,
   DisponibilidadProveedor,
   DisponibilidadSucursal,
+  InventarioVariante,
+  MovimientoManual,
   Permiso,
   Personal,
   Prenda,
@@ -296,6 +298,15 @@ export class BusinessService {
   // --- CU-13: Disponibilidad por sucursal ---
   getDisponibilidad(varianteId: number): Observable<DisponibilidadSucursal[]> {
     return this.http.get<DisponibilidadSucursal[]>(`${this.apiBase}/inventario/disponibilidad/${varianteId}`);
+  }
+
+  // --- CU-26: Registro manual de movimientos de inventario (Encargado) ---
+  getInventarioEncargado(): Observable<InventarioVariante[]> {
+    return this.http.get<InventarioVariante[]>(`${this.apiBase}/inventario/encargado/variantes`);
+  }
+
+  registrarMovimientoInventario(datos: { variante_id: number; tipo: string; cantidad: number }): Observable<MovimientoManual> {
+    return this.http.post<MovimientoManual>(`${this.apiBase}/inventario/encargado/movimientos`, datos);
   }
 
   // --- CU-15 / CU-16: Reservas ---

@@ -25,7 +25,83 @@
     </select>
   </div>
 
-  <!-- Filter tabs -->
+  <!-- Vista: Reservas / Inventario (CU-26) -->
+  <div class="filter-tabs">
+    <button class="filter-btn" [class.active]="vista() === 'reservas'" (click)="cambiarVista('reservas')">
+      📋 Reservas
+    </button>
+    <button class="filter-btn" [class.active]="vista() === 'inventario'" (click)="cambiarVista('inventario')">
+      📦 Inventario de mi Sucursal
+    </button>
+  </div>
+
+  <!-- ===================== VISTA: INVENTARIO (CU-26) ===================== -->
+  <div *ngIf="vista() === 'inventario'">
+    <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 1.5rem; margin-bottom: 1.5rem;">
+      <h4 style="margin: 0 0 1rem 0; color: #0f172a;">Registrar movimiento manual</h4>
+      <div style="display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: flex-end;">
+        <div>
+          <label style="display: block; font-size: 0.8rem; font-weight: 600; color: #64748b; margin-bottom: 0.25rem;">Variante</label>
+          <select [(ngModel)]="varianteSeleccionadaId" style="min-width: 260px; padding: 0.5rem 0.75rem; border: 1px solid #cbd5e1; border-radius: 8px;">
+            <option [ngValue]="null">Seleccioná una variante...</option>
+            <option *ngFor="let v of variantesInventario()" [ngValue]="v.variante_id">
+              {{ v.prenda_nombre }} ({{ v.talla_nombre || '—' }} / {{ v.color_nombre || '—' }}) — Disp: {{ v.stock_disponible }}
+            </option>
+          </select>
+        </div>
+        <div>
+          <label style="display: block; font-size: 0.8rem; font-weight: 600; color: #64748b; margin-bottom: 0.25rem;">Tipo</label>
+          <select [(ngModel)]="tipoMovimiento" style="padding: 0.5rem 0.75rem; border: 1px solid #cbd5e1; border-radius: 8px;">
+            <option value="ingreso">Ingreso</option>
+            <option value="devolucion">Devolución</option>
+            <option value="merma">Merma</option>
+            <option value="ajuste">Ajuste</option>
+          </select>
+        </div>
+        <div>
+          <label style="display: block; font-size: 0.8rem; font-weight: 600; color: #64748b; margin-bottom: 0.25rem;">Cantidad</label>
+          <input type="number" [(ngModel)]="cantidadMovimiento" min="1" style="width: 110px; padding: 0.5rem 0.75rem; border: 1px solid #cbd5e1; border-radius: 8px;" />
+        </div>
+        <button class="btn btn-primary btn-sm" [disabled]="registrandoMovimiento()" (click)="registrarMovimiento()">
+          {{ registrandoMovimiento() ? 'Guardando...' : 'Guardar movimiento' }}
+        </button>
+      </div>
+      <p style="margin-top: 0.75rem; font-size: 0.78rem; color: #94a3b8;">
+        Ingreso/Devolución suman stock. Merma resta stock (se rechaza si supera el disponible). Ajuste corrige por conteo físico.
+      </p>
+    </div>
+
+    <div *ngIf="cargandoInventario()" style="text-align: center; padding: 2rem 0; color: #64748b;">Cargando inventario...</div>
+
+    <div *ngIf="!cargandoInventario() && !variantesInventario().length" style="text-align: center; padding: 3rem 1rem; background: #ffffff; border-radius: 16px; border: 1px dashed #cbd5e1;">
+      <div style="font-size: 3rem; margin-bottom: 0.5rem;">📦</div>
+      <h3>Sin variantes con inventario en esta sucursal</h3>
+    </div>
+
+    <table *ngIf="!cargandoInventario() && variantesInventario().length" style="width: 100%; border-collapse: collapse; background: #ffffff; border-radius: 14px; overflow: hidden; border: 1px solid #e2e8f0;">
+      <thead>
+        <tr style="background: #f8fafc; text-align: left;">
+          <th style="padding: 0.75rem 1rem; font-size: 0.78rem; color: #64748b;">Prenda</th>
+          <th style="padding: 0.75rem 1rem; font-size: 0.78rem; color: #64748b;">Talla</th>
+          <th style="padding: 0.75rem 1rem; font-size: 0.78rem; color: #64748b;">Color</th>
+          <th style="padding: 0.75rem 1rem; font-size: 0.78rem; color: #64748b;">Disponible</th>
+          <th style="padding: 0.75rem 1rem; font-size: 0.78rem; color: #64748b;">Reservado</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let v of variantesInventario()" style="border-top: 1px solid #f1f5f9;">
+          <td style="padding: 0.75rem 1rem;">{{ v.prenda_nombre }}</td>
+          <td style="padding: 0.75rem 1rem;">{{ v.talla_nombre || '—' }}</td>
+          <td style="padding: 0.75rem 1rem;">{{ v.color_nombre || '—' }}</td>
+          <td style="padding: 0.75rem 1rem; font-weight: 700;">{{ v.stock_disponible }}</td>
+          <td style="padding: 0.75rem 1rem; color: #64748b;">{{ v.stock_reservado }}</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ===================== VISTA: RESERVAS ===================== -->
+  <ng-container *ngIf="vista() === 'reservas'">
   <div class="filter-tabs">
     <button class="filter-btn" [class.active]="filtroEstado() === 'todas'" (click)="cambiarFiltro('todas')">
       Todas las Reservas
@@ -127,5 +203,6 @@
       </div>
     </div>
   </div>
+  </ng-container>
 </div>
 

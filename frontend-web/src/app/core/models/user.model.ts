@@ -270,6 +270,25 @@ export interface PrendaVendida {
   total_vendido: number;
 }
 
+export interface InventarioVariante {
+  variante_id: number;
+  prenda_nombre: string;
+  talla_nombre?: string | null;
+  color_nombre?: string | null;
+  codigo_barras?: string | null;
+  stock_disponible: number;
+  stock_reservado: number;
+}
+
+export interface MovimientoManual {
+  id: number;
+  variante_id: number;
+  tipo: string;
+  cantidad: number;
+  stock_disponible: number;
+  fecha: string;
+}
+
 export interface QuiebreStock {
   variante_id: number;
   prenda_nombre: string;
