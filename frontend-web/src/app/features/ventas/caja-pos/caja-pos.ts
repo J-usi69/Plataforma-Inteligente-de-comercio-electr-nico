@@ -11,6 +11,7 @@ import {
 } from '../../../core/models/user.model';
 import { AuthService } from '../../../core/services/auth.service';
 import { BusinessService } from '../../../core/services/business.service';
+import { descargarComprobantePdf } from '../../../core/utils/comprobante-pdf';
 
 interface VentaItemFila {
   variante_id: number;
@@ -283,6 +284,12 @@ export class CajaPos implements OnInit {
 
   imprimirComprobante(): void {
     window.print();
+  }
+
+  // CU-23: descarga real del comprobante en PDF (antes solo se podía "Imprimir").
+  descargarComprobante(): void {
+    const comp = this.comprobanteEmitido();
+    if (comp) descargarComprobantePdf(comp);
   }
 }
 

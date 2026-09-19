@@ -2,6 +2,7 @@ import { CommonModule } from '@angular/common';
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { ComprobanteVenta, Venta } from '../../../core/models/user.model';
 import { BusinessService } from '../../../core/services/business.service';
+import { descargarComprobantePdf } from '../../../core/utils/comprobante-pdf';
 
 @Component({
   selector: 'app-mis-compras',
@@ -61,6 +62,12 @@ export class MisCompras implements OnInit {
 
   imprimirComprobante(): void {
     window.print();
+  }
+
+  // CU-23: descarga real del comprobante en PDF (antes solo se podía "Imprimir").
+  descargarComprobante(): void {
+    const comp = this.comprobanteSeleccionado();
+    if (comp) descargarComprobantePdf(comp);
   }
 }
 
