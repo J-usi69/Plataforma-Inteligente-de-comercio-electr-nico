@@ -33,8 +33,6 @@ PRENDAS = [
      "https://images.unsplash.com/photo-1548883354-94bcfe321cbb?w=800&q=80"),
     ("Chaqueta Shearling Camel", 4, 2, 429.90,
      "https://images.unsplash.com/photo-1608063615781-e2ef8c73d114?w=800&q=80"),
-    # NOTA: desactivada (estado=false) despues del seed inicial porque la foto de referencia
-    # (persona agachada, angulo extremo) daba resultados malos en el Vestidor Virtual (CU-14).
     ("Chaqueta de Cuero Motociclista Negra", 4, 1, 489.90,
      "https://images.unsplash.com/photo-1520975954732-35dd22299614?w=800&q=80"),
     ("Zapatillas Running Rojas", 5, 1, 299.90,

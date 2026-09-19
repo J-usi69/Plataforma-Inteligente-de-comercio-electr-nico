@@ -124,13 +124,18 @@ async def crear_generacion(
     person_file = io.BytesIO(content)
     person_file.name = "persona" + {"image/png": ".png", "image/jpeg": ".jpg", "image/webp": ".webp"}[detected_type]
 
+    # El modelo indica que para fotos de referencia "con más de un elemento" (ej. una
+    # modelo con fondo, en vez de una foto plana del producto) hay que decirle explícitamente
+    # qué prenda usar con el prompt; si no, puede alucinar una prenda distinta.
+    prompt = f"Usa la prenda: {prenda.nombre}."
+
     try:
         prediction = client.predictions.create(
             model=settings.tryon_replicate_model.strip(),
             input={
                 "person_image": person_file,
                 "garment_images": [prenda.imagen_url],
-                "prompt": "",
+                "prompt": prompt,
                 "output_format": "jpg",
                 "output_quality": 95,
                 "preserve_input_size": True,
