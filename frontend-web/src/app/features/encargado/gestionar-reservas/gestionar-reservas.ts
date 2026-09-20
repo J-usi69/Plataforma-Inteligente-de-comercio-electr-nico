@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { InventarioVariante, Reserva, Sucursal } from '../../../core/models/user.model';
 import { AuthService } from '../../../core/services/auth.service';
@@ -101,6 +101,8 @@ export class GestionarReservas implements OnInit {
   private readonly business = inject(BusinessService);
   readonly authService = inject(AuthService);
 
+  readonly PAGE_SIZE = 10;
+
   sucursales = signal<Sucursal[]>([]);
   sucursalSeleccionadaId = signal<number>(1);
   reservas = signal<Reserva[]>([]);
@@ -108,10 +110,24 @@ export class GestionarReservas implements OnInit {
   isLoading = signal(true);
   accionandoId = signal<number | null>(null);
 
+  paginaReservas = signal(1);
+  totalPaginasReservas = computed(() => Math.max(1, Math.ceil(this.reservas().length / this.PAGE_SIZE)));
+  reservasPaginadas = computed(() => {
+    const inicio = (this.paginaReservas() - 1) * this.PAGE_SIZE;
+    return this.reservas().slice(inicio, inicio + this.PAGE_SIZE);
+  });
+
   // CU-26: registro manual de movimientos de inventario
   vista = signal<'reservas' | 'inventario'>('reservas');
   variantesInventario = signal<InventarioVariante[]>([]);
   cargandoInventario = signal(false);
+
+  paginaInventario = signal(1);
+  totalPaginasInventario = computed(() => Math.max(1, Math.ceil(this.variantesInventario().length / this.PAGE_SIZE)));
+  variantesPaginadas = computed(() => {
+    const inicio = (this.paginaInventario() - 1) * this.PAGE_SIZE;
+    return this.variantesInventario().slice(inicio, inicio + this.PAGE_SIZE);
+  });
   varianteSeleccionadaId: number | null = null;
   tipoMovimiento: 'ingreso' | 'devolucion' | 'merma' | 'ajuste' = 'ingreso';
   cantidadMovimiento: number | null = null;
@@ -139,10 +155,25 @@ export class GestionarReservas implements OnInit {
     this.business.getInventarioEncargado().subscribe({
       next: (data) => {
         this.variantesInventario.set(data);
+        this.paginaInventario.set(1);
         this.cargandoInventario.set(false);
       },
       error: () => this.cargandoInventario.set(false),
     });
+  }
+
+  cambiarPaginaInventario(delta: number): void {
+    const destino = this.paginaInventario() + delta;
+    if (destino >= 1 && destino <= this.totalPaginasInventario()) {
+      this.paginaInventario.set(destino);
+    }
+  }
+
+  cambiarPaginaReservas(delta: number): void {
+    const destino = this.paginaReservas() + delta;
+    if (destino >= 1 && destino <= this.totalPaginasReservas()) {
+      this.paginaReservas.set(destino);
+    }
   }
 
   registrarMovimiento(): void {
@@ -174,6 +205,7 @@ export class GestionarReservas implements OnInit {
     this.business.getReservasSucursal(this.sucursalSeleccionadaId(), estado).subscribe({
       next: (data) => {
         this.reservas.set(data);
+        this.paginaReservas.set(1);
         this.isLoading.set(false);
       },
       error: () => this.isLoading.set(false),

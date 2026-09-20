@@ -89,7 +89,7 @@
         </tr>
       </thead>
       <tbody>
-        <tr *ngFor="let v of variantesInventario()" style="border-top: 1px solid #f1f5f9;">
+        <tr *ngFor="let v of variantesPaginadas()" style="border-top: 1px solid #f1f5f9;">
           <td style="padding: 0.75rem 1rem;">{{ v.prenda_nombre }}</td>
           <td style="padding: 0.75rem 1rem;">{{ v.talla_nombre || '—' }}</td>
           <td style="padding: 0.75rem 1rem;">{{ v.color_nombre || '—' }}</td>
@@ -98,6 +98,12 @@
         </tr>
       </tbody>
     </table>
+
+    <div *ngIf="!cargandoInventario() && variantesInventario().length" style="display: flex; justify-content: center; align-items: center; gap: 1rem; margin-top: 1rem;">
+      <button class="btn btn-secondary btn-sm" [disabled]="paginaInventario() === 1" (click)="cambiarPaginaInventario(-1)">← Anterior</button>
+      <span style="font-size: 0.85rem; color: #64748b; font-weight: 600;">Página {{ paginaInventario() }} de {{ totalPaginasInventario() }}</span>
+      <button class="btn btn-secondary btn-sm" [disabled]="paginaInventario() === totalPaginasInventario()" (click)="cambiarPaginaInventario(1)">Siguiente →</button>
+    </div>
   </div>
 
   <!-- ===================== VISTA: RESERVAS ===================== -->
@@ -131,7 +137,7 @@
 
   <!-- Cards List -->
   <div *ngIf="!isLoading() && reservas().length">
-    <div *ngFor="let r of reservas()" class="reserva-card">
+    <div *ngFor="let r of reservasPaginadas()" class="reserva-card">
       <div style="flex: 1; margin-right: 1.5rem;">
         <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.5rem;">
           <h4 style="margin: 0; font-size: 1.1rem; color: #0f172a;">Reserva #{{ r.id }}</h4>
@@ -201,6 +207,12 @@
           ✓ Cliente en vestidor / Listo para Caja
         </div>
       </div>
+    </div>
+
+    <div style="display: flex; justify-content: center; align-items: center; gap: 1rem; margin-top: 1rem;">
+      <button class="btn btn-secondary btn-sm" [disabled]="paginaReservas() === 1" (click)="cambiarPaginaReservas(-1)">← Anterior</button>
+      <span style="font-size: 0.85rem; color: #64748b; font-weight: 600;">Página {{ paginaReservas() }} de {{ totalPaginasReservas() }}</span>
+      <button class="btn btn-secondary btn-sm" [disabled]="paginaReservas() === totalPaginasReservas()" (click)="cambiarPaginaReservas(1)">Siguiente →</button>
     </div>
   </div>
   </ng-container>
