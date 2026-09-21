@@ -125,7 +125,7 @@ class _ReservarScreenState extends State<ReservarScreen> {
             ),
             const SizedBox(height: 24),
             ElevatedButton(
-              onPressed: () => context.go('/reservas'),
+              onPressed: () => context.push('/reservas'),
               style: ElevatedButton.styleFrom(backgroundColor: Colors.indigo, foregroundColor: Colors.white),
               child: const Text('Ver mis reservas'),
             ),
