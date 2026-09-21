@@ -97,6 +97,96 @@ def _venta_a_out(db: Session, venta: Venta) -> VentaOut:
     )
 
 
+def _ventas_a_out_bulk(db: Session, ventas: List[Venta]) -> List[VentaOut]:
+    """Misma salida que _venta_a_out pero cargando todo en lote (pocas consultas
+    en vez de una por cada venta/detalle/pago), para listados como /mis-compras
+    o /sucursal/{id} que pueden acumular muchas filas con el uso real."""
+    if not ventas:
+        return []
+
+    venta_ids = [v.id for v in ventas]
+    sucursal_ids = {v.sucursal_id for v in ventas}
+    usuario_ids = {v.usuario_id for v in ventas if v.usuario_id}
+    personal_ids = {v.personal_id for v in ventas if v.personal_id}
+
+    sucursales = {s.id: s for s in db.scalars(select(Sucursal).where(Sucursal.id.in_(sucursal_ids)))}
+    usuarios = {u.id: u for u in db.scalars(select(Usuario).where(Usuario.id.in_(usuario_ids)))} if usuario_ids else {}
+    personales = {p.id: p for p in db.scalars(select(Personal).where(Personal.id.in_(personal_ids)))} if personal_ids else {}
+
+    detalles = db.scalars(select(DetalleVenta).where(DetalleVenta.venta_id.in_(venta_ids))).all()
+    pagos = db.scalars(select(Pago).where(Pago.venta_id.in_(venta_ids))).all()
+
+    variante_ids = {d.variante_id for d in detalles}
+    variantes = {v.id: v for v in db.scalars(select(VariantePrenda).where(VariantePrenda.id.in_(variante_ids)))} if variante_ids else {}
+    prenda_ids = {v.prenda_id for v in variantes.values()}
+    talla_ids = {v.talla_id for v in variantes.values()}
+    color_ids = {v.color_id for v in variantes.values()}
+    prendas = {p.id: p for p in db.scalars(select(Prenda).where(Prenda.id.in_(prenda_ids)))} if prenda_ids else {}
+    tallas = {t.id: t for t in db.scalars(select(Talla).where(Talla.id.in_(talla_ids)))} if talla_ids else {}
+    colores = {c.id: c for c in db.scalars(select(Color).where(Color.id.in_(color_ids)))} if color_ids else {}
+
+    detalles_por_venta: dict[int, list[DetalleVenta]] = {}
+    for d in detalles:
+        detalles_por_venta.setdefault(d.venta_id, []).append(d)
+    pagos_por_venta: dict[int, list[Pago]] = {}
+    for p in pagos:
+        pagos_por_venta.setdefault(p.venta_id, []).append(p)
+
+    def _detalle_out(d: DetalleVenta) -> DetalleVentaOut:
+        variante = variantes.get(d.variante_id)
+        prenda = prendas.get(variante.prenda_id) if variante else None
+        talla = tallas.get(variante.talla_id) if variante else None
+        color = colores.get(variante.color_id) if variante else None
+        return DetalleVentaOut(
+            id=d.id,
+            variante_id=d.variante_id,
+            cantidad=d.cantidad,
+            precio_unitario=float(d.precio_unitario),
+            subtotal=float(d.subtotal),
+            prenda_id=prenda.id if prenda else None,
+            prenda_nombre=prenda.nombre if prenda else None,
+            talla_nombre=talla.nombre if talla else None,
+            color_nombre=color.nombre if color else None,
+            codigo_barras=variante.codigo_barras if variante else None,
+        )
+
+    def _pago_out(p: Pago) -> PagoOut:
+        return PagoOut(
+            id=p.id,
+            venta_id=p.venta_id,
+            metodo_pago=p.metodo_pago,
+            pasarela=p.pasarela,
+            estado=p.estado.value,
+            monto=float(p.monto),
+            transaccion_id=p.transaccion_id,
+            fecha_pago=p.fecha_pago,
+        )
+
+    resultado = []
+    for venta in ventas:
+        sucursal = sucursales.get(venta.sucursal_id)
+        cliente = usuarios.get(venta.usuario_id) if venta.usuario_id else None
+        personal = personales.get(venta.personal_id) if venta.personal_id else None
+        resultado.append(VentaOut(
+            id=venta.id,
+            usuario_id=venta.usuario_id,
+            cliente_nombre=cliente.correo if cliente else "Cliente Ocasional",
+            cliente_correo=cliente.correo if cliente else None,
+            personal_id=venta.personal_id,
+            personal_nombre=f"{personal.nombres} {personal.apellidos}" if personal else None,
+            sucursal_id=venta.sucursal_id,
+            sucursal_nombre=sucursal.nombre if sucursal else None,
+            reserva_id=venta.reserva_id,
+            tipo_origen=venta.tipo_origen.value,
+            estado=venta.estado.value,
+            total=float(venta.total),
+            fecha_venta=venta.fecha_venta,
+            detalles=[_detalle_out(d) for d in detalles_por_venta.get(venta.id, [])],
+            pagos=[_pago_out(p) for p in pagos_por_venta.get(venta.id, [])],
+        ))
+    return resultado
+
+
 # ==============================================================================
 # Registrar Venta Presencial (Cajero)
 # ==============================================================================
@@ -593,7 +683,7 @@ def consultar_historial_compras(
     """El cliente consulta el historial de sus compras anteriores (presenciales y digitales)"""
     stmt = select(Venta).where(Venta.usuario_id == current_user.id).order_by(Venta.fecha_venta.desc())
     ventas = db.scalars(stmt).all()
-    return [_venta_a_out(db, v) for v in ventas]
+    return _ventas_a_out_bulk(db, ventas)
 
 
 @router.get("/sucursal/{sucursal_id}", response_model=List[VentaOut])
@@ -605,7 +695,7 @@ def listar_ventas_sucursal(
     """Consultar las ventas registradas en una sucursal específica (Cajero/Encargado/Admin)"""
     stmt = select(Venta).where(Venta.sucursal_id == sucursal_id).order_by(Venta.id.desc())
     ventas = db.scalars(stmt).all()
-    return [_venta_a_out(db, v) for v in ventas]
+    return _ventas_a_out_bulk(db, ventas)
 
 
 @router.get("/{venta_id}", response_model=VentaOut)
