@@ -170,6 +170,7 @@ export class Dashboard implements OnInit {
   temporadas = signal<Temporada[]>([]);
   coleccionesAdmin = signal<Coleccion[]>([]);
   prendas = signal<Prenda[]>([]);
+  prendasPendientes = signal<Prenda[]>([]);
   categorias = signal<Categoria[]>([]);
   colecciones = signal<Coleccion[]>([]);
   tallas = signal<Talla[]>([]);
@@ -390,6 +391,9 @@ export class Dashboard implements OnInit {
       this.business.getPrendas().subscribe({
         next: (data) => { this.prendas.set(data); this.isLoading.set(false); },
         error: () => this.isLoading.set(false),
+      });
+      this.business.getPrendasPendientesValidacion().subscribe({
+        next: (data) => this.prendasPendientes.set(data),
       });
     } else if (tab === 'catalogo-maestro') {
       this.business.getCategorias().subscribe({ next: (data) => this.categorias.set(data) });
@@ -931,6 +935,18 @@ export class Dashboard implements OnInit {
         this.cambiarTab('prendas');
       },
       error: (err) => this.mostrarAlerta('danger', err.error?.detail || 'Error al eliminar prenda'),
+    });
+  }
+
+  // CU-33: el Admin valida y publica un producto que registró un Proveedor
+  activarPrendaProveedor(p: Prenda): void {
+    if (!confirm(`¿Publicar "${p.nombre}" en el catálogo?`)) return;
+    this.business.updatePrenda(p.id, { estado: true }).subscribe({
+      next: () => {
+        this.mostrarAlerta('success', 'Producto validado y publicado en el catálogo');
+        this.cambiarTab('prendas');
+      },
+      error: (err) => this.mostrarAlerta('danger', err.error?.detail || 'Error al activar el producto'),
     });
   }
 

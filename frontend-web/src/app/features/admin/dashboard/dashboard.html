@@ -474,6 +474,36 @@
         </div>
       </div>
 
+      <!-- CU-33: productos registrados por un Proveedor, pendientes de validacion del Admin.
+           No aparecen en la tabla de abajo porque el catalogo publico solo trae estado=true. -->
+      <div *ngIf="prendasPendientes().length" class="table-responsive" style="margin-bottom: 1.5rem; border: 1px solid #fbbf24; border-radius: 10px; padding: 1rem; background: #fffbeb;">
+        <h4 style="margin: 0 0 0.75rem 0; color: #92400e;">⏳ Pendientes de validación ({{ prendasPendientes().length }})</h4>
+        <table class="table">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Prenda</th>
+              <th>Categoría</th>
+              <th>Proveedor</th>
+              <th>Precio Base</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let p of prendasPendientes()">
+              <td>#{{ p.id }}</td>
+              <td>{{ p.nombre }}</td>
+              <td>{{ p.categoria_nombre || '—' }}</td>
+              <td>{{ p.proveedor_nombre || '—' }}</td>
+              <td>Bs. {{ p.precio_base }}</td>
+              <td>
+                <button class="btn btn-primary btn-sm" (click)="activarPrendaProveedor(p)">✓ Publicar</button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
       <div class="table-responsive">
         <table class="table">
           <thead>

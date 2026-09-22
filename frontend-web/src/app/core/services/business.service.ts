@@ -236,6 +236,12 @@ export class BusinessService {
     return this.http.get<Prenda[]>(`${this.apiBase}/prendas${query ? '?' + query : ''}`);
   }
 
+  // CU-33: prendas registradas por un Proveedor que el catalogo publico (arriba)
+  // no muestra porque tienen estado=false hasta que el Admin las activa.
+  getPrendasPendientesValidacion(): Observable<Prenda[]> {
+    return this.http.get<Prenda[]>(`${this.apiBase}/prendas/pendientes-validacion`);
+  }
+
   getCategorias(): Observable<Categoria[]> {
     return this.http.get<Categoria[]>(`${this.apiBase}/prendas/categorias`);
   }

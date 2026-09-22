@@ -63,29 +63,45 @@ def listar_prendas(
         stmt = stmt.where(Prenda.id.in_(variante_filtro))
 
     prendas = db.scalars(stmt.order_by(Prenda.id.desc())).all()
-    resultado = []
-    for p in prendas:
-        cat = db.get(Categoria, p.categoria_id) if p.categoria_id else None
-        col = db.get(Coleccion, p.coleccion_id) if p.coleccion_id else None
-        prov = db.get(Proveedor, p.proveedor_id) if p.proveedor_id else None
-        resultado.append(
-            PrendaOut(
-                id=p.id,
-                nombre=p.nombre,
-                descripcion=p.descripcion,
-                categoria_id=p.categoria_id,
-                coleccion_id=p.coleccion_id,
-                proveedor_id=p.proveedor_id,
-                precio_base=float(p.precio_base),
-                modelo_3d_url=p.modelo_3d_url,
-                imagen_url=p.imagen_url,
-                estado=p.estado,
-                categoria_nombre=cat.nombre if cat else None,
-                coleccion_nombre=col.nombre if col else None,
-                proveedor_nombre=prov.nombre_empresa if prov else None,
-            )
-        )
-    return resultado
+    return [_prenda_a_out(db, p) for p in prendas]
+
+
+def _prenda_a_out(db: Session, p: Prenda) -> PrendaOut:
+    cat = db.get(Categoria, p.categoria_id) if p.categoria_id else None
+    col = db.get(Coleccion, p.coleccion_id) if p.coleccion_id else None
+    prov = db.get(Proveedor, p.proveedor_id) if p.proveedor_id else None
+    return PrendaOut(
+        id=p.id,
+        nombre=p.nombre,
+        descripcion=p.descripcion,
+        categoria_id=p.categoria_id,
+        coleccion_id=p.coleccion_id,
+        proveedor_id=p.proveedor_id,
+        precio_base=float(p.precio_base),
+        modelo_3d_url=p.modelo_3d_url,
+        imagen_url=p.imagen_url,
+        estado=p.estado,
+        categoria_nombre=cat.nombre if cat else None,
+        coleccion_nombre=col.nombre if col else None,
+        proveedor_nombre=prov.nombre_empresa if prov else None,
+    )
+
+
+@router.get("/pendientes-validacion", response_model=List[PrendaOut])
+def listar_prendas_pendientes(
+    db: Session = Depends(get_db),
+    _: Usuario = Depends(require_roles(["Administrador"])),
+):
+    """CU-33: prendas registradas por un Proveedor que todavía no fueron activadas
+    por el Admin. Se listan aparte porque el catálogo público (GET /prendas) solo
+    devuelve prendas con estado=true, así que estas nunca aparecen ahí."""
+    stmt = (
+        select(Prenda)
+        .where(Prenda.estado.is_(False), Prenda.proveedor_id.isnot(None))
+        .order_by(Prenda.id.desc())
+    )
+    prendas = db.scalars(stmt).all()
+    return [_prenda_a_out(db, p) for p in prendas]
 
 
 @router.get("/{prenda_id}", response_model=PrendaOut)
