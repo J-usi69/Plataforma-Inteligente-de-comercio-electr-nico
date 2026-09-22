@@ -1,6 +1,7 @@
 import io
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
+from PIL import Image, ImageOps
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_db
@@ -36,6 +37,21 @@ def _detect_image_type(content: bytes) -> str | None:
     if content[:4] == b"RIFF" and content[8:12] == b"WEBP":
         return "image/webp"
     return None
+
+
+def _normalizar_orientacion(content: bytes) -> bytes:
+    """Las cámaras de celular suelen guardar los píxeles en la orientación cruda del
+    sensor y solo un tag EXIF indicando cómo rotarla para verse derecha. Replicate
+    ignora ese tag y procesa los píxeles tal cual, por eso el resultado de la IA
+    salía "de costado". Acá se aplica la rotación real sobre los píxeles antes de
+    enviarla, y se reencodea siempre a JPEG."""
+    imagen = Image.open(io.BytesIO(content))
+    imagen = ImageOps.exif_transpose(imagen)
+    if imagen.mode not in ("RGB", "L"):
+        imagen = imagen.convert("RGB")
+    buffer = io.BytesIO()
+    imagen.save(buffer, format="JPEG", quality=95)
+    return buffer.getvalue()
 
 
 def _replicate_client():
@@ -120,9 +136,17 @@ async def crear_generacion(
             detail="La foto debe ser una imagen PNG, JPG/JPEG o WEBP válida",
         )
 
+    try:
+        content = _normalizar_orientacion(content)
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No se pudo procesar la foto enviada",
+        ) from exc
+
     client = _replicate_client()
     person_file = io.BytesIO(content)
-    person_file.name = "persona" + {"image/png": ".png", "image/jpeg": ".jpg", "image/webp": ".webp"}[detected_type]
+    person_file.name = "persona.jpg"
 
     # El modelo indica que para fotos de referencia "con más de un elemento" (ej. una
     # modelo con fondo, en vez de una foto plana del producto) hay que decirle explícitamente
