@@ -1069,7 +1069,7 @@
                 <span class="badge badge-info">{{ b.accion }}</span>
               </td>
               <td><code>{{ b.ip || 'Localhost / Docker' }}</code></td>
-              <td>{{ b.fecha }}</td>
+              <td>{{ b.fecha | date: 'dd/MM/yyyy HH:mm:ss' }}</td>
             </tr>
           </tbody>
         </table>
