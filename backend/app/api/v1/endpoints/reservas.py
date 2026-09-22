@@ -164,11 +164,16 @@ def crear_reserva(
                 detail=f"La variante {detalle.variante_id} no existe o no está activa",
             )
 
+        # with_for_update(): bloquea esta fila hasta el commit de esta transacción, para
+        # que dos reservas simultáneas de la misma variante/sucursal no lean el mismo
+        # stock_disponible "viejo" y ambas crean poder reservar la última unidad.
         inventario = db.scalars(
-            select(InventarioSucursal).where(
+            select(InventarioSucursal)
+            .where(
                 InventarioSucursal.variante_id == detalle.variante_id,
                 InventarioSucursal.sucursal_id == datos.sucursal_id,
             )
+            .with_for_update()
         ).first()
 
         if not inventario or inventario.stock_disponible < detalle.cantidad:
