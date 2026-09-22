@@ -17,6 +17,7 @@ from app.models.inventario import InventarioSucursal, MovimientoInventario
 from app.models.reserva import DetalleReserva, Reserva
 from app.models.seguridad import Usuario
 from app.models.sucursal import Sucursal
+from app.models.venta import Venta
 from app.schemas.reserva import DetalleReservaOut, ReservaCreate, ReservaOut
 from app.services import push_service
 
@@ -239,7 +240,14 @@ def listar_reservas_sucursal(
     """Listar reservas asignadas a una sucursal para preparación, recepción y cobro en caja"""
     stmt = select(Reserva).where(Reserva.sucursal_id == sucursal_id)
     if estado:
-        stmt = stmt.where(Reserva.estado == EstadoReserva(estado))
+        estado_enum = EstadoReserva(estado)
+        stmt = stmt.where(Reserva.estado == estado_enum)
+        if estado_enum == EstadoReserva.atendida:
+            # No mostrar reservas "atendidas" que ya se cobraron en caja: no hay un
+            # estado terminal propio para eso, así que se excluyen las que ya
+            # tienen una Venta vinculada.
+            subq_vendidas = select(Venta.reserva_id).where(Venta.reserva_id.isnot(None))
+            stmt = stmt.where(Reserva.id.notin_(subq_vendidas))
     stmt = stmt.order_by(Reserva.id.desc())
     reservas = db.scalars(stmt).all()
     return _reservas_a_out_bulk(db, reservas)

@@ -1,4 +1,5 @@
 import pytest
+import stripe
 from fastapi.testclient import TestClient
 
 from app.main import app
@@ -7,6 +8,21 @@ client = TestClient(app)
 
 
 VARIANTE_ID = 3  # variante con stock seeded en sucursal 1 (ver seed_users.py)
+
+
+class _FakePaymentIntentExitoso:
+    """Simula un PaymentIntent de Stripe ya confirmado por el cliente en el navegador."""
+
+    def __init__(self, venta_id: int):
+        self.id = "pi_test_fake_123"
+        self.status = "succeeded"
+        self.metadata = {"venta_id": str(venta_id)}
+
+
+def _mockear_stripe_pago_exitoso(monkeypatch: pytest.MonkeyPatch, venta_id: int) -> None:
+    monkeypatch.setattr(
+        stripe.PaymentIntent, "retrieve", lambda *args, **kwargs: _FakePaymentIntentExitoso(venta_id)
+    )
 
 
 def _login(login: str, password: str) -> str:
@@ -246,8 +262,8 @@ def test_cu19_cu20_control_de_acceso_ventas_presenciales():
     )
 
 
-def test_cu21_cu22_cu24_flujo_completo_compra_digital():
-    """Flujo de punta a punta: compra digital -> pago pasarela -> historial."""
+def test_cu21_cu22_cu24_flujo_completo_compra_digital(monkeypatch: pytest.MonkeyPatch):
+    """Flujo de punta a punta: compra digital -> pago con tarjeta (Stripe) -> historial."""
     cliente_token = _get_cliente_token()
 
     res_compra = client.post(
@@ -262,20 +278,21 @@ def test_cu21_cu22_cu24_flujo_completo_compra_digital():
     venta_id = res_compra.json()["id"]
     assert res_compra.json()["estado"] == "pendiente"
 
-    # Pago digital
+    # Pago digital con tarjeta (el PaymentIntent de Stripe ya fue confirmado en el navegador)
+    _mockear_stripe_pago_exitoso(monkeypatch, venta_id)
     res_pago = client.post(
         f"/api/v1/ventas/{venta_id}/pagar-digital",
         headers={"Authorization": f"Bearer {cliente_token}"},
-        json={"metodo_pago": "qr", "pasarela": "Libélula QR"},
+        json={"metodo_pago": "tarjeta", "stripe_payment_intent_id": "pi_test_fake_123"},
     )
-    assert res_pago.status_code == 200
+    assert res_pago.status_code == 200, res_pago.text
     assert res_pago.json()["estado"] == "pagada"
 
     # Pagar dos veces debe fallar
     res_doble_pago = client.post(
         f"/api/v1/ventas/{venta_id}/pagar-digital",
         headers={"Authorization": f"Bearer {cliente_token}"},
-        json={"metodo_pago": "qr", "pasarela": "Libélula QR"},
+        json={"metodo_pago": "tarjeta", "stripe_payment_intent_id": "pi_test_fake_123"},
     )
     assert res_doble_pago.status_code == 400
 
@@ -296,7 +313,7 @@ def test_cu21_cu22_cu24_flujo_completo_compra_digital():
     assert any(c["id"] == venta_id for c in compras)
 
 
-def test_cu21_cu22_control_de_acceso_compra_digital():
+def test_cu21_cu22_control_de_acceso_compra_digital(monkeypatch: pytest.MonkeyPatch):
     """Un cliente no debe poder pagar ni ver la compra digital de otro cliente (IDOR)."""
     cliente_token = _get_cliente_token()
     admin_token = _get_admin_token()
@@ -317,17 +334,18 @@ def test_cu21_cu22_control_de_acceso_compra_digital():
     res_pago_ajeno = client.post(
         f"/api/v1/ventas/{venta_id}/pagar-digital",
         headers={"Authorization": f"Bearer {admin_token}"},
-        json={"metodo_pago": "qr", "pasarela": "Libélula QR"},
+        json={"metodo_pago": "tarjeta", "stripe_payment_intent_id": "pi_test_fake_ajeno"},
     )
     assert res_pago_ajeno.status_code == 404
 
     # Limpieza: el dueño real paga su compra
+    _mockear_stripe_pago_exitoso(monkeypatch, venta_id)
     res_pago = client.post(
         f"/api/v1/ventas/{venta_id}/pagar-digital",
         headers={"Authorization": f"Bearer {cliente_token}"},
-        json={"metodo_pago": "qr", "pasarela": "Libélula QR"},
+        json={"metodo_pago": "tarjeta", "stripe_payment_intent_id": "pi_test_fake_123"},
     )
-    assert res_pago.status_code == 200
+    assert res_pago.status_code == 200, res_pago.text
 
 
 def test_listar_ventas_sucursal_solo_staff():
