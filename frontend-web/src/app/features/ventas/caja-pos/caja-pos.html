@@ -161,7 +161,7 @@
 
     <div class="form-group">
       <label>Método de Pago:</label>
-      <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem; margin-top: 0.5rem;">
+      <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.5rem; margin-top: 0.5rem;">
         <button
           type="button"
           class="btn btn-secondary"
@@ -180,15 +180,6 @@
         >
           💳 Tarjeta POS
         </button>
-        <button
-          type="button"
-          class="btn btn-secondary"
-          [style.background]="metodoPago === 'qr' ? '#4f46e5' : '#ffffff'"
-          [style.color]="metodoPago === 'qr' ? '#ffffff' : '#0f172a'"
-          (click)="metodoPago = 'qr'"
-        >
-          📱 QR Simple
-        </button>
       </div>
     </div>
 
@@ -205,13 +196,6 @@
         <div style="font-size: 1.5rem; font-weight: 800; color: #059669;">
           Bs. {{ cambioDevolver() | number: '1.2-2' }}
         </div>
-      </div>
-    </div>
-
-    <div *ngIf="metodoPago === 'qr'" style="text-align: center; padding: 1rem; background: #f8fafc; border-radius: 8px; margin-top: 1rem;">
-      <div style="font-size: 4rem;">📲</div>
-      <div style="font-size: 0.85rem; color: #475569;">
-        El cliente escanea el QR en la pantalla de la caja para autorizar con su banca móvil.
       </div>
     </div>
 
