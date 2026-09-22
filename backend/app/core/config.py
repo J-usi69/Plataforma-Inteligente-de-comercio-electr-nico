@@ -22,6 +22,11 @@ class Settings(BaseSettings):
     replicate_api_token: str = ""
     tryon_replicate_model: str = "prunaai/p-image-try-on"
     firebase_credentials_json: str = ""
+    # Alternativa en Base64 al JSON crudo de arriba: pegar un JSON largo con
+    # comillas y \n escapados a mano en el editor de variables de Railway es
+    # fragil (se corta o se corrompe con facilidad); Base64 es una sola cadena
+    # alfanumerica sin caracteres problematicos. Si esta presente, tiene prioridad.
+    firebase_credentials_json_b64: str = ""
 
     model_config = SettingsConfigDict(
         env_file=find_dotenv(usecwd=True),

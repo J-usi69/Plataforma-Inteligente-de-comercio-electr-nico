@@ -7,6 +7,7 @@ Un push es siempre una notificación secundaria de un flujo principal (confirmar
 reserva, aprobar un pago, publicar una prenda...). Por eso ninguna función de este
 módulo relanza excepciones: cualquier fallo se registra en el log y se ignora, para
 que jamás rompa el flujo que la disparó."""
+import base64
 import json
 import logging
 from datetime import datetime, timezone
@@ -29,23 +30,39 @@ _TIMEOUT_SEGUNDOS = 10.0
 _credenciales: Optional[service_account.Credentials] = None
 
 
+def _credenciales_dict() -> Optional[dict]:
+    """FIREBASE_CREDENTIALS_JSON_B64 (Base64 del JSON completo) tiene prioridad
+    sobre FIREBASE_CREDENTIALS_JSON (el JSON crudo) porque pegar un JSON largo
+    con comillas y \\n escapados a mano en el editor de variables de una
+    plataforma como Railway es fragil (se corta o se corrompe con facilidad)."""
+    if settings.firebase_credentials_json_b64:
+        try:
+            crudo = base64.b64decode(settings.firebase_credentials_json_b64).decode("utf-8")
+            return json.loads(crudo)
+        except Exception:
+            logger.exception("FIREBASE_CREDENTIALS_JSON_B64 no se pudo decodificar")
+            return None
+    if settings.firebase_credentials_json:
+        try:
+            return json.loads(settings.firebase_credentials_json)
+        except json.JSONDecodeError:
+            logger.exception("FIREBASE_CREDENTIALS_JSON no es un JSON válido")
+            return None
+    return None
+
+
 def _proyecto_id() -> Optional[str]:
-    if not settings.firebase_credentials_json:
-        return None
-    try:
-        return json.loads(settings.firebase_credentials_json).get("project_id")
-    except (json.JSONDecodeError, TypeError):
-        logger.exception("FIREBASE_CREDENTIALS_JSON no es un JSON válido")
-        return None
+    info = _credenciales_dict()
+    return info.get("project_id") if info else None
 
 
 def _access_token() -> Optional[str]:
     global _credenciales
-    if not settings.firebase_credentials_json:
-        return None
     try:
         if _credenciales is None:
-            info = json.loads(settings.firebase_credentials_json)
+            info = _credenciales_dict()
+            if not info:
+                return None
             _credenciales = service_account.Credentials.from_service_account_info(info, scopes=_SCOPES)
         if not _credenciales.valid:
             _credenciales.refresh(GoogleAuthRequest())
