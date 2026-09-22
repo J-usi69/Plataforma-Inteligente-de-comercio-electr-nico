@@ -132,10 +132,13 @@ export class CajaPos implements OnInit {
     this.items().reduce((sum, item) => sum + item.precio_unitario * item.cantidad, 0)
   );
 
-  cambioDevolver = computed(() => {
+  // Método normal (no computed signal): metodoPago/montoRecibido son propiedades
+  // simples ligadas con [(ngModel)], no signals, así que un computed() nunca
+  // detectaría sus cambios y el resultado quedaba siempre en 0.
+  cambioDevolver(): number {
     if (this.metodoPago !== 'efectivo') return 0;
     return Math.max(0, this.montoRecibido - this.totalVenta());
-  });
+  }
 
   ngOnInit(): void {
     const sucursalId = this.authService.sucursalId() || 1;
