@@ -116,48 +116,8 @@
       </div>
     </div>
 
-    <!-- Payment Type Selector -->
-    <div style="display: flex; gap: 0.5rem; margin-bottom: 1rem;">
-      <button
-        type="button"
-        class="btn btn-secondary"
-        style="flex: 1;"
-        [style.background]="metodoDigital() === 'qr' ? '#4f46e5' : '#ffffff'"
-        [style.color]="metodoDigital() === 'qr' ? '#ffffff' : '#0f172a'"
-        (click)="metodoDigital.set('qr')"
-      >
-        📱 QR Bancario Interoperable
-      </button>
-      <button
-        type="button"
-        class="btn btn-secondary"
-        style="flex: 1;"
-        [style.background]="metodoDigital() === 'tarjeta' ? '#4f46e5' : '#ffffff'"
-        [style.color]="metodoDigital() === 'tarjeta' ? '#ffffff' : '#0f172a'"
-        (click)="seleccionarTarjeta()"
-      >
-        💳 Tarjeta de Débito / Crédito
-      </button>
-    </div>
-
-    <!-- QR Option -->
-    <div *ngIf="metodoDigital() === 'qr'" class="qr-container">
-      <div style="font-size: 0.85rem; font-weight: 700; color: #0f172a; margin-bottom: 0.75rem;">
-        Escanea con la app de cualquier banco boliviano:
-      </div>
-      <div class="qr-mock">
-        <div style="text-align: center;">
-          <div style="font-size: 3rem;">📲</div>
-          <div style="font-size: 0.75rem; font-weight: 800; margin-top: 0.25rem;">QR SIMPLE / LIBÉLULA</div>
-        </div>
-      </div>
-      <p style="font-size: 0.78rem; color: #64748b; margin: 0;">
-        Válido por 10 minutos. Al completar la transferencia en tu banca móvil, pulsa confirmar.
-      </p>
-    </div>
-
-    <!-- Card Option: Stripe Elements monta aquí el iframe seguro de la tarjeta -->
-    <div *ngIf="metodoDigital() === 'tarjeta'" style="margin: 1.5rem 0;">
+    <!-- Stripe Elements monta aquí el iframe seguro de la tarjeta -->
+    <div style="margin: 1.5rem 0;">
       <div class="form-group">
         <label>Datos de la Tarjeta</label>
         <div id="stripe-card-element" style="padding: 0.75rem; border: 1px solid #cbd5e1; border-radius: 8px; background: #ffffff;"></div>

@@ -264,34 +264,27 @@ class ApiService {
 
   // --- Ventas y Pagos Digitales Móviles ---
 
-  // Crear venta digital desde app móvil
+  // Crear venta digital desde app móvil (retiro en sucursal)
   Future<Map<String, dynamic>> crearVentaDigital({
     required int sucursalId,
     required List<Map<String, dynamic>> detalles,
-    String tipoEntrega = 'DOMICILIO',
-    String? direccionEnvio,
   }) async {
     final body = {
       'sucursal_id': sucursalId,
-      'tipo_entrega': tipoEntrega,
-      if (direccionEnvio != null && direccionEnvio.isNotEmpty)
-        'direccion_envio': direccionEnvio,
       'detalles': detalles,
     };
     final res = await post('/api/v1/ventas/digital', body);
     return Map<String, dynamic>.from(res);
   }
 
-  // Procesar pago digital (QR Libélula o Tarjeta ya confirmada con Stripe)
+  // Procesar pago digital (Tarjeta ya confirmada con Stripe)
   Future<Map<String, dynamic>> pagarVentaDigital({
     required int ventaId,
     required String metodoPago,
-    String? pasarela,
     String? stripePaymentIntentId,
   }) async {
     final body = {
       'metodo_pago': metodoPago,
-      if (pasarela != null) 'pasarela': pasarela,
       if (stripePaymentIntentId != null)
         'stripe_payment_intent_id': stripePaymentIntentId,
     };

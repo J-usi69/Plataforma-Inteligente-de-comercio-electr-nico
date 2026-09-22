@@ -17,8 +17,6 @@ class _CarritoScreenState extends State<CarritoScreen> {
 
   List<dynamic> _sucursales = [];
   int _selectedSucursalId = 1;
-  String _tipoEntrega = 'DOMICILIO';
-  final _direccionController = TextEditingController(text: 'Av. San Martín #450, Equipetrol');
   bool _isLoadingSucursales = false;
   bool _isProcessingSale = false;
 
@@ -32,7 +30,6 @@ class _CarritoScreenState extends State<CarritoScreen> {
   @override
   void dispose() {
     _cartService.removeListener(_onCartChanged);
-    _direccionController.dispose();
     super.dispose();
   }
 
@@ -80,8 +77,6 @@ class _CarritoScreenState extends State<CarritoScreen> {
 
       final venta = await _apiService.crearVentaDigital(
         sucursalId: _selectedSucursalId,
-        tipoEntrega: _tipoEntrega,
-        direccionEnvio: _tipoEntrega == 'DOMICILIO' ? _direccionController.text.trim() : null,
         detalles: detalles,
       );
 
@@ -388,34 +383,10 @@ class _CarritoScreenState extends State<CarritoScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const Text(
-                          'Detalles de Entrega',
+                          'Retiro en Tienda',
                           style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Color(0xFF0F172A)),
                         ),
                         const SizedBox(height: 12),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: ChoiceChip(
-                                label: const Text('Envío a Domicilio'),
-                                selected: _tipoEntrega == 'DOMICILIO',
-                                onSelected: (sel) {
-                                  if (sel) setState(() => _tipoEntrega = 'DOMICILIO');
-                                },
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: ChoiceChip(
-                                label: const Text('Retiro en Tienda'),
-                                selected: _tipoEntrega == 'SUCURSAL',
-                                onSelected: (sel) {
-                                  if (sel) setState(() => _tipoEntrega = 'SUCURSAL');
-                                },
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 14),
                         // Sucursal
                         const Text('Sucursal para preparación de pedido:', style: TextStyle(fontSize: 12, color: Color(0xFF64748B))),
                         const SizedBox(height: 6),
@@ -443,21 +414,6 @@ class _CarritoScreenState extends State<CarritoScreen> {
                               if (val != null) setState(() => _selectedSucursalId = val);
                             },
                           ),
-
-                        if (_tipoEntrega == 'DOMICILIO') ...[
-                          const SizedBox(height: 14),
-                          const Text('Dirección de Envío:', style: TextStyle(fontSize: 12, color: Color(0xFF64748B))),
-                          const SizedBox(height: 6),
-                          TextField(
-                            controller: _direccionController,
-                            decoration: InputDecoration(
-                              prefixIcon: const Icon(Icons.location_on_outlined),
-                              hintText: 'Ej. Calle Las Palmas #123, Santa Cruz',
-                              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                            ),
-                          ),
-                        ],
                       ],
                     ),
                   ),
@@ -477,7 +433,6 @@ class _CarritoScreenState extends State<CarritoScreen> {
                     child: Column(
                       children: [
                         _resumenFila('Subtotal (${_cartService.totalCount} prendas)', 'Bs. ${_cartService.totalAmount.toStringAsFixed(2)}'),
-                        _resumenFila('Costo de envío', 'Gratis', bold: false),
                         const Divider(height: 16),
                         _resumenFila('Total a Pagar', 'Bs. ${_cartService.totalAmount.toStringAsFixed(2)}', bold: true),
                       ],
@@ -530,47 +485,9 @@ class _ModalPagoDigital extends StatefulWidget {
   State<_ModalPagoDigital> createState() => _ModalPagoDigitalState();
 }
 
-class _ModalPagoDigitalState extends State<_ModalPagoDigital> with SingleTickerProviderStateMixin {
-  late TabController _tabController;
+class _ModalPagoDigitalState extends State<_ModalPagoDigital> {
   final _apiService = ApiService();
   bool _isPaying = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _tabController = TabController(length: 2, vsync: this);
-    // El CardField de Stripe crea una vista nativa (PlatformView): montarla de
-    // inmediato junto con la animacion de apertura del bottom sheet puede
-    // trabar la UI. Por eso no usamos TabBarView (que construye ambas
-    // pestañas a la vez) y en su lugar solo renderizamos la vista activa,
-    // así el CardField recien se crea cuando el usuario elige "Tarjeta".
-    _tabController.addListener(() {
-      if (mounted) setState(() {});
-    });
-  }
-
-  @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
-  }
-
-  // Pago QR/Libélula: Stripe no maneja QR interoperable boliviano, se mantiene simulado.
-  Future<void> _procesarPagoQr() async {
-    setState(() => _isPaying = true);
-    try {
-      await _apiService.pagarVentaDigital(
-        ventaId: widget.ventaId,
-        metodoPago: 'qr',
-        pasarela: 'Libélula QR Interoperable',
-      );
-      await _finalizarPago();
-    } catch (e) {
-      _mostrarError('Error al procesar pago: $e');
-    } finally {
-      if (mounted) setState(() => _isPaying = false);
-    }
-  }
 
   // Pago con tarjeta: crea el PaymentIntent en el backend, lo confirma con Stripe
   // usando los datos que el usuario cargó en el CardField (nunca pasan por nuestro
@@ -617,77 +534,8 @@ class _ModalPagoDigitalState extends State<_ModalPagoDigital> with SingleTickerP
     );
   }
 
-  Widget _buildVistaQr() {
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: const Color(0xFFE2E8F0)),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.05),
-                blurRadius: 10,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: Column(
-            children: [
-              Container(
-                width: 160,
-                height: 160,
-                decoration: BoxDecoration(
-                  color: const Color(0xFF0F172A),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Center(
-                  child: Icon(Icons.qr_code_scanner, color: Colors.white, size: 100),
-                ),
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                'QR Simple & Libélula Pay',
-                style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF4F46E5)),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 16),
-        const Text(
-          'Escanea desde cualquier app bancaria de Bolivia.',
-          style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
-        ),
-        const SizedBox(height: 16),
-        SizedBox(
-          width: double.infinity,
-          child: ElevatedButton.icon(
-            onPressed: _isPaying ? null : _procesarPagoQr,
-            icon: const Icon(Icons.check),
-            label: _isPaying
-                ? const SizedBox(
-                    height: 18,
-                    width: 18,
-                    child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
-                  )
-                : const Text('CONFIRMAR PAGO QR'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF059669),
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(vertical: 14),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
   // Vista Tarjeta: CardField de Stripe, procesa el número en un componente
-  // nativo aislado que nunca pasa por nuestro código. Solo se construye
-  // cuando el usuario efectivamente selecciona esta pestaña (ver build()).
+  // nativo aislado que nunca pasa por nuestro código.
   Widget _buildVistaTarjeta() {
     return SingleChildScrollView(
       child: Column(
@@ -769,21 +617,10 @@ class _ModalPagoDigitalState extends State<_ModalPagoDigital> with SingleTickerP
               'Total a cancelar: Bs. ${widget.total.toStringAsFixed(2)}',
               style: const TextStyle(color: Color(0xFF4F46E5), fontWeight: FontWeight.w700, fontSize: 16),
             ),
-            const SizedBox(height: 16),
-            TabBar(
-              controller: _tabController,
-              labelColor: const Color(0xFF4F46E5),
-              unselectedLabelColor: const Color(0xFF64748B),
-              indicatorColor: const Color(0xFF4F46E5),
-              tabs: const [
-                Tab(icon: Icon(Icons.qr_code_2), text: 'Pago QR Libélula'),
-                Tab(icon: Icon(Icons.credit_card), text: 'Tarjeta Débito/Crédito'),
-              ],
-            ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 20),
             SizedBox(
-              height: 320,
-              child: _tabController.index == 0 ? _buildVistaQr() : _buildVistaTarjeta(),
+              height: 220,
+              child: _buildVistaTarjeta(),
             ),
           ],
         ),

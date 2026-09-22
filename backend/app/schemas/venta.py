@@ -33,12 +33,10 @@ class CobroCajaCreate(BaseModel):
 
 
 class PagoDigitalCreate(BaseModel):
-    metodo_pago: str = Field(default="qr", description="qr, tarjeta, libelula")
-    pasarela: Optional[str] = "pasarela_digital"
-    numero_tarjeta_simulada: Optional[str] = None
-    # Cuando metodo_pago == "tarjeta": id del PaymentIntent de Stripe ya confirmado
-    # en el navegador (ver POST /ventas/{id}/crear-intento-pago). El backend lo
-    # valida contra la API de Stripe antes de marcar la venta como pagada.
+    metodo_pago: str = Field(default="tarjeta", description="tarjeta")
+    # id del PaymentIntent de Stripe ya confirmado en el navegador (ver
+    # POST /ventas/{id}/crear-intento-pago). El backend lo valida contra la
+    # API de Stripe antes de marcar la venta como pagada.
     stripe_payment_intent_id: Optional[str] = None
 
 

@@ -411,7 +411,7 @@ export class BusinessService {
 
   pagarVentaDigital(
     ventaId: number,
-    datos: { metodo_pago: string; pasarela?: string; numero_tarjeta_simulada?: string; stripe_payment_intent_id?: string }
+    datos: { metodo_pago: string; stripe_payment_intent_id?: string }
   ): Observable<Venta> {
     return this.http.post<Venta>(`${this.apiBase}/ventas/${ventaId}/pagar-digital`, datos);
   }

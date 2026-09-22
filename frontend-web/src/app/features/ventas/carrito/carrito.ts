@@ -66,35 +66,6 @@ declare const Stripe: any;
       box-shadow: 0 4px 12px rgba(0,0,0,0.03);
     }
 
-    .qr-container {
-      background: #ffffff;
-      border: 2px solid #e2e8f0;
-      border-radius: 16px;
-      padding: 1.5rem;
-      text-align: center;
-      margin: 1.5rem 0;
-    }
-
-    .qr-mock {
-      width: 180px;
-      height: 180px;
-      margin: 0 auto 1rem;
-      background: repeating-linear-gradient(
-        0deg,
-        #0f172a,
-        #0f172a 10px,
-        #ffffff 10px,
-        #ffffff 20px
-      );
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      border: 6px solid #0f172a;
-      border-radius: 8px;
-      font-weight: 800;
-      color: #0f172a;
-      background-color: #ffffff;
-    }
   `],
 })
 export class Carrito implements OnInit {
@@ -109,7 +80,6 @@ export class Carrito implements OnInit {
   // Pasarela de pago digital
   showModalPasarela = signal(false);
   ventaEnProceso = signal<Venta | null>(null);
-  metodoDigital = signal<'qr' | 'tarjeta'>('qr');
   comprobanteEmitido = signal<ComprobanteVenta | null>(null);
 
   // Stripe Elements (tarjeta)
@@ -154,6 +124,7 @@ export class Carrito implements OnInit {
         this.ventaEnProceso.set(venta);
         this.isLoading.set(false);
         this.showModalPasarela.set(true);
+        this.montarStripeCard();
       },
       error: (err) => {
         this.isLoading.set(false);
@@ -162,12 +133,11 @@ export class Carrito implements OnInit {
     });
   }
 
-  // El usuario eligió pagar con tarjeta: monta el Card Element de Stripe en el DOM
-  seleccionarTarjeta(): void {
-    this.metodoDigital.set('tarjeta');
+  // Monta el Card Element de Stripe en el DOM del modal de pago
+  private montarStripeCard(): void {
     if (this.stripeCardMontado) return;
 
-    // Se monta en el próximo ciclo para asegurar que el *ngIf ya renderizó el div
+    // Se monta en el próximo ciclo para asegurar que el modal ya renderizó el div
     setTimeout(() => {
       if (!this.stripe) {
         this.stripe = Stripe(environment.stripePublishableKey);
@@ -187,26 +157,7 @@ export class Carrito implements OnInit {
   confirmarPagoDigital(): void {
     const venta = this.ventaEnProceso();
     if (!venta) return;
-
-    if (this.metodoDigital() === 'tarjeta') {
-      this.confirmarPagoConStripe(venta);
-      return;
-    }
-
-    // QR / Libélula: Stripe no maneja QR interoperable boliviano, se mantiene simulado
-    this.isLoading.set(true);
-    this.business
-      .pagarVentaDigital(venta.id, {
-        metodo_pago: 'qr',
-        pasarela: 'Libélula QR Interoperable',
-      })
-      .subscribe({
-        next: (ventaPagada) => this.finalizarCompra(ventaPagada.id),
-        error: (err) => {
-          this.isLoading.set(false);
-          alert(err.error?.detail || 'Error al procesar el pago con la pasarela.');
-        },
-      });
+    this.confirmarPagoConStripe(venta);
   }
 
   // Pago con tarjeta: crea el PaymentIntent en el backend, lo confirma con Stripe
@@ -249,7 +200,6 @@ export class Carrito implements OnInit {
 
   cerrarModalPasarela(): void {
     this.showModalPasarela.set(false);
-    this.metodoDigital.set('qr');
     this.stripeCardElement?.destroy();
     this.stripeCardElement = null;
     this.stripeCardMontado = false;
