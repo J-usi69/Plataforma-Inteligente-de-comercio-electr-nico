@@ -1429,6 +1429,10 @@
         </select>
       </div>
     </div>
+    <div class="form-group" style="margin-bottom: 1rem;">
+      <label>URL de foto de este color (opcional, para el vestidor virtual)</label>
+      <input type="text" [(ngModel)]="nuevaVarianteForm.imagen_url" name="var_imagen" placeholder="https://..." />
+    </div>
     <button class="btn btn-primary btn-sm" style="margin-bottom: 1.25rem;" (click)="agregarVariante()">+ Agregar Variante</button>
 
     <div class="table-responsive">
@@ -1438,6 +1442,7 @@
             <th>Talla</th>
             <th>Color</th>
             <th>Código de Barras</th>
+            <th>Foto de este color (vestidor virtual)</th>
             <th>Estado</th>
             <th>Acciones</th>
           </tr>
@@ -1448,6 +1453,18 @@
             <td>{{ v.color_nombre }}</td>
             <td><code style="font-size: 0.75rem;">{{ v.codigo_barras }}</code></td>
             <td>
+              <div style="display: flex; gap: 0.4rem; min-width: 220px;">
+                <input
+                  type="text"
+                  [(ngModel)]="varianteImagenEdit[v.id]"
+                  [name]="'var_img_' + v.id"
+                  placeholder="URL de la foto en este color"
+                  style="flex: 1; font-size: 0.8rem;"
+                />
+                <button class="btn btn-secondary btn-sm" (click)="guardarImagenVariante(v.id)">Guardar</button>
+              </div>
+            </td>
+            <td>
               <span class="badge" [ngClass]="v.estado ? 'badge-success' : 'badge-danger'">
                 {{ v.estado ? 'Activa' : 'Inactiva' }}
               </span>
@@ -1457,7 +1474,7 @@
             </td>
           </tr>
           <tr *ngIf="!variantesPrendaActual().length">
-            <td colspan="5" style="text-align: center; color: #94a3b8; padding: 1.5rem;">
+            <td colspan="6" style="text-align: center; color: #94a3b8; padding: 1.5rem;">
               Esta prenda todavía no tiene variantes registradas
             </td>
           </tr>

@@ -12,7 +12,8 @@ import {
   inject,
   signal,
 } from '@angular/core';
-import { Prenda } from '../../../core/models/user.model';
+import { FormsModule } from '@angular/forms';
+import { Prenda, VariantePrenda } from '../../../core/models/user.model';
 import { BusinessService } from '../../../core/services/business.service';
 
 type EstadoVestidor = 'camara' | 'generando' | 'listo' | 'error';
@@ -22,7 +23,7 @@ const MAX_INTENTOS_POLLING = 45; // ~90s a 2s por intento, igual de margen que e
 @Component({
   selector: 'app-vestidor-virtual',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, FormsModule],
   templateUrl: './vestidor-virtual.html',
   styles: [`
     .vestidor-video, .vestidor-foto {
@@ -44,6 +45,7 @@ export class VestidorVirtual implements OnChanges, OnDestroy {
   private readonly business = inject(BusinessService);
 
   @Input() prenda: Prenda | null = null;
+  @Input() varianteInicialId: number | null = null;
   @Output() cerrar = new EventEmitter<void>();
 
   @ViewChild('video') videoRef?: ElementRef<HTMLVideoElement>;
@@ -53,18 +55,51 @@ export class VestidorVirtual implements OnChanges, OnDestroy {
   resultUrl = signal<string | null>(null);
   camaraDisponible = signal(true);
 
+  // CU-14: elegir/cambiar el color a probar (cada color puede tener su propia foto de referencia)
+  variantes = signal<VariantePrenda[]>([]);
+  varianteSeleccionadaId = signal<number | null>(null);
+
   private stream: MediaStream | null = null;
   private pollTimer: ReturnType<typeof setInterval> | null = null;
   private intentosPolling = 0;
 
+  get varianteSeleccionada(): VariantePrenda | undefined {
+    return this.variantes().find((v) => v.id === this.varianteSeleccionadaId());
+  }
+
   get prendaTieneImagen(): boolean {
-    return !!this.prenda?.imagen_url;
+    return !!(this.varianteSeleccionada?.imagen_url || this.prenda?.imagen_url);
   }
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['prenda'] && this.prenda) {
-      this.reiniciar();
+      this.detenerPolling();
+      this.detenerCamara();
+      this.estado.set('camara');
+      this.mensajeError.set(null);
+      this.resultUrl.set(null);
+      this.cargarVariantes();
     }
+  }
+
+  private cargarVariantes(): void {
+    const prenda = this.prenda;
+    if (!prenda) return;
+    this.business.getVariantes(prenda.id).subscribe((data) => {
+      const activas = data.filter((v) => v.estado);
+      this.variantes.set(activas);
+      const inicial = this.varianteInicialId && activas.some((v) => v.id === this.varianteInicialId)
+        ? this.varianteInicialId
+        : activas[0]?.id ?? null;
+      this.varianteSeleccionadaId.set(inicial);
+      this.reiniciar();
+    });
+  }
+
+  seleccionarVariante(varianteId: number): void {
+    this.varianteSeleccionadaId.set(varianteId);
+    // Si ya había un resultado o cámara en curso, se reinicia para reflejar el nuevo color.
+    if (this.estado() !== 'camara') this.reiniciar();
   }
 
   ngOnDestroy(): void {
@@ -136,7 +171,7 @@ export class VestidorVirtual implements OnChanges, OnDestroy {
     this.mensajeError.set(null);
     this.resultUrl.set(null);
 
-    this.business.crearVestidorJob(prenda.id, foto).subscribe({
+    this.business.crearVestidorJob(prenda.id, foto, this.varianteSeleccionadaId()).subscribe({
       next: (job) => this.iniciarPolling(job.job_id),
       error: (err) => this.mostrarError(err?.error?.detail ?? 'No se pudo iniciar la generación del vestidor virtual.'),
     });

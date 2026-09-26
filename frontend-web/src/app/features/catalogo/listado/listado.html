@@ -347,5 +347,6 @@
 <app-vestidor-virtual
   *ngIf="vestidorPrenda()"
   [prenda]="vestidorPrenda()"
+  [varianteInicialId]="vestidorVarianteId()"
   (cerrar)="cerrarVestidor()"
 ></app-vestidor-virtual>

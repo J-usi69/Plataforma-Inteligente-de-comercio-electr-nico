@@ -14,6 +14,20 @@
       <p>Esta prenda todavía no tiene una foto de referencia configurada por el administrador.</p>
     </div>
 
+    <!-- Selector de color/talla: visible en todo momento, para poder cambiarlo antes o después de generar -->
+    <div *ngIf="variantes().length > 1" class="form-group" style="margin-bottom: 1rem;">
+      <label style="font-size: 0.8rem; font-weight: 700; color: #334155;">Color / Talla a probar:</label>
+      <select
+        [ngModel]="varianteSeleccionadaId()"
+        (ngModelChange)="seleccionarVariante($event)"
+        style="width: 100%; padding: 0.6rem; border-radius: 8px; border: 1px solid #cbd5e1; font-weight: 600;"
+      >
+        <option *ngFor="let v of variantes()" [ngValue]="v.id">
+          {{ v.color_nombre }} · Talla {{ v.talla_nombre }}
+        </option>
+      </select>
+    </div>
+
     <ng-container *ngIf="prendaTieneImagen">
       <!-- Paso 1: cámara -->
       <div *ngIf="estado() === 'camara'">

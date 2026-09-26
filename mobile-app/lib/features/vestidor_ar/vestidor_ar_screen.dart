@@ -6,8 +6,9 @@ import '../../core/services/api_service.dart';
 
 class VestidorArScreen extends StatefulWidget {
   final Map<String, dynamic>? prenda;
+  final int? varianteInicialId;
 
-  const VestidorArScreen({super.key, this.prenda});
+  const VestidorArScreen({super.key, this.prenda, this.varianteInicialId});
 
   @override
   State<VestidorArScreen> createState() => _VestidorArScreenState();
@@ -24,16 +25,69 @@ class _VestidorArScreenState extends State<VestidorArScreen> {
   String? _mensajeError;
   Timer? _pollTimer;
 
+  // CU-14: elegir/cambiar el color a probar (cada color puede tener su propia foto de referencia)
+  List<Map<String, dynamic>> _variantes = [];
+  Map<String, dynamic>? _varianteSeleccionada;
+  bool _cargandoVariantes = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _cargarVariantes();
+  }
+
+  Future<void> _cargarVariantes() async {
+    final prendaId = widget.prenda?['id'] as int?;
+    if (prendaId == null) {
+      setState(() => _cargandoVariantes = false);
+      return;
+    }
+    try {
+      final vars = await _apiService.getVariantes(prendaId);
+      final activas = vars
+          .where((v) => v is Map && v['estado'] == true)
+          .cast<Map<String, dynamic>>()
+          .toList();
+      if (!mounted) return;
+      setState(() {
+        _variantes = activas;
+        _varianteSeleccionada = activas.firstWhere(
+          (v) => v['id'] == widget.varianteInicialId,
+          orElse: () => activas.isNotEmpty ? activas.first : <String, dynamic>{},
+        );
+        if (_varianteSeleccionada!.isEmpty) _varianteSeleccionada = null;
+        _cargandoVariantes = false;
+      });
+    } catch (_) {
+      if (mounted) setState(() => _cargandoVariantes = false);
+    }
+  }
+
+  void _seleccionarVariante(Map<String, dynamic>? variante) {
+    setState(() {
+      _varianteSeleccionada = variante;
+      // Si ya había un resultado/error de un color anterior, se vuelve al paso inicial.
+      if (_estado != _EstadoVestidor.inicial && _estado != _EstadoVestidor.generando) {
+        _estado = _EstadoVestidor.inicial;
+        _resultUrl = null;
+        _mensajeError = null;
+      }
+    });
+  }
+
   @override
   void dispose() {
     _pollTimer?.cancel();
     super.dispose();
   }
 
-  bool get _prendaTieneImagen =>
-      widget.prenda != null &&
-      widget.prenda!['imagen_url'] != null &&
-      widget.prenda!['imagen_url'].toString().isNotEmpty;
+  bool get _prendaTieneImagen {
+    final imagenVariante = _varianteSeleccionada?['imagen_url'];
+    if (imagenVariante != null && imagenVariante.toString().isNotEmpty) return true;
+    return widget.prenda != null &&
+        widget.prenda!['imagen_url'] != null &&
+        widget.prenda!['imagen_url'].toString().isNotEmpty;
+  }
 
   bool get _esCalzado {
     final categoria =
@@ -89,6 +143,7 @@ class _VestidorArScreenState extends State<VestidorArScreen> {
         prendaId: widget.prenda!['id'] as int,
         personaBytes: bytes,
         personaFilename: foto.name,
+        varianteId: _varianteSeleccionada?['id'] as int?,
       );
       _iniciarPolling(job['job_id'] as String);
     } catch (e) {
@@ -154,6 +209,10 @@ class _VestidorArScreenState extends State<VestidorArScreen> {
                 ),
                 textAlign: TextAlign.center,
               ),
+            if (_variantes.length > 1) ...[
+              const SizedBox(height: 14),
+              _buildSelectorVariante(),
+            ],
             const SizedBox(height: 20),
             Expanded(child: Center(child: _buildContenido())),
             const SizedBox(height: 16),
@@ -178,7 +237,31 @@ class _VestidorArScreenState extends State<VestidorArScreen> {
     );
   }
 
+  Widget _buildSelectorVariante() {
+    return DropdownButtonFormField<int>(
+      value: _varianteSeleccionada?['id'] as int?,
+      decoration: InputDecoration(
+        labelText: 'Color / Talla a probar',
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+      ),
+      items: _variantes.map((v) {
+        return DropdownMenuItem<int>(
+          value: v['id'] as int,
+          child: Text('${v['color_nombre']} · Talla ${v['talla_nombre']}'),
+        );
+      }).toList(),
+      onChanged: (val) {
+        if (val == null) return;
+        _seleccionarVariante(_variantes.firstWhere((v) => v['id'] == val));
+      },
+    );
+  }
+
   Widget _buildContenido() {
+    if (_cargandoVariantes) {
+      return const CircularProgressIndicator();
+    }
     switch (_estado) {
       case _EstadoVestidor.inicial:
         return Column(

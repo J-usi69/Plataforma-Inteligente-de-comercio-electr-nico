@@ -228,7 +228,7 @@ export class Dashboard implements OnInit {
   nuevaCategoriaForm = { nombre: '', descripcion: '' };
   nuevaTallaNombre = '';
   nuevoColorForm = { nombre: '', hex: '#4f46e5' };
-  nuevaVarianteForm = { talla_id: null as number | null, color_id: null as number | null };
+  nuevaVarianteForm = { talla_id: null as number | null, color_id: null as number | null, imagen_url: '' };
   proveedorForm = { id: 0, nombre_empresa: '', contacto: '', correo: '', password: '' };
   temporadaForm = { id: 0, nombre: '', tipo: '', fecha_inicio: '', fecha_fin: '' };
   coleccionForm = { id: 0, nombre: '', descripcion: '', temporada_id: null as number | null };
@@ -1020,9 +1020,11 @@ export class Dashboard implements OnInit {
   }
 
   // --- CU-11: Variantes de prenda (talla + color) ---
+  varianteImagenEdit: Record<number, string> = {};
+
   abrirModalVariantes(prenda: Prenda): void {
     this.prendaSeleccionadaVariantes.set(prenda);
-    this.nuevaVarianteForm = { talla_id: null, color_id: null };
+    this.nuevaVarianteForm = { talla_id: null, color_id: null, imagen_url: '' };
     this.business.getTallas().subscribe((data) => {
       this.tallas.set(data);
       if (data.length) this.nuevaVarianteForm.talla_id = data[0].id;
@@ -1036,7 +1038,13 @@ export class Dashboard implements OnInit {
   }
 
   cargarVariantesDePrenda(prendaId: number): void {
-    this.business.getVariantes(prendaId).subscribe((data) => this.variantesPrendaActual.set(data));
+    this.business.getVariantes(prendaId).subscribe((data) => {
+      this.variantesPrendaActual.set(data);
+      this.varianteImagenEdit = {};
+      for (const v of data) {
+        this.varianteImagenEdit[v.id] = v.imagen_url || '';
+      }
+    });
   }
 
   agregarVariante(): void {
@@ -1046,12 +1054,33 @@ export class Dashboard implements OnInit {
     this.business.createVariante(prenda.id, {
       talla_id: this.nuevaVarianteForm.talla_id,
       color_id: this.nuevaVarianteForm.color_id,
+      imagen_url: this.nuevaVarianteForm.imagen_url || undefined,
     }).subscribe({
       next: (nueva) => {
         this.variantesPrendaActual.update((prev) => [...prev, nueva]);
+        this.varianteImagenEdit[nueva.id] = nueva.imagen_url || '';
+        this.nuevaVarianteForm.imagen_url = '';
         this.mostrarAlerta('success', 'Variante agregada correctamente');
       },
       error: (err) => this.mostrarAlerta('danger', err.error?.detail || 'Error al agregar la variante'),
+    });
+  }
+
+  // Foto de referencia de este color específico, usada por el vestidor virtual (CU-14)
+  // en vez de la foto genérica de la prenda.
+  guardarImagenVariante(varianteId: number): void {
+    const prenda = this.prendaSeleccionadaVariantes();
+    if (!prenda) return;
+    const imagen_url = this.varianteImagenEdit[varianteId] || '';
+
+    this.business.actualizarVariante(prenda.id, varianteId, { imagen_url }).subscribe({
+      next: (actualizada) => {
+        this.variantesPrendaActual.update((prev) =>
+          prev.map((v) => (v.id === varianteId ? actualizada : v))
+        );
+        this.mostrarAlerta('success', 'Foto de la variante actualizada');
+      },
+      error: (err) => this.mostrarAlerta('danger', err.error?.detail || 'Error al actualizar la foto'),
     });
   }
 

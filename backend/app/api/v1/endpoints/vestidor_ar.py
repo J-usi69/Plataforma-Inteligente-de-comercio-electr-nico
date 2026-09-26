@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import get_db
 from app.core.config import settings
-from app.models.catalogo import Prenda
+from app.models.catalogo import Color, Prenda, VariantePrenda
 from app.schemas.vestidor_ar import TryOnCapabilities, TryOnJobOut
 
 router = APIRouter()
@@ -109,16 +109,31 @@ def capabilities():
 async def crear_generacion(
     prenda_id: int = Form(...),
     persona: UploadFile = File(...),
+    variante_id: int | None = Form(None),
     db: Session = Depends(get_db),
 ):
-    """CU-14: Generar una imagen del cliente probándose una prenda, usando IA (Replicate)"""
+    """CU-14: Generar una imagen del cliente probándose una prenda, usando IA (Replicate).
+
+    Si se indica variante_id, se usa la foto de referencia de ESE color (VariantePrenda.imagen_url)
+    en vez de la foto genérica de la prenda, para que el resultado respete el color elegido."""
     prenda = db.get(Prenda, prenda_id)
     if not prenda or not prenda.estado:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Prenda no encontrada")
-    if not prenda.imagen_url:
+
+    variante: VariantePrenda | None = None
+    color_nombre: str | None = None
+    if variante_id is not None:
+        variante = db.get(VariantePrenda, variante_id)
+        if not variante or variante.prenda_id != prenda_id or not variante.estado:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="La variante indicada no es válida para esta prenda")
+        color = db.get(Color, variante.color_id)
+        color_nombre = color.nombre if color else None
+
+    imagen_referencia = (variante.imagen_url if variante else None) or prenda.imagen_url
+    if not imagen_referencia:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="La prenda no tiene una imagen de referencia configurada para el vestidor virtual",
+            detail="Esta prenda todavía no tiene una imagen de referencia configurada para el vestidor virtual",
         )
 
     content = await persona.read()
@@ -151,14 +166,14 @@ async def crear_generacion(
     # El modelo indica que para fotos de referencia "con más de un elemento" (ej. una
     # modelo con fondo, en vez de una foto plana del producto) hay que decirle explícitamente
     # qué prenda usar con el prompt; si no, puede alucinar una prenda distinta.
-    prompt = f"Usa la prenda: {prenda.nombre}."
+    prompt = f"Usa la prenda: {prenda.nombre}" + (f", color {color_nombre}." if color_nombre else ".")
 
     try:
         prediction = client.predictions.create(
             model=settings.tryon_replicate_model.strip(),
             input={
                 "person_image": person_file,
-                "garment_images": [prenda.imagen_url],
+                "garment_images": [imagen_referencia],
                 "prompt": prompt,
                 "output_format": "jpg",
                 "output_quality": 95,

@@ -486,7 +486,7 @@ class _CatalogoScreenState extends State<CatalogoScreen> with RouteAware {
                                         OutlinedButton.icon(
                                           onPressed: () => context.push(
                                             '/vestidor-ar',
-                                            extra: p,
+                                            extra: {'prenda': p},
                                           ),
                                           icon: const Icon(
                                             Icons.view_in_ar,
@@ -734,7 +734,10 @@ class _ModalSeleccionarVarianteState extends State<_ModalSeleccionarVariante> {
                   onPressed: () {
                     final router = GoRouter.of(context);
                     Navigator.of(context).pop();
-                    router.push('/vestidor-ar', extra: widget.prenda);
+                    router.push('/vestidor-ar', extra: {
+                      'prenda': widget.prenda,
+                      'variante_id': _selectedVariant?['id'],
+                    });
                   },
                   icon: const Icon(Icons.view_in_ar, size: 16),
                   label: const Text('3D RA'),

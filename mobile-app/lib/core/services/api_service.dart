@@ -189,12 +189,16 @@ class ApiService {
     required int prendaId,
     required List<int> personaBytes,
     required String personaFilename,
+    int? varianteId,
   }) async {
     final request = http.MultipartRequest('POST', _uri('/api/v1/vestidor-ar/jobs'));
     if (token != null) {
       request.headers['Authorization'] = 'Bearer $token';
     }
     request.fields['prenda_id'] = prendaId.toString();
+    if (varianteId != null) {
+      request.fields['variante_id'] = varianteId.toString();
+    }
     request.files.add(
       http.MultipartFile.fromBytes('persona', personaBytes, filename: personaFilename),
     );

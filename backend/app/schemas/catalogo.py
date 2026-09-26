@@ -160,6 +160,7 @@ class VariantePrendaCreate(BaseModel):
     talla_id: int
     color_id: int
     codigo_barras: Optional[str] = None
+    imagen_url: Optional[str] = None
 
 
 class VariantePrendaUpdate(BaseModel):
@@ -167,6 +168,7 @@ class VariantePrendaUpdate(BaseModel):
     color_id: Optional[int] = None
     codigo_barras: Optional[str] = None
     estado: Optional[bool] = None
+    imagen_url: Optional[str] = None
 
 
 class VariantePrendaOut(BaseModel):
@@ -176,6 +178,7 @@ class VariantePrendaOut(BaseModel):
     color_id: int
     codigo_barras: str
     estado: bool
+    imagen_url: Optional[str] = None
     talla_nombre: Optional[str] = None
     color_nombre: Optional[str] = None
 

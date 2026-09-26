@@ -296,8 +296,19 @@ export class BusinessService {
     return this.http.get<VariantePrenda[]>(`${this.apiBase}/prendas/${prendaId}/variantes`);
   }
 
-  createVariante(prendaId: number, datos: { talla_id: number; color_id: number }): Observable<VariantePrenda> {
+  createVariante(
+    prendaId: number,
+    datos: { talla_id: number; color_id: number; imagen_url?: string }
+  ): Observable<VariantePrenda> {
     return this.http.post<VariantePrenda>(`${this.apiBase}/prendas/${prendaId}/variantes`, datos);
+  }
+
+  actualizarVariante(
+    prendaId: number,
+    varianteId: number,
+    datos: { imagen_url?: string; estado?: boolean }
+  ): Observable<VariantePrenda> {
+    return this.http.put<VariantePrenda>(`${this.apiBase}/prendas/${prendaId}/variantes/${varianteId}`, datos);
   }
 
   deleteVariante(prendaId: number, varianteId: number): Observable<{ message: string }> {
@@ -492,10 +503,11 @@ export class BusinessService {
     return this.http.get<VestidorCapabilities>(`${this.apiBase}/vestidor-ar/capabilities`);
   }
 
-  crearVestidorJob(prendaId: number, foto: Blob): Observable<VestidorJob> {
+  crearVestidorJob(prendaId: number, foto: Blob, varianteId?: number | null): Observable<VestidorJob> {
     const form = new FormData();
     form.append('prenda_id', String(prendaId));
     form.append('persona', foto, 'persona.jpg');
+    if (varianteId != null) form.append('variante_id', String(varianteId));
     return this.http.post<VestidorJob>(`${this.apiBase}/vestidor-ar/jobs`, form);
   }
 

@@ -38,9 +38,17 @@ final GoRouter appRouter = GoRouter(
     GoRoute(path: '/mis-compras', builder: (context, state) => const MisComprasScreen()),
     GoRoute(
       path: '/vestidor-ar',
-      builder: (context, state) => VestidorArScreen(
-        prenda: state.extra as Map<String, dynamic>?,
-      ),
+      builder: (context, state) {
+        final extra = state.extra;
+        if (extra is Map<String, dynamic> && extra.containsKey('prenda')) {
+          return VestidorArScreen(
+            prenda: extra['prenda'] as Map<String, dynamic>?,
+            varianteInicialId: extra['variante_id'] as int?,
+          );
+        }
+        // Compatibilidad: si llega el mapa de la prenda directo (sin envolver).
+        return VestidorArScreen(prenda: extra as Map<String, dynamic>?);
+      },
     ),
     GoRoute(path: '/asistente', builder: (context, state) => const ChatScreen()),
   ],

@@ -177,6 +177,7 @@ export interface VariantePrenda {
   color_id: number;
   codigo_barras: string;
   estado: boolean;
+  imagen_url?: string | null;
   talla_nombre?: string | null;
   color_nombre?: string | null;
 }

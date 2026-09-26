@@ -27,6 +27,7 @@ def _to_out(db: Session, variante: VariantePrenda) -> VariantePrendaOut:
         color_id=variante.color_id,
         codigo_barras=variante.codigo_barras,
         estado=variante.estado,
+        imagen_url=variante.imagen_url,
         talla_nombre=talla.nombre if talla else None,
         color_nombre=color.nombre if color else None,
     )
@@ -94,6 +95,7 @@ def crear_variante(
         color_id=datos.color_id,
         codigo_barras=codigo_barras,
         estado=True,
+        imagen_url=datos.imagen_url,
     )
     db.add(nueva)
     db.commit()
@@ -152,6 +154,8 @@ def actualizar_variante(
     variante.color_id = nuevo_color
     if datos.estado is not None:
         variante.estado = datos.estado
+    if datos.imagen_url is not None:
+        variante.imagen_url = datos.imagen_url
 
     db.commit()
     db.refresh(variante)

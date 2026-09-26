@@ -98,6 +98,9 @@ class VariantePrenda(Base):
     color_id: Mapped[int] = mapped_column(ForeignKey("color.id"))
     codigo_barras: Mapped[str] = mapped_column(String(50), unique=True)
     estado: Mapped[bool] = mapped_column(Boolean, default=True)
+    # Foto de referencia de ESTE color específico para el vestidor virtual (CU-14).
+    # Si es NULL, se usa la foto genérica de Prenda.imagen_url como respaldo.
+    imagen_url: Mapped[str | None] = mapped_column(String(500))
 
     prenda: Mapped["Prenda"] = relationship(back_populates="variantes")
 

@@ -305,6 +305,7 @@ export class Listado implements OnInit {
 
   // --- CU-14: Vestidor virtual ---
   vestidorPrenda = signal<Prenda | null>(null);
+  vestidorVarianteId = signal<number | null>(null);
 
   prendasFiltradas = computed(() => {
     let list = this.prendas();
@@ -477,6 +478,8 @@ export class Listado implements OnInit {
   // --- CU-14: Vestidor virtual ---
   abrirVestidor(p: Prenda): void {
     this.vestidorPrenda.set(p);
+    // Arranca con el color/talla ya elegido en el modal de la prenda, si había uno.
+    this.vestidorVarianteId.set(this.modalVarianteId());
   }
 
   cerrarVestidor(): void {
