@@ -3,6 +3,7 @@ import 'package:flutter_stripe/flutter_stripe.dart' hide Card;
 import 'package:go_router/go_router.dart';
 import '../../core/services/api_service.dart';
 import '../../core/services/cart_service.dart';
+import 'pago_qr_libelula.dart';
 
 class CarritoScreen extends StatefulWidget {
   const CarritoScreen({super.key});
@@ -485,9 +486,12 @@ class _ModalPagoDigital extends StatefulWidget {
   State<_ModalPagoDigital> createState() => _ModalPagoDigitalState();
 }
 
+enum _MetodoPago { tarjeta, qr }
+
 class _ModalPagoDigitalState extends State<_ModalPagoDigital> {
   final _apiService = ApiService();
   bool _isPaying = false;
+  _MetodoPago _metodo = _MetodoPago.tarjeta;
 
   // Pago con tarjeta: crea el PaymentIntent en el backend, lo confirma con Stripe
   // usando los datos que el usuario cargó en el CardField (nunca pasan por nuestro
@@ -617,11 +621,23 @@ class _ModalPagoDigitalState extends State<_ModalPagoDigital> {
               'Total a cancelar: Bs. ${widget.total.toStringAsFixed(2)}',
               style: const TextStyle(color: Color(0xFF4F46E5), fontWeight: FontWeight.w700, fontSize: 16),
             ),
-            const SizedBox(height: 20),
-            SizedBox(
-              height: 220,
-              child: _buildVistaTarjeta(),
+            const SizedBox(height: 16),
+            SegmentedButton<_MetodoPago>(
+              segments: const [
+                ButtonSegment(value: _MetodoPago.tarjeta, icon: Icon(Icons.credit_card), label: Text('Tarjeta')),
+                ButtonSegment(value: _MetodoPago.qr, icon: Icon(Icons.qr_code_2), label: Text('QR (Libélula)')),
+              ],
+              selected: {_metodo},
+              onSelectionChanged: _isPaying ? null : (seleccion) => setState(() => _metodo = seleccion.first),
             ),
+            const SizedBox(height: 20),
+            if (_metodo == _MetodoPago.tarjeta)
+              SizedBox(
+                height: 220,
+                child: _buildVistaTarjeta(),
+              )
+            else
+              PagoQrLibelula(ventaId: widget.ventaId, onPagado: _finalizarPago),
           ],
         ),
       ),

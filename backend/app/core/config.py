@@ -12,6 +12,12 @@ class Settings(BaseSettings):
     payment_gateway_api_key: str = ""
     stripe_secret_key: str = ""
     stripe_webhook_secret: str = ""
+    # Libélula (pasarela boliviana, pago con QR Simple). Sin appkey funciona en modo de prueba.
+    libelula_appkey: str = ""
+    libelula_api_url: str = "https://api.libelula.bo"
+    # URLs públicas: donde Libélula avisa el pago (backend) y adonde devuelve al cliente (frontend)
+    backend_public_url: str = "https://fashionstore-backend-production-4c32.up.railway.app"
+    frontend_public_url: str = "https://fashionstore-uagrm.up.railway.app"
     ai_api_key: str = ""
     gemini_api_key: str = ""
     gemini_model: str = "gemini-3.6-flash"

@@ -116,8 +116,30 @@
       </div>
     </div>
 
-    <!-- Stripe Elements monta aquí el iframe seguro de la tarjeta -->
-    <div style="margin: 1.5rem 0;">
+    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.5rem;">
+      <button
+        type="button"
+        class="btn btn-secondary"
+        [style.background]="metodoPago() === 'tarjeta' ? '#4f46e5' : '#ffffff'"
+        [style.color]="metodoPago() === 'tarjeta' ? '#ffffff' : '#0f172a'"
+        (click)="metodoPago.set('tarjeta')"
+      >
+        💳 Tarjeta
+      </button>
+      <button
+        type="button"
+        class="btn btn-secondary"
+        [style.background]="metodoPago() === 'qr' ? '#4f46e5' : '#ffffff'"
+        [style.color]="metodoPago() === 'qr' ? '#ffffff' : '#0f172a'"
+        (click)="metodoPago.set('qr')"
+      >
+        📱 QR (Libélula)
+      </button>
+    </div>
+
+    <!-- Stripe Elements monta aquí el iframe seguro de la tarjeta. Se oculta (no se quita) al
+         elegir QR, para no perder lo que ya se escribió. -->
+    <div style="margin: 1.5rem 0;" [style.display]="metodoPago() === 'tarjeta' ? 'block' : 'none'">
       <div class="form-group">
         <label>Datos de la Tarjeta</label>
         <div id="stripe-card-element" style="padding: 0.75rem; border: 1px solid #cbd5e1; border-radius: 8px; background: #ffffff;"></div>
@@ -128,9 +150,14 @@
       </p>
     </div>
 
+    <div *ngIf="metodoPago() === 'qr' && ventaEnProceso() as venta" style="margin: 1.5rem 0;">
+      <app-pago-qr-libelula [ventaId]="venta.id" (pagado)="onPagoQrCompletado()"></app-pago-qr-libelula>
+    </div>
+
     <div style="display: flex; gap: 0.75rem; margin-top: 1.5rem;">
       <button type="button" class="btn btn-secondary" style="flex: 1;" (click)="cerrarModalPasarela()">Cancelar</button>
       <button
+        *ngIf="metodoPago() === 'tarjeta'"
         type="button"
         class="btn btn-primary"
         style="flex: 2;"

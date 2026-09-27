@@ -161,7 +161,7 @@
 
     <div class="form-group">
       <label>Método de Pago:</label>
-      <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.5rem; margin-top: 0.5rem;">
+      <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem; margin-top: 0.5rem;">
         <button
           type="button"
           class="btn btn-secondary"
@@ -180,7 +180,21 @@
         >
           💳 Tarjeta POS
         </button>
+        <button
+          type="button"
+          class="btn btn-secondary"
+          [style.background]="metodoPago === 'qr' ? '#4f46e5' : '#ffffff'"
+          [style.color]="metodoPago === 'qr' ? '#ffffff' : '#0f172a'"
+          (click)="metodoPago = 'qr'"
+        >
+          📱 QR (Libélula)
+        </button>
       </div>
+    </div>
+
+    <!-- El cliente escanea el QR desde la pantalla de caja; al confirmarse el pago se emite el ticket -->
+    <div *ngIf="metodoPago === 'qr' && ventaCreada() as venta" style="margin-top: 1.25rem;">
+      <app-pago-qr-libelula [ventaId]="venta.id" (pagado)="onPagoQrCompletado()"></app-pago-qr-libelula>
     </div>
 
     <div *ngIf="metodoPago === 'efectivo'" class="form-group" style="margin-top: 1.25rem;">
@@ -202,6 +216,7 @@
     <div style="display: flex; gap: 0.75rem; margin-top: 2rem;">
       <button type="button" class="btn btn-secondary" style="flex: 1;" (click)="showModalCobro.set(false)">Cancelar</button>
       <button
+        *ngIf="metodoPago !== 'qr'"
         type="button"
         class="btn btn-primary"
         style="flex: 2;"

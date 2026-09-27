@@ -7,6 +7,7 @@ import { ComprobanteVenta, Sucursal, Venta } from '../../../core/models/user.mod
 import { AuthService } from '../../../core/services/auth.service';
 import { BusinessService } from '../../../core/services/business.service';
 import { CartService } from '../../../core/services/cart.service';
+import { PagoQrLibelula } from '../pago-qr-libelula/pago-qr-libelula';
 
 // Stripe.js se carga por <script> en index.html (no via npm) y expone `Stripe` en window.
 declare const Stripe: any;
@@ -14,7 +15,7 @@ declare const Stripe: any;
 @Component({
   selector: 'app-carrito',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, PagoQrLibelula],
   templateUrl: './carrito.html',
   styles: [`
     .cart-grid {
@@ -77,8 +78,9 @@ export class Carrito implements OnInit {
   sucursales = signal<Sucursal[]>([]);
   isLoading = signal(false);
 
-  // Pasarela de pago digital
+  // Pasarela de pago digital: tarjeta (Stripe) o QR (Libélula)
   showModalPasarela = signal(false);
+  metodoPago = signal<'tarjeta' | 'qr'>('tarjeta');
   ventaEnProceso = signal<Venta | null>(null);
   comprobanteEmitido = signal<ComprobanteVenta | null>(null);
 
@@ -123,6 +125,7 @@ export class Carrito implements OnInit {
       next: (venta) => {
         this.ventaEnProceso.set(venta);
         this.isLoading.set(false);
+        this.metodoPago.set('tarjeta');
         this.showModalPasarela.set(true);
         this.montarStripeCard();
       },
@@ -203,6 +206,14 @@ export class Carrito implements OnInit {
     this.stripeCardElement?.destroy();
     this.stripeCardElement = null;
     this.stripeCardMontado = false;
+  }
+
+  // El QR de Libélula ya confirmó el pago en el backend: solo queda cerrar y mostrar el comprobante
+  onPagoQrCompletado(): void {
+    const venta = this.ventaEnProceso();
+    if (!venta) return;
+    this.isLoading.set(true);
+    this.finalizarCompra(venta.id);
   }
 
   private finalizarCompra(ventaId: number): void {

@@ -12,6 +12,7 @@ import {
 import { AuthService } from '../../../core/services/auth.service';
 import { BusinessService } from '../../../core/services/business.service';
 import { descargarComprobantePdf } from '../../../core/utils/comprobante-pdf';
+import { PagoQrLibelula } from '../pago-qr-libelula/pago-qr-libelula';
 
 interface VentaItemFila {
   variante_id: number;
@@ -25,7 +26,7 @@ interface VentaItemFila {
 @Component({
   selector: 'app-caja-pos',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, PagoQrLibelula],
   templateUrl: './caja-pos.html',
   styles: [`
     .caja-hero {
@@ -243,6 +244,8 @@ export class CajaPos implements OnInit {
         this.ventaCreada.set(venta);
         this.isLoading.set(false);
         this.montoRecibido = venta.total;
+        // Siempre arranca en efectivo: el QR se genera recién cuando el cajero lo elige
+        this.metodoPago = 'efectivo';
         this.showModalCobro.set(true);
       },
       error: (err) => {
@@ -264,21 +267,32 @@ export class CajaPos implements OnInit {
         monto_recibido: this.metodoPago === 'efectivo' ? this.montoRecibido : venta.total,
       })
       .subscribe({
-        next: () => {
-          this.showModalCobro.set(false);
-          // Obtener y mostrar comprobante de venta
-          this.business.getComprobanteVenta(venta.id).subscribe((comp) => {
-            this.comprobanteEmitido.set(comp);
-            this.isLoading.set(false);
-            this.limpiarVenta();
-            this.cargarReservasAtendidas();
-          });
-        },
+        next: () => this.emitirTicket(venta.id),
         error: (err) => {
           this.isLoading.set(false);
           alert(err.error?.detail || 'Error al procesar pago');
         },
       });
+  }
+
+  // El QR de Libélula ya confirmó el pago en el backend: solo queda emitir el ticket
+  onPagoQrCompletado(): void {
+    const venta = this.ventaCreada();
+    if (!venta) return;
+    this.isLoading.set(true);
+    this.emitirTicket(venta.id);
+  }
+
+  private emitirTicket(ventaId: number): void {
+    this.showModalCobro.set(false);
+    this.metodoPago = 'efectivo';
+    // Obtener y mostrar comprobante de venta
+    this.business.getComprobanteVenta(ventaId).subscribe((comp) => {
+      this.comprobanteEmitido.set(comp);
+      this.isLoading.set(false);
+      this.limpiarVenta();
+      this.cargarReservasAtendidas();
+    });
   }
 
   cerrarComprobante(): void {

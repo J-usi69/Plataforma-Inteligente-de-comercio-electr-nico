@@ -243,6 +243,23 @@ export interface Pago {
   fecha_pago: string;
 }
 
+// Pago con QR de Libélula (pasarela boliviana). En modo de prueba (backend sin appkey) el QR es
+// de demostración y el pago se confirma con "Simular pago".
+export interface QrLibelula {
+  pago_id: number;
+  transaccion_id: string;
+  qr_url: string; // URL de Libélula o data URI
+  url_pasarela?: string | null;
+  monto: number;
+  modo_prueba: boolean;
+}
+
+export interface EstadoPagoQr {
+  pagado: boolean;
+  estado_venta: string;
+  modo_prueba: boolean;
+}
+
 export interface Venta {
   id: number;
   usuario_id?: number | null;

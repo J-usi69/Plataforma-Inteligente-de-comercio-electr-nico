@@ -44,6 +44,22 @@ class IntentoPagoOut(BaseModel):
     client_secret: str
 
 
+class QrLibelulaOut(BaseModel):
+    pago_id: int
+    transaccion_id: str
+    # Imagen del QR: URL de Libélula o data URI (modo de prueba / comercio sin QR Simple)
+    qr_url: str
+    url_pasarela: Optional[str] = None
+    monto: float
+    modo_prueba: bool
+
+
+class EstadoPagoQrOut(BaseModel):
+    pagado: bool
+    estado_venta: str
+    modo_prueba: bool
+
+
 class PagoOut(BaseModel):
     id: int
     venta_id: int

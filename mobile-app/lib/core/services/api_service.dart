@@ -302,6 +302,22 @@ class ApiService {
     return res['client_secret'] as String;
   }
 
+  // Pago con QR (Libélula). Devuelve qr_url (URL o data URI), url_pasarela, monto y modo_prueba
+  // (backend sin appkey de Libélula: QR de demostración y pago con "Simular pago").
+  Future<Map<String, dynamic>> generarQrLibelula(int ventaId) async {
+    final res = await post('/api/v1/ventas/$ventaId/qr-libelula', {});
+    return Map<String, dynamic>.from(res);
+  }
+
+  Future<bool> qrLibelulaPagado(int ventaId) async {
+    final res = await get('/api/v1/ventas/$ventaId/qr-libelula/estado');
+    return res['pagado'] == true;
+  }
+
+  Future<void> simularPagoQrLibelula(int ventaId) async {
+    await post('/api/v1/ventas/$ventaId/qr-libelula/simular-pago', {});
+  }
+
   // Obtener comprobante digital oficial de venta
   Future<Map<String, dynamic>> getComprobanteVenta(int ventaId) async {
     final res = await get('/api/v1/ventas/comprobante/$ventaId');

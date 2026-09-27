@@ -22,14 +22,16 @@ from app.schemas.venta import (
     ComprobanteItemOut,
     ComprobanteVentaOut,
     DetalleVentaOut,
+    EstadoPagoQrOut,
     IntentoPagoOut,
     PagoDigitalCreate,
     PagoOut,
+    QrLibelulaOut,
     VentaDigitalCreate,
     VentaOut,
     VentaPresencialCreate,
 )
-from app.services import push_service
+from app.services import libelula_service, push_service
 
 router = APIRouter()
 
@@ -186,6 +188,56 @@ def _ventas_a_out_bulk(db: Session, ventas: List[Venta]) -> List[VentaOut]:
     return resultado
 
 
+def _cerrar_venta_pagada(db: Session, venta: Venta, usuario_id: Optional[int], ahora: datetime) -> None:
+    """Descuenta del inventario lo vendido, registra el kardex y marca la venta como pagada
+    (sin commit). La usan todos los cobros: caja, tarjeta con Stripe y QR con Libélula."""
+    detalles = db.scalars(select(DetalleVenta).where(DetalleVenta.venta_id == venta.id)).all()
+
+    for d in detalles:
+        inv = db.scalars(
+            select(InventarioSucursal).where(
+                InventarioSucursal.variante_id == d.variante_id,
+                InventarioSucursal.sucursal_id == venta.sucursal_id,
+            )
+        ).first()
+
+        if inv:
+            if venta.reserva_id is not None:
+                # Venía de reserva: ya estaba en stock_reservado
+                inv.stock_reservado = max(0, inv.stock_reservado - d.cantidad)
+            else:
+                # Venta directa: se descuenta del disponible
+                inv.stock_disponible = max(0, inv.stock_disponible - d.cantidad)
+
+        # Registrar movimiento kardex
+        db.add(
+            MovimientoInventario(
+                variante_id=d.variante_id,
+                sucursal_id=venta.sucursal_id,
+                tipo_movimiento=TipoMovimiento.venta,
+                cantidad=d.cantidad,
+                referencia_id=venta.id,
+                referencia_tipo="venta_presencial" if venta.tipo_origen == CanalVenta.presencial else "venta_digital",
+                usuario_id=usuario_id,
+                fecha=ahora,
+            )
+        )
+
+    venta.estado = EstadoVenta.pagada
+
+
+def _venta_accesible(db: Session, venta_id: int, current_user: Usuario) -> Venta:
+    """La venta, si es del usuario o si es personal de ventas; si no, 404 (no se revela que exista)."""
+    venta = db.get(Venta, venta_id)
+    if not venta:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Venta no encontrada")
+    if venta.usuario_id != current_user.id:
+        roles = get_user_roles(current_user.id, db)
+        if not any(rol in _ROLES_STAFF_VENTA for rol in roles):
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Venta no encontrada")
+    return venta
+
+
 # ==============================================================================
 # Registrar Venta Presencial (Cajero)
 # ==============================================================================
@@ -334,39 +386,7 @@ def procesar_pago_en_caja(
     db.add(nuevo_pago)
 
     # 2. Descontar Inventario según origen
-    detalles = db.scalars(select(DetalleVenta).where(DetalleVenta.venta_id == venta.id)).all()
-
-    for d in detalles:
-        inv = db.scalars(
-            select(InventarioSucursal).where(
-                InventarioSucursal.variante_id == d.variante_id,
-                InventarioSucursal.sucursal_id == venta.sucursal_id,
-            )
-        ).first()
-
-        if inv:
-            if venta.reserva_id is not None:
-                # Venía de reserva: ya estaba en stock_reservado
-                inv.stock_reservado = max(0, inv.stock_reservado - d.cantidad)
-            else:
-                # Venta directa: se descuenta del disponible
-                inv.stock_disponible = max(0, inv.stock_disponible - d.cantidad)
-
-        # Registrar movimiento kardex
-        db.add(
-            MovimientoInventario(
-                variante_id=d.variante_id,
-                sucursal_id=venta.sucursal_id,
-                tipo_movimiento=TipoMovimiento.venta,
-                cantidad=d.cantidad,
-                referencia_id=venta.id,
-                referencia_tipo="venta_presencial",
-                usuario_id=current_user.id,
-                fecha=ahora,
-            )
-        )
-
-    venta.estado = EstadoVenta.pagada
+    _cerrar_venta_pagada(db, venta, current_user.id, ahora)
     db.commit()
     db.refresh(venta)
 
@@ -559,32 +579,7 @@ def procesar_pago_electronico(
     db.add(nuevo_pago)
 
     # Descontar inventario digital
-    detalles = db.scalars(select(DetalleVenta).where(DetalleVenta.venta_id == venta.id)).all()
-    for d in detalles:
-        inv = db.scalars(
-            select(InventarioSucursal).where(
-                InventarioSucursal.variante_id == d.variante_id,
-                InventarioSucursal.sucursal_id == venta.sucursal_id,
-            )
-        ).first()
-
-        if inv:
-            inv.stock_disponible = max(0, inv.stock_disponible - d.cantidad)
-
-        db.add(
-            MovimientoInventario(
-                variante_id=d.variante_id,
-                sucursal_id=venta.sucursal_id,
-                tipo_movimiento=TipoMovimiento.venta,
-                cantidad=d.cantidad,
-                referencia_id=venta.id,
-                referencia_tipo="venta_digital",
-                usuario_id=current_user.id,
-                fecha=ahora,
-            )
-        )
-
-    venta.estado = EstadoVenta.pagada
+    _cerrar_venta_pagada(db, venta, current_user.id, ahora)
     db.commit()
     db.refresh(venta)
 
@@ -599,6 +594,228 @@ def procesar_pago_electronico(
         )
 
     return _venta_a_out(db, venta)
+
+
+# ==============================================================================
+# Pago con QR (Libélula)
+# ==============================================================================
+_PASARELA_LIBELULA = "Libélula"
+
+
+def _pagos_qr_pendientes(db: Session, venta_id: int) -> List[Pago]:
+    """Pagos QR de la venta que esperan confirmación, los más nuevos primero. Puede haber más
+    de uno si el QR se generó de nuevo: cualquiera que se pague cierra la venta."""
+    return list(
+        db.scalars(
+            select(Pago)
+            .where(
+                Pago.venta_id == venta_id,
+                Pago.pasarela.like(f"{_PASARELA_LIBELULA}%"),
+                Pago.estado == EstadoPago.pendiente,
+                Pago.transaccion_id.isnot(None),
+            )
+            .order_by(Pago.id.desc())
+            .limit(3)
+        ).all()
+    )
+
+
+def _libelula_confirma_pago(pago: Pago, venta: Venta) -> bool:
+    """Le pregunta a Libélula si la deuda de este pago está pagada y por el total de la venta."""
+    try:
+        deuda = libelula_service.consultar_deuda(libelula_service.identificador_de_pago(pago.id))
+    except libelula_service.LibelulaError:
+        return False
+    if not deuda or str(deuda.get("pagado")).lower() not in ("true", "1"):
+        return False
+    try:
+        return abs(float(deuda.get("valor_total")) - float(venta.total)) < 0.01
+    except (TypeError, ValueError):
+        return False
+
+
+def _aprobar_pago_qr(db: Session, venta_id: int, pago: Pago, actor_id: Optional[int], ip: Optional[str]) -> bool:
+    """Aprueba el pago QR y cierra la venta. El callback de Libélula y la consulta del estado
+    pueden llegar a la vez: la fila de la venta se bloquea para no descontar el stock dos
+    veces. Devuelve False si la venta ya no estaba pendiente."""
+    venta = db.scalars(
+        select(Venta).where(Venta.id == venta_id).with_for_update().execution_options(populate_existing=True)
+    ).first()
+    if not venta or venta.estado != EstadoVenta.pendiente:
+        db.rollback()
+        return False
+
+    ahora = datetime.now(timezone.utc)
+    pago.estado = EstadoPago.aprobado
+    pago.fecha_pago = ahora
+    actor_id = actor_id or venta.usuario_id
+    _cerrar_venta_pagada(db, venta, actor_id, ahora)
+    db.commit()
+
+    if actor_id is not None:
+        registrar_bitacora(db, actor_id, f"Pago con QR (Libélula) aprobado para venta #{venta.id} ({pago.transaccion_id})", ip)
+    if venta.usuario_id is not None:
+        push_service.enviar_push_a_usuario(
+            db, venta.usuario_id,
+            "Pago aprobado",
+            f"Tu pago con QR de Bs. {venta.total} fue aprobado. ¡Gracias por tu compra!",
+        )
+    return True
+
+
+@router.post("/{venta_id}/qr-libelula", response_model=QrLibelulaOut)
+def generar_qr_libelula(
+    venta_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: Usuario = Depends(get_current_active_user),
+):
+    """Registra la venta como deuda en Libélula y devuelve el QR para pagarla con la app del
+    banco. Sirve para la compra digital del cliente y para el cobro en caja."""
+    venta = _venta_accesible(db, venta_id, current_user)
+    if venta.estado != EstadoVenta.pendiente:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Esta venta ya fue pagada o anulada")
+
+    lineas = []
+    for d in db.scalars(select(DetalleVenta).where(DetalleVenta.venta_id == venta.id)).all():
+        variante = db.get(VariantePrenda, d.variante_id)
+        prenda = db.get(Prenda, variante.prenda_id) if variante else None
+        talla = db.get(Talla, variante.talla_id) if variante else None
+        color = db.get(Color, variante.color_id) if variante else None
+        nombre = prenda.nombre if prenda else "Prenda"
+
+        # Pagar con QR puede tardar unos minutos: se revisa que el stock siga alcanzando
+        if venta.reserva_id is None:
+            inv = db.scalars(
+                select(InventarioSucursal).where(
+                    InventarioSucursal.variante_id == d.variante_id,
+                    InventarioSucursal.sucursal_id == venta.sucursal_id,
+                )
+            ).first()
+            if not inv or inv.stock_disponible < d.cantidad:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Ya no hay stock suficiente de '{nombre}' en la sucursal",
+                )
+
+        lineas.append({
+            "concepto": " ".join(p for p in [nombre, f"T-{talla.nombre}" if talla else "", color.nombre if color else ""] if p),
+            "cantidad": d.cantidad,
+            "costo_unitario": float(d.precio_unitario),
+        })
+
+    cliente = db.get(Usuario, venta.usuario_id) if venta.usuario_id else None
+    pago = Pago(
+        venta_id=venta.id,
+        metodo_pago="qr",
+        pasarela=_PASARELA_LIBELULA + (" (prueba)" if libelula_service.modo_prueba() else ""),
+        estado=EstadoPago.pendiente,
+        monto=venta.total,
+        transaccion_id=None,
+        fecha_pago=datetime.now(timezone.utc),
+    )
+    db.add(pago)
+    db.flush()  # el id del pago arma el identificador de la deuda en Libélula
+
+    try:
+        deuda = libelula_service.registrar_deuda(
+            identificador=libelula_service.identificador_de_pago(pago.id),
+            # Venta de mostrador sin cliente registrado: el aviso de Libélula le llega al cajero
+            email_cliente=(cliente or current_user).correo,
+            nombre_cliente=None,
+            descripcion=f"Compra FashionStore #{venta.id}",
+            lineas=lineas,
+        )
+    except libelula_service.LibelulaError as exc:
+        db.rollback()
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc))
+
+    pago.transaccion_id = deuda["id_transaccion"]
+    db.commit()
+    registrar_bitacora(db, current_user.id, f"QR de pago (Libélula) generado para venta #{venta.id}", get_client_ip(request))
+
+    return QrLibelulaOut(
+        pago_id=pago.id,
+        transaccion_id=deuda["id_transaccion"],
+        qr_url=deuda["qr_url"],
+        url_pasarela=deuda["url_pasarela"],
+        monto=float(venta.total),
+        modo_prueba=libelula_service.modo_prueba(),
+    )
+
+
+@router.get("/{venta_id}/qr-libelula/estado", response_model=EstadoPagoQrOut)
+def consultar_estado_qr_libelula(
+    venta_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: Usuario = Depends(get_current_active_user),
+):
+    """El frontend lo consulta cada pocos segundos mientras muestra el QR. Además de esperar el
+    callback, acá se le pregunta a Libélula directamente por si el aviso no llega (por ejemplo,
+    con el backend corriendo en localhost)."""
+    venta = _venta_accesible(db, venta_id, current_user)
+    if venta.estado == EstadoVenta.pendiente and not libelula_service.modo_prueba():
+        for pago in _pagos_qr_pendientes(db, venta.id):
+            if _libelula_confirma_pago(pago, venta):
+                _aprobar_pago_qr(db, venta.id, pago, current_user.id, get_client_ip(request))
+                break
+        db.refresh(venta)
+
+    return EstadoPagoQrOut(
+        pagado=venta.estado == EstadoVenta.pagada,
+        estado_venta=venta.estado.value,
+        modo_prueba=libelula_service.modo_prueba(),
+    )
+
+
+@router.post("/{venta_id}/qr-libelula/simular-pago", response_model=VentaOut)
+def simular_pago_qr_libelula(
+    venta_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: Usuario = Depends(get_current_active_user),
+):
+    """Solo en modo de prueba (sin LIBELULA_APPKEY): hace de cuenta que se pagó el QR, para
+    mostrar el flujo completo sin cuenta de comercio. Con la llave real no existe."""
+    if not libelula_service.modo_prueba():
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Solo disponible en modo de prueba")
+    venta = _venta_accesible(db, venta_id, current_user)
+    if venta.estado != EstadoVenta.pendiente:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Esta venta ya fue pagada o anulada")
+    pendientes = _pagos_qr_pendientes(db, venta.id)
+    if not pendientes:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Primero genera el QR de pago")
+
+    _aprobar_pago_qr(db, venta.id, pendientes[0], current_user.id, get_client_ip(request))
+    db.refresh(venta)
+    return _venta_a_out(db, venta)
+
+
+@router.api_route("/libelula/callback", methods=["GET", "POST"])
+def callback_pago_libelula(
+    transaction_id: str,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    """Libélula avisa acá que se pagó una deuda (?transaction_id=..., más invoice_id e
+    invoice_url si emitió factura). Es público y el aviso no viene firmado: no se le cree,
+    se confirma consultando la deuda en Libélula antes de aprobar."""
+    pago = db.scalars(
+        select(Pago).where(Pago.transaccion_id == transaction_id, Pago.pasarela.like(f"{_PASARELA_LIBELULA}%"))
+    ).first()
+    if not pago:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Transacción desconocida")
+
+    venta = db.get(Venta, pago.venta_id)
+    if venta.estado == EstadoVenta.pagada:
+        return {"ok": True, "mensaje": "La venta ya estaba pagada"}
+    # En modo de prueba no hay una Libélula real que confirme: un aviso así no aprueba nada
+    if libelula_service.modo_prueba() or not _libelula_confirma_pago(pago, venta):
+        return {"ok": False, "mensaje": "Libélula no confirma el pago de esta transacción"}
+
+    _aprobar_pago_qr(db, venta.id, pago, None, get_client_ip(request))
+    return {"ok": True, "mensaje": "Pago registrado"}
 
 
 # ==============================================================================

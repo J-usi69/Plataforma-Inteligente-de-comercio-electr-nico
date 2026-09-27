@@ -11,6 +11,7 @@ import {
   DashboardReporte,
   DisponibilidadProveedor,
   DisponibilidadSucursal,
+  EstadoPagoQr,
   InventarioGlobalItem,
   InventarioVariante,
   MovimientoManual,
@@ -19,6 +20,7 @@ import {
   Prenda,
   PrendaVendida,
   Proveedor,
+  QrLibelula,
   QuiebreStock,
   Reserva,
   Rol,
@@ -433,6 +435,19 @@ export class BusinessService {
 
   crearIntentoPagoStripe(ventaId: number): Observable<{ client_secret: string }> {
     return this.http.post<{ client_secret: string }>(`${this.apiBase}/ventas/${ventaId}/crear-intento-pago`, {});
+  }
+
+  // Pago con QR (Libélula): sirve para la compra digital y para el cobro en caja
+  generarQrLibelula(ventaId: number): Observable<QrLibelula> {
+    return this.http.post<QrLibelula>(`${this.apiBase}/ventas/${ventaId}/qr-libelula`, {});
+  }
+
+  getEstadoQrLibelula(ventaId: number): Observable<EstadoPagoQr> {
+    return this.http.get<EstadoPagoQr>(`${this.apiBase}/ventas/${ventaId}/qr-libelula/estado`);
+  }
+
+  simularPagoQrLibelula(ventaId: number): Observable<Venta> {
+    return this.http.post<Venta>(`${this.apiBase}/ventas/${ventaId}/qr-libelula/simular-pago`, {});
   }
 
   // --- Comprobante oficial de venta ---
