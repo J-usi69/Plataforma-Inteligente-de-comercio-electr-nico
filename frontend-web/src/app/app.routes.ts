@@ -20,4 +20,9 @@ export const routes: Routes = [
   { path: 'caja', component: CajaPos },
   { path: 'proveedor', component: PanelProveedor },
   { path: 'admin', component: Dashboard },
+  // CU-14: probador AR (MediaPipe) a pantalla completa, lo abre la app móvil dentro de un WebView
+  {
+    path: 'probador-ar',
+    loadComponent: () => import('./features/catalogo/probador-ar/probador-ar').then((m) => m.ProbadorAr),
+  },
 ];

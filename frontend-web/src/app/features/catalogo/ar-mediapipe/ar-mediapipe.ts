@@ -23,6 +23,14 @@ const CLASE_ROPA = 4;
 export type ZonaCorporal = 'superior' | 'inferior' | 'vestido' | 'calzado';
 type EstadoAr = 'cargando' | 'listo' | 'sin-camara' | 'error';
 
+export function zonaDeCategoria(categoria?: string | null): ZonaCorporal {
+  const nombre = (categoria || '').toLowerCase();
+  if (nombre.includes('vestido')) return 'vestido';
+  if (nombre.includes('pantal') || nombre.includes('jean')) return 'inferior';
+  if (nombre.includes('calzado') || nombre.includes('zapat')) return 'calzado';
+  return 'superior';
+}
+
 interface Modelos {
   pose: PoseLandmarker;
   segmentador: ImageSegmenter;
@@ -157,7 +165,12 @@ function recortarPrenda(img: HTMLImageElement, segmentador: ImageSegmenter): { c
   template: `
     <div class="ar-contenedor">
       <video #video autoplay playsinline muted class="ar-video-oculto"></video>
-      <canvas #lienzo class="ar-lienzo" [class.ar-lienzo-visible]="estado() === 'listo'"></canvas>
+      <canvas
+        #lienzo
+        class="ar-lienzo"
+        [class.ar-lienzo-visible]="estado() === 'listo'"
+        [style.max-height]="altoMaximo"
+      ></canvas>
 
       <div *ngIf="estado() === 'cargando'" class="ar-estado">
         <div style="font-size: 2.2rem;">⏳</div>
@@ -176,7 +189,7 @@ function recortarPrenda(img: HTMLImageElement, segmentador: ImageSegmenter): { c
 
     <div *ngIf="estado() === 'listo'" class="ar-barra">
       <span>{{ fps() }} FPS · {{ personaDetectada() ? 'persona detectada' : 'buscando persona...' }} · recorte: {{ metodoRecorte() }}</span>
-      <button class="btn btn-secondary btn-sm" (click)="capturar()">📸 Capturar</button>
+      <button *ngIf="permitirCaptura" class="btn btn-secondary btn-sm" (click)="capturar()">📸 Capturar</button>
     </div>
   `,
   styles: [`
@@ -191,6 +204,9 @@ function recortarPrenda(img: HTMLImageElement, segmentador: ImageSegmenter): { c
 export class ArMediapipe implements AfterViewInit, OnChanges, OnDestroy {
   @Input() imagenUrl: string | null = null;
   @Input() zona: ZonaCorporal = 'superior';
+  @Input() altoMaximo = '420px';
+  // Dentro de la app móvil (WebView) no se pueden descargar archivos
+  @Input() permitirCaptura = true;
 
   @ViewChild('video') videoRef!: ElementRef<HTMLVideoElement>;
   @ViewChild('lienzo') lienzoRef!: ElementRef<HTMLCanvasElement>;

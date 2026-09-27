@@ -1,4 +1,4 @@
-<header class="navbar">
+<header *ngIf="!pantallaLimpia()" class="navbar">
   <a routerLink="/" class="brand">
     <div class="brand-icon">
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
@@ -105,9 +105,9 @@
 </main>
 
 <!-- CU-29: Asistente conversacional, disponible incluso sin sesión iniciada; oculto para el personal (tienen sus propios paneles) -->
-<app-chat-widget *ngIf="!authService.isAdmin() && !authService.isEncargado() && !authService.isCajero() && !authService.isProveedor()"></app-chat-widget>
+<app-chat-widget *ngIf="!pantallaLimpia() && !authService.isAdmin() && !authService.isEncargado() && !authService.isCajero() && !authService.isProveedor()"></app-chat-widget>
 
-<footer class="footer">
+<footer *ngIf="!pantallaLimpia()" class="footer">
   <div style="max-width: 1200px; margin: 0 auto; display: flex; flex-direction: column; align-items: center; gap: 0.5rem;">
     <div style="font-weight: 700; color: #0f172a; font-size: 0.95rem;">FashionStore — Plataforma Inteligente de Comercio Electrónico</div>
     <div style="font-size: 0.8rem; color: #64748b;">

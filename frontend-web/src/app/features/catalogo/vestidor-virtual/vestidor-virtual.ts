@@ -15,7 +15,7 @@ import {
 import { FormsModule } from '@angular/forms';
 import { Prenda, VariantePrenda } from '../../../core/models/user.model';
 import { BusinessService } from '../../../core/services/business.service';
-import { ArMediapipe, ZonaCorporal } from '../ar-mediapipe/ar-mediapipe';
+import { ArMediapipe, ZonaCorporal, zonaDeCategoria } from '../ar-mediapipe/ar-mediapipe';
 
 type ModoVestidor = 'ia' | 'ar';
 
@@ -82,11 +82,7 @@ export class VestidorVirtual implements OnChanges, OnDestroy {
   modo = signal<ModoVestidor>('ia');
 
   get zonaCorporal(): ZonaCorporal {
-    const categoria = (this.prenda?.categoria_nombre || '').toLowerCase();
-    if (categoria.includes('vestido')) return 'vestido';
-    if (categoria.includes('pantal') || categoria.includes('jean')) return 'inferior';
-    if (categoria.includes('calzado') || categoria.includes('zapat')) return 'calzado';
-    return 'superior';
+    return zonaDeCategoria(this.prenda?.categoria_nombre);
   }
 
   cambiarModo(modo: ModoVestidor): void {

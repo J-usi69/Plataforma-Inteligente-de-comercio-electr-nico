@@ -242,6 +242,10 @@ export class BusinessService {
     return this.http.get<Prenda[]>(`${this.apiBase}/prendas/pendientes-validacion`);
   }
 
+  getPrenda(id: number): Observable<Prenda> {
+    return this.http.get<Prenda>(`${this.apiBase}/prendas/${id}`);
+  }
+
   getCategorias(): Observable<Categoria[]> {
     return this.http.get<Categoria[]>(`${this.apiBase}/prendas/categorias`);
   }
