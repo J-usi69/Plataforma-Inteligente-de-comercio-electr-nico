@@ -201,55 +201,59 @@ class _VestidorArScreenState extends State<VestidorArScreen> {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Vestidor virtual')),
-      body: Padding(
-        padding: EdgeInsets.all(_modo == _ModoVestidor.ar ? 8 : 20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            _buildSelectorModo(),
-            const SizedBox(height: 14),
-            if (_modo == _ModoVestidor.ar && prendaId != null)
-              // La página web del probador trae su propio título y selector de color
-              Expanded(
-                child: ProbadorArWebView(
-                  prendaId: prendaId,
-                  varianteId: _varianteSeleccionada?['id'] as int?,
-                ),
-              )
-            else ...[
-              if (nombrePrenda != null)
-                Text(
-                  'Probando: $nombrePrenda',
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
+      // Android 15+ dibuja la app bajo la barra de navegación: sin SafeArea el botón de la foto y
+      // la parte baja del AR quedan tapados.
+      body: SafeArea(
+        child: Padding(
+          padding: EdgeInsets.all(_modo == _ModoVestidor.ar ? 8 : 20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _buildSelectorModo(),
+              const SizedBox(height: 14),
+              if (_modo == _ModoVestidor.ar && prendaId != null)
+                // La página web del probador trae su propio título y selector de color
+                Expanded(
+                  child: ProbadorArWebView(
+                    prendaId: prendaId,
+                    varianteId: _varianteSeleccionada?['id'] as int?,
                   ),
-                  textAlign: TextAlign.center,
-                ),
-              if (_variantes.length > 1) ...[
-                const SizedBox(height: 14),
-                _buildSelectorVariante(),
+                )
+              else ...[
+                if (nombrePrenda != null)
+                  Text(
+                    'Probando: $nombrePrenda',
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                if (_variantes.length > 1) ...[
+                  const SizedBox(height: 14),
+                  _buildSelectorVariante(),
+                ],
+                const SizedBox(height: 20),
+                Expanded(child: Center(child: _buildContenido())),
+                const SizedBox(height: 16),
+                if (_estado != _EstadoVestidor.generando)
+                  ElevatedButton.icon(
+                    onPressed: _tomarFotoYGenerar,
+                    icon: const Icon(Icons.camera_alt),
+                    label: Text(
+                      _estado == _EstadoVestidor.listo
+                          ? 'Probar otra foto'
+                          : 'Tomar foto y probar',
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      backgroundColor: Colors.indigo,
+                      foregroundColor: Colors.white,
+                    ),
+                  ),
               ],
-              const SizedBox(height: 20),
-              Expanded(child: Center(child: _buildContenido())),
-              const SizedBox(height: 16),
-              if (_estado != _EstadoVestidor.generando)
-                ElevatedButton.icon(
-                  onPressed: _tomarFotoYGenerar,
-                  icon: const Icon(Icons.camera_alt),
-                  label: Text(
-                    _estado == _EstadoVestidor.listo
-                        ? 'Probar otra foto'
-                        : 'Tomar foto y probar',
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    backgroundColor: Colors.indigo,
-                    foregroundColor: Colors.white,
-                  ),
-                ),
             ],
-          ],
+          ),
         ),
       ),
     );
