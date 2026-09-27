@@ -6,6 +6,12 @@ class Env {
     defaultValue: 'http://10.0.2.2:8000',
   );
 
+  // Web de la tienda: el vestidor AR en vivo (MediaPipe) se abre desde ahí dentro de un WebView.
+  static const String webUrl = String.fromEnvironment(
+    'WEB_URL',
+    defaultValue: 'https://fashionstore-uagrm.up.railway.app',
+  );
+
   // Clave publicable de Stripe (modo test) — no es sensible, puede vivir en el binario.
   static const String stripePublishableKey = String.fromEnvironment(
     'STRIPE_PUBLISHABLE_KEY',

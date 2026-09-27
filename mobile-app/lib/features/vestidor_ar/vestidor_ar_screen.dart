@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../core/services/api_service.dart';
+import 'probador_ar_webview.dart';
 
 class VestidorArScreen extends StatefulWidget {
   final Map<String, dynamic>? prenda;
@@ -16,11 +17,15 @@ class VestidorArScreen extends StatefulWidget {
 
 enum _EstadoVestidor { inicial, generando, listo, error }
 
+// IA generativa (Replicate, foto + espera) o AR en vivo (MediaPipe, cámara en tiempo real)
+enum _ModoVestidor { ia, ar }
+
 class _VestidorArScreenState extends State<VestidorArScreen> {
   final _apiService = ApiService();
   final _picker = ImagePicker();
 
   _EstadoVestidor _estado = _EstadoVestidor.inicial;
+  _ModoVestidor _modo = _ModoVestidor.ia;
   String? _resultUrl;
   String? _mensajeError;
   Timer? _pollTimer;
@@ -192,48 +197,83 @@ class _VestidorArScreenState extends State<VestidorArScreen> {
   @override
   Widget build(BuildContext context) {
     final nombrePrenda = widget.prenda?['nombre'] as String?;
+    final prendaId = widget.prenda?['id'] as int?;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Vestidor virtual')),
       body: Padding(
-        padding: const EdgeInsets.all(20),
+        padding: EdgeInsets.all(_modo == _ModoVestidor.ar ? 8 : 20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            if (nombrePrenda != null)
-              Text(
-                'Probando: $nombrePrenda',
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
+            _buildSelectorModo(),
+            const SizedBox(height: 14),
+            if (_modo == _ModoVestidor.ar && prendaId != null)
+              // La página web del probador trae su propio título y selector de color
+              Expanded(
+                child: ProbadorArWebView(
+                  prendaId: prendaId,
+                  varianteId: _varianteSeleccionada?['id'] as int?,
                 ),
-                textAlign: TextAlign.center,
-              ),
-            if (_variantes.length > 1) ...[
-              const SizedBox(height: 14),
-              _buildSelectorVariante(),
+              )
+            else ...[
+              if (nombrePrenda != null)
+                Text(
+                  'Probando: $nombrePrenda',
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              if (_variantes.length > 1) ...[
+                const SizedBox(height: 14),
+                _buildSelectorVariante(),
+              ],
+              const SizedBox(height: 20),
+              Expanded(child: Center(child: _buildContenido())),
+              const SizedBox(height: 16),
+              if (_estado != _EstadoVestidor.generando)
+                ElevatedButton.icon(
+                  onPressed: _tomarFotoYGenerar,
+                  icon: const Icon(Icons.camera_alt),
+                  label: Text(
+                    _estado == _EstadoVestidor.listo
+                        ? 'Probar otra foto'
+                        : 'Tomar foto y probar',
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    backgroundColor: Colors.indigo,
+                    foregroundColor: Colors.white,
+                  ),
+                ),
             ],
-            const SizedBox(height: 20),
-            Expanded(child: Center(child: _buildContenido())),
-            const SizedBox(height: 16),
-            if (_estado != _EstadoVestidor.generando)
-              ElevatedButton.icon(
-                onPressed: _tomarFotoYGenerar,
-                icon: const Icon(Icons.camera_alt),
-                label: Text(
-                  _estado == _EstadoVestidor.listo
-                      ? 'Probar otra foto'
-                      : 'Tomar foto y probar',
-                ),
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  backgroundColor: Colors.indigo,
-                  foregroundColor: Colors.white,
-                ),
-              ),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildSelectorModo() {
+    return SegmentedButton<_ModoVestidor>(
+      segments: const [
+        ButtonSegment(
+          value: _ModoVestidor.ia,
+          icon: Icon(Icons.auto_awesome),
+          label: Text('IA Replicate'),
+        ),
+        ButtonSegment(
+          value: _ModoVestidor.ar,
+          icon: Icon(Icons.videocam),
+          label: Text('AR MediaPipe'),
+        ),
+      ],
+      selected: {_modo},
+      // Mientras la IA genera no se cambia de modo, para no perder el resultado en curso
+      onSelectionChanged: _estado == _EstadoVestidor.generando
+          ? null
+          : (seleccion) => setState(() => _modo = seleccion.first),
     );
   }
 

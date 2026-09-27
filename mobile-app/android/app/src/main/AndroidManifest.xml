@@ -2,6 +2,8 @@
     <uses-permission android:name="android.permission.INTERNET"/>
     <!-- Notificaciones push (Android 13+ requiere este permiso en tiempo de ejecución) -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+    <!-- Vestidor AR en vivo (MediaPipe dentro de un WebView) necesita la cámara en tiempo real -->
+    <uses-permission android:name="android.permission.CAMERA"/>
     <application
         android:label="fashionstore"
         android:name="${applicationName}"
