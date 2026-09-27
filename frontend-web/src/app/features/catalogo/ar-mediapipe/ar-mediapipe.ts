@@ -10,7 +10,7 @@ import {
   ViewChild,
   signal,
 } from '@angular/core';
-import type { ImageSegmenter, MPMask, NormalizedLandmark, PoseLandmarker } from '@mediapipe/tasks-vision';
+import type { DrawingUtils, ImageSegmenter, MPMask, NormalizedLandmark, PoseLandmarker } from '@mediapipe/tasks-vision';
 
 const WASM_URL = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.0.1/wasm';
 const MODELO_POSE =
@@ -50,9 +50,11 @@ export function encuadreDeZona(zona: ZonaCorporal): string {
 interface Modelos {
   pose: PoseLandmarker;
   segmentador: ImageSegmenter;
-  // En GPU la silueta queda en una textura y algunos navegadores no dejan leerla: entonces se
-  // vuelve a crear el modelo de pose en CPU
-  poseEnGpu: boolean;
+  // Con la pose en GPU la silueta queda en una textura del lienzo WebGL de MediaPipe: se dibuja
+  // ahí mismo con DrawingUtils (bajarla a la CPU no anda en muchos celulares). Si no hay GPU o
+  // la silueta sale vacía, dibujoGpu es null y la pose corre en CPU.
+  dibujoGpu: DrawingUtils | null;
+  lienzoGpu: HTMLCanvasElement;
   crearPoseCpu: () => Promise<PoseLandmarker>;
 }
 
@@ -60,6 +62,8 @@ interface Modelos {
 interface Punto {
   x: number;
   y: number;
+  // Qué tan seguro está MediaPipe de que el punto se ve (0..1)
+  v: number;
   // Visible y dentro de la imagen: fuera del cuadro MediaPipe igual estima el punto, pero mal
   ok: boolean;
 }
@@ -67,7 +71,12 @@ interface Punto {
 // Pedazo de la foto de la prenda: x, y, ancho, alto
 type Rect = [number, number, number, number];
 
-const medio = (a: Punto, b: Punto): Punto => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2, ok: a.ok && b.ok });
+const medio = (a: Punto, b: Punto): Punto => ({
+  x: (a.x + b.x) / 2,
+  y: (a.y + b.y) / 2,
+  v: Math.min(a.v, b.v),
+  ok: a.ok && b.ok,
+});
 const dist = (a: Punto, b: Punto) => Math.hypot(a.x - b.x, a.y - b.y);
 
 // Ejes del cuerpo a partir de dos puntos simétricos (hombros o caderas): `u` va de izquierda a
@@ -86,8 +95,9 @@ function cargarModelos(): Promise<Modelos> {
   if (!modelosPromise) {
     modelosPromise = (async () => {
       // Import dinámico: la librería solo se descarga cuando alguien abre el modo AR
-      const { FilesetResolver, ImageSegmenter, PoseLandmarker } = await import('@mediapipe/tasks-vision');
+      const { DrawingUtils, FilesetResolver, ImageSegmenter, PoseLandmarker } = await import('@mediapipe/tasks-vision');
       const fileset = await FilesetResolver.forVisionTasks(WASM_URL);
+      const lienzoGpu = document.createElement('canvas');
       const crearPose = (delegate: 'GPU' | 'CPU') =>
         PoseLandmarker.createFromOptions(fileset, {
           baseOptions: { modelAssetPath: MODELO_POSE, delegate },
@@ -95,19 +105,23 @@ function cargarModelos(): Promise<Modelos> {
           numPoses: 1,
           // Silueta de la persona en cada cuadro: con ella la prenda toma la forma del cuerpo
           outputSegmentationMasks: true,
+          ...(delegate === 'GPU' ? { canvas: lienzoGpu } : {}),
         });
-      let poseEnGpu = true;
-      const pose = await crearPose('GPU').catch(() => {
-        poseEnGpu = false;
-        return crearPose('CPU');
-      });
+      let pose: PoseLandmarker;
+      let dibujoGpu: DrawingUtils | null = null;
+      try {
+        pose = await crearPose('GPU');
+        dibujoGpu = new DrawingUtils(lienzoGpu.getContext('webgl2')!);
+      } catch {
+        pose = await crearPose('CPU');
+      }
       const segmentador = await ImageSegmenter.createFromOptions(fileset, {
         baseOptions: { modelAssetPath: MODELO_SEGMENTACION, delegate: 'CPU' },
         runningMode: 'IMAGE',
         outputCategoryMask: true,
         outputConfidenceMasks: false,
       });
-      return { pose, segmentador, poseEnGpu, crearPoseCpu: () => crearPose('CPU') };
+      return { pose, segmentador, dibujoGpu, lienzoGpu, crearPoseCpu: () => crearPose('CPU') };
     })().catch((err) => {
       modelosPromise = null;
       throw err;
@@ -377,10 +391,13 @@ export class ArMediapipe implements AfterViewInit, OnChanges, OnDestroy {
   private activo = false;
   private puntos: Punto[] | null = null;
   private siluetasVacias = 0;
-  // Silueta de la persona (en el canal alfa, a baja resolución) y capa donde se arma la prenda
-  // antes de pegarla sobre el video
+  private siluetaGpuRevisada = false;
+  // Silueta de la persona en el canal alfa: el lienzo WebGL de MediaPipe (GPU) o un canvas chico
+  // armado en CPU. La capa es donde se arma la prenda antes de pegarla sobre el video.
+  private fuenteSilueta: HTMLCanvasElement | null = null;
   private silueta: HTMLCanvasElement | null = null;
   private siluetaDatos: ImageData | null = null;
+  private muestra: HTMLCanvasElement | null = null;
   private capa: HTMLCanvasElement | null = null;
   private cuadros = 0;
   private inicioFps = 0;
@@ -466,7 +483,7 @@ export class ArMediapipe implements AfterViewInit, OnChanges, OnDestroy {
         const puntos = this.suavizar(lm, W, H);
         const mascara = resultado.segmentationMasks?.[0];
         if (mascara && !this.actualizarSilueta(mascara) && ++this.siluetasVacias === 3) {
-          // Hay persona pero la silueta llega vacía: esta GPU no deja leer la máscara
+          // Hay persona pero la silueta llega vacía: esta GPU no deja usar la máscara
           this.pasarPoseACpu();
         }
         this.dibujarPrenda(ctx, puntos, W, H);
@@ -488,6 +505,7 @@ export class ArMediapipe implements AfterViewInit, OnChanges, OnDestroy {
     const nuevos = lm.map((l) => ({
       x: (1 - l.x) * W,
       y: l.y * H,
+      v: l.visibility ?? 1,
       ok: (l.visibility ?? 1) > 0.5 && l.x > -0.05 && l.x < 1.05 && l.y > -0.05 && l.y < 1.1,
     }));
     const previos = this.puntos;
@@ -503,17 +521,27 @@ export class ArMediapipe implements AfterViewInit, OnChanges, OnDestroy {
 
   private async pasarPoseACpu(): Promise<void> {
     const modelos = this.modelos;
-    if (!modelos?.poseEnGpu) return;
-    modelos.poseEnGpu = false;
+    if (!modelos?.dibujoGpu) return;
+    modelos.dibujoGpu.close();
+    modelos.dibujoGpu = null;
     const anterior = modelos.pose;
     modelos.pose = await modelos.crearPoseCpu();
     anterior.close();
   }
 
-  // Copia la máscara de la persona (confianza 0..1) al alfa de un canvas chico; al estirarlo
-  // sobre el video con suavizado, el borde de la prenda queda prolijo. Devuelve si la silueta
-  // tiene algo.
+  // Deja la silueta de la persona en el alfa de `fuenteSilueta`. Devuelve si salió algo.
   private actualizarSilueta(mascara: MPMask): boolean {
+    const modelos = this.modelos;
+    if (modelos?.dibujoGpu) {
+      modelos.dibujoGpu.drawConfidenceMask(mascara, [0, 0, 0, 0], [255, 255, 255, 255]);
+      this.fuenteSilueta = modelos.lienzoGpu;
+      // Se revisa solo hasta ver una silueta con algo: leer el lienzo WebGL cada cuadro es caro
+      if (!this.siluetaGpuRevisada) this.siluetaGpuRevisada = !this.lienzoVacio(modelos.lienzoGpu);
+      return this.siluetaGpuRevisada;
+    }
+
+    // En CPU: la confianza (0..1) se copia al alfa de un canvas chico; al estirarlo sobre el
+    // video con suavizado, el borde de la prenda queda prolijo
     const paso = Math.max(1, Math.round(mascara.width / 160));
     const w = Math.floor(mascara.width / paso);
     const h = Math.floor(mascara.height / paso);
@@ -537,7 +565,19 @@ export class ArMediapipe implements AfterViewInit, OnChanges, OnDestroy {
       }
     }
     sctx.putImageData(this.siluetaDatos, 0, 0);
+    this.fuenteSilueta = this.silueta;
     return hayPersona;
+  }
+
+  private lienzoVacio(lienzo: HTMLCanvasElement): boolean {
+    this.muestra ??= document.createElement('canvas');
+    this.muestra.width = 16;
+    this.muestra.height = 16;
+    const mctx = this.muestra.getContext('2d', { willReadFrequently: true })!;
+    mctx.drawImage(lienzo, 0, 0, 16, 16);
+    const datos = mctx.getImageData(0, 0, 16, 16).data;
+    for (let i = 3; i < datos.length; i += 4) if (datos[i] > 0) return false;
+    return true;
   }
 
   private dibujarPrenda(ctx: CanvasRenderingContext2D, P: Punto[], W: number, H: number): void {
@@ -554,12 +594,12 @@ export class ArMediapipe implements AfterViewInit, OnChanges, OnDestroy {
     this.aviso.set(aviso);
     if (!pintado) return;
 
-    if (this.silueta) {
+    if (this.fuenteSilueta) {
       // La prenda queda solo donde está la persona: toma la forma del cuerpo y no tapa el fondo
       cctx.globalCompositeOperation = 'destination-in';
       cctx.save();
       cctx.scale(-1, 1);
-      cctx.drawImage(this.silueta, -W, 0, W, H);
+      cctx.drawImage(this.fuenteSilueta, -W, 0, W, H);
       cctx.restore();
     }
     // ...ni la cara, el cuello o las manos
@@ -661,10 +701,17 @@ export class ArMediapipe implements AfterViewInit, OnChanges, OnDestroy {
         e.centro.x + (e.u.x * a + e.d.x * b) * e.ancho,
         e.centro.y + (e.u.y * a + e.d.y * b) * e.ancho,
       ];
-      // Cuello: franja central desde apenas arriba de la línea de los hombros hacia la cabeza
+      // Borde difuminado para que el corte no se note
+      ctx.filter = `blur(${Math.max(2, Math.round(e.ancho * 0.03))}px)`;
+      // Cuello: escote redondo que baja hasta la línea de los hombros...
+      const [ex, ey] = punto(0, -0.28);
       ctx.beginPath();
-      ctx.moveTo(...punto(-0.19, -0.04));
-      ctx.lineTo(...punto(0.19, -0.04));
+      ctx.ellipse(ex, ey, e.ancho * 0.19, e.ancho * 0.3, e.ang, 0, Math.PI * 2);
+      ctx.fill();
+      // ...y por encima, toda la franja hacia la cabeza
+      ctx.beginPath();
+      ctx.moveTo(...punto(-0.19, -0.28));
+      ctx.lineTo(...punto(0.19, -0.28));
       ctx.lineTo(...punto(0.19, -4));
       ctx.lineTo(...punto(-0.19, -4));
       ctx.closePath();
@@ -686,10 +733,12 @@ export class ArMediapipe implements AfterViewInit, OnChanges, OnDestroy {
         );
         ctx.fill();
       }
+      ctx.filter = 'none';
     }
-    // Manos: óvalo de borde suave desde la muñeca hacia los dedos (la manga llega a la muñeca)
+    // Manos: óvalo de borde suave desde la muñeca hacia los dedos (la manga llega a la muñeca).
+    // Solo si la mano se ve clara: una mano tapada mal estimada dejaría un hueco en la prenda.
     for (const [muneca, indice] of [[15, 19], [16, 20]]) {
-      if (!P[muneca].ok) continue;
+      if (!P[muneca].ok || P[muneca].v < 0.8) continue;
       const m = P[muneca];
       const i = P[indice];
       const r = Math.max(dist(m, i), 4) * 1.15;
