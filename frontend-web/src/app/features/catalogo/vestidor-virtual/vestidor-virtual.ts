@@ -15,6 +15,9 @@ import {
 import { FormsModule } from '@angular/forms';
 import { Prenda, VariantePrenda } from '../../../core/models/user.model';
 import { BusinessService } from '../../../core/services/business.service';
+import { ArMediapipe, ZonaCorporal } from '../ar-mediapipe/ar-mediapipe';
+
+type ModoVestidor = 'ia' | 'ar';
 
 type EstadoVestidor = 'camara' | 'generando' | 'listo' | 'error';
 
@@ -23,7 +26,7 @@ const MAX_INTENTOS_POLLING = 45; // ~90s a 2s por intento, igual de margen que e
 @Component({
   selector: 'app-vestidor-virtual',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, ArMediapipe],
   templateUrl: './vestidor-virtual.html',
   styles: [`
     .vestidor-video, .vestidor-foto {
@@ -68,7 +71,34 @@ export class VestidorVirtual implements OnChanges, OnDestroy {
   }
 
   get prendaTieneImagen(): boolean {
-    return !!(this.varianteSeleccionada?.imagen_url || this.prenda?.imagen_url);
+    return !!this.imagenReferencia;
+  }
+
+  get imagenReferencia(): string | null {
+    return this.varianteSeleccionada?.imagen_url || this.prenda?.imagen_url || null;
+  }
+
+  // Rama de prueba: comparar la IA generativa (Replicate) con AR en vivo (MediaPipe)
+  modo = signal<ModoVestidor>('ia');
+
+  get zonaCorporal(): ZonaCorporal {
+    const categoria = (this.prenda?.categoria_nombre || '').toLowerCase();
+    if (categoria.includes('vestido')) return 'vestido';
+    if (categoria.includes('pantal') || categoria.includes('jean')) return 'inferior';
+    if (categoria.includes('calzado') || categoria.includes('zapat')) return 'calzado';
+    return 'superior';
+  }
+
+  cambiarModo(modo: ModoVestidor): void {
+    if (modo === this.modo()) return;
+    this.modo.set(modo);
+    if (modo === 'ar') {
+      // El modo AR maneja su propia cámara; se libera la del modo IA
+      this.detenerPolling();
+      this.detenerCamara();
+    } else {
+      this.reiniciar();
+    }
   }
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -112,7 +142,7 @@ export class VestidorVirtual implements OnChanges, OnDestroy {
     this.estado.set('camara');
     this.mensajeError.set(null);
     this.resultUrl.set(null);
-    if (this.prendaTieneImagen) {
+    if (this.prendaTieneImagen && this.modo() === 'ia') {
       this.iniciarCamara();
     }
   }

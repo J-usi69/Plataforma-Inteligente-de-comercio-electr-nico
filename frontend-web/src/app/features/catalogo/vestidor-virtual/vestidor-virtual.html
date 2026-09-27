@@ -8,6 +8,28 @@
       <button class="btn btn-secondary btn-icon" (click)="cerrarModal()">✕</button>
     </div>
 
+    <!-- Rama de prueba: comparar IA generativa (Replicate) vs AR en vivo (MediaPipe) -->
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin-bottom: 1rem;">
+      <button
+        type="button"
+        class="btn btn-sm"
+        [class.btn-primary]="modo() === 'ia'"
+        [class.btn-secondary]="modo() !== 'ia'"
+        (click)="cambiarModo('ia')"
+      >
+        🤖 IA generativa (Replicate)
+      </button>
+      <button
+        type="button"
+        class="btn btn-sm"
+        [class.btn-primary]="modo() === 'ar'"
+        [class.btn-secondary]="modo() !== 'ar'"
+        (click)="cambiarModo('ar')"
+      >
+        🎥 AR en vivo (MediaPipe)
+      </button>
+    </div>
+
     <!-- Sin imagen de referencia configurada -->
     <div *ngIf="!prendaTieneImagen" class="vestidor-estado">
       <div style="font-size: 3rem; margin-bottom: 0.5rem;">🖼️</div>
@@ -28,7 +50,16 @@
       </select>
     </div>
 
-    <ng-container *ngIf="prendaTieneImagen">
+    <!-- Modo AR en vivo: detección de pose + superposición de la prenda, todo en el navegador -->
+    <ng-container *ngIf="prendaTieneImagen && modo() === 'ar'">
+      <p style="font-size: 0.85rem; color: #475569; margin-bottom: 0.75rem;">
+        Aléjate de la cámara hasta que se vea tu cuerpo ({{ zonaCorporal === 'calzado' ? 'incluidos los pies' : zonaCorporal === 'inferior' ? 'de la cintura a los tobillos' : 'de los hombros a la cadera' }}).
+        La prenda se mueve contigo en tiempo real.
+      </p>
+      <app-ar-mediapipe [imagenUrl]="imagenReferencia" [zona]="zonaCorporal"></app-ar-mediapipe>
+    </ng-container>
+
+    <ng-container *ngIf="prendaTieneImagen && modo() === 'ia'">
       <!-- Paso 1: cámara -->
       <div *ngIf="estado() === 'camara'">
         <p style="font-size: 0.9rem; color: #475569; margin-bottom: 1rem;">
