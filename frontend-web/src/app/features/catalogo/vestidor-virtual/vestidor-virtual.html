@@ -53,8 +53,8 @@
     <!-- Modo AR en vivo: detección de pose + superposición de la prenda, todo en el navegador -->
     <ng-container *ngIf="prendaTieneImagen && modo() === 'ar'">
       <p style="font-size: 0.85rem; color: #475569; margin-bottom: 0.75rem;">
-        Aléjate de la cámara hasta que se vea tu cuerpo ({{ zonaCorporal === 'calzado' ? 'incluidos los pies' : zonaCorporal === 'inferior' ? 'de la cintura a los tobillos' : 'de los hombros a la cadera' }}).
-        La prenda se mueve contigo en tiempo real.
+        Aléjate de la cámara hasta que se vea {{ encuadre }}. La prenda toma la forma de tu cuerpo y
+        se mueve contigo en tiempo real.
       </p>
       <app-ar-mediapipe [imagenUrl]="imagenReferencia" [zona]="zonaCorporal"></app-ar-mediapipe>
     </ng-container>

@@ -5,7 +5,7 @@ import { ActivatedRoute } from '@angular/router';
 import { forkJoin } from 'rxjs';
 import { Prenda, VariantePrenda } from '../../../core/models/user.model';
 import { BusinessService } from '../../../core/services/business.service';
-import { ArMediapipe, zonaDeCategoria } from '../ar-mediapipe/ar-mediapipe';
+import { ArMediapipe, encuadreDeZona, zonaDeCategoria } from '../ar-mediapipe/ar-mediapipe';
 
 // Página del probador AR (MediaPipe) a pantalla completa, pensada para abrirse dentro de la app
 // móvil (WebView): /probador-ar?prenda=4&variante=3&embed=1
@@ -44,10 +44,7 @@ import { ArMediapipe, zonaDeCategoria } from '../ar-mediapipe/ar-mediapipe';
         </div>
 
         <ng-container *ngIf="imagenReferencia() as url">
-          <p class="probador-ayuda">
-            Apoya el celular y aléjate hasta que se vea
-            {{ zona() === 'calzado' ? 'todo tu cuerpo, incluidos los pies' : zona() === 'inferior' ? 'de la cintura a los tobillos' : 'de los hombros a la cadera' }}.
-          </p>
+          <p class="probador-ayuda">Apoya el celular y aléjate hasta que se vea {{ encuadre() }}.</p>
           <app-ar-mediapipe
             [imagenUrl]="url"
             [zona]="zona()"
@@ -78,6 +75,7 @@ export class ProbadorAr implements OnInit {
   embebido = false;
 
   zona = computed(() => zonaDeCategoria(this.prenda()?.categoria_nombre));
+  encuadre = computed(() => encuadreDeZona(this.zona()));
   imagenReferencia = computed(() => {
     const variante = this.variantes().find((v) => v.id === this.varianteId());
     return variante?.imagen_url || this.prenda()?.imagen_url || null;
