@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/router.dart';
@@ -650,6 +652,7 @@ class _ModalSeleccionarVarianteState extends State<_ModalSeleccionarVariante> {
     final precio = (widget.prenda['precio_base'] as num).toDouble();
     final subtotal = precio * _cantidad;
 
+    final mq = MediaQuery.of(context);
     return Container(
       decoration: const BoxDecoration(
         color: Colors.white,
@@ -659,7 +662,9 @@ class _ModalSeleccionarVarianteState extends State<_ModalSeleccionarVariante> {
         top: 20,
         left: 20,
         right: 20,
-        bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+        // La app se dibuja bajo la barra de navegación de Android: sin esto el botón de
+        // "Añadir a la bolsa" quedaba tapado
+        bottom: math.max(mq.viewInsets.bottom, mq.viewPadding.bottom) + 24,
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,

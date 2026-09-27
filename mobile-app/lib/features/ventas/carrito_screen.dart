@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_stripe/flutter_stripe.dart' hide Card;
 import 'package:go_router/go_router.dart';
@@ -585,6 +587,7 @@ class _ModalPagoDigitalState extends State<_ModalPagoDigital> {
 
   @override
   Widget build(BuildContext context) {
+    final mq = MediaQuery.of(context);
     return Container(
       decoration: const BoxDecoration(
         color: Colors.white,
@@ -594,7 +597,9 @@ class _ModalPagoDigitalState extends State<_ModalPagoDigital> {
         top: 20,
         left: 20,
         right: 20,
-        bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+        // Con el teclado cerrado, la barra de navegación de Android (la app se dibuja por
+        // debajo de ella) tapaba el último botón
+        bottom: math.max(mq.viewInsets.bottom, mq.viewPadding.bottom) + 24,
       ),
       // El teclado (al escribir la tarjeta) reduce el espacio vertical
       // disponible; sin scroll, el contenido de altura fija se salía de la
