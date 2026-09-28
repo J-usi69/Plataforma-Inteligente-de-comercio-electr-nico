@@ -95,6 +95,7 @@ export class PagoQrLibelula implements OnInit, OnDestroy {
 
   private consultaTimer: ReturnType<typeof setInterval> | null = null;
   private consultando = false;
+  // Pagado o cerrado (el modal se cerró, el cajero cambió de método): no se consulta ni se emite más
   private terminado = false;
 
   ngOnInit(): void {
@@ -102,6 +103,7 @@ export class PagoQrLibelula implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.terminado = true;
     this.detenerConsultas();
   }
 
@@ -113,6 +115,8 @@ export class PagoQrLibelula implements OnInit, OnDestroy {
 
     this.business.generarQrLibelula(this.ventaId).subscribe({
       next: (qr) => {
+        // Si se cerró mientras se generaba, no hay que dejar consultas corriendo sin pantalla
+        if (this.terminado) return;
         this.qr.set(qr);
         this.cargando.set(false);
         this.consultaTimer = setInterval(() => this.consultarEstado(), SEGUNDOS_ENTRE_CONSULTAS * 1000);
