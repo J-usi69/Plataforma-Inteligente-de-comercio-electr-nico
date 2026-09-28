@@ -58,7 +58,7 @@ interface Modelos {
   crearPoseCpu: () => Promise<PoseLandmarker>;
 }
 
-// Punto del cuerpo ya pasado a píxeles del lienzo (en espejo)
+// Punto del cuerpo ya pasado a píxeles del lienzo (en espejo si es la cámara frontal)
 interface Punto {
   x: number;
   y: number;
@@ -350,7 +350,12 @@ function pintarTira(ctx: CanvasRenderingContext2D, textura: HTMLCanvasElement, s
 
     <div *ngIf="estado() === 'listo'" class="ar-barra">
       <span>{{ fps() }} FPS · {{ personaDetectada() ? 'persona detectada' : 'buscando persona...' }} · recorte: {{ metodoRecorte() }}</span>
-      <button *ngIf="permitirCaptura" class="btn btn-secondary btn-sm" (click)="capturar()">📸 Capturar</button>
+      <div class="ar-botones">
+        <button *ngIf="variasCamaras()" class="btn btn-secondary btn-sm" [disabled]="cambiandoCamara()" (click)="cambiarCamara()">
+          🔄 {{ camara() === 'user' ? 'Cámara trasera' : 'Cámara frontal' }}
+        </button>
+        <button *ngIf="permitirCaptura" class="btn btn-secondary btn-sm" (click)="capturar()">📸 Capturar</button>
+      </div>
     </div>
   `,
   styles: [`
@@ -364,7 +369,8 @@ function pintarTira(ctx: CanvasRenderingContext2D, textura: HTMLCanvasElement, s
       font-size: 0.8rem; text-align: center; pointer-events: none;
     }
     .ar-estado { text-align: center; padding: 2rem 1rem; color: #475569; }
-    .ar-barra { display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; margin-top: 0.6rem; font-size: 0.78rem; color: #64748b; }
+    .ar-barra { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 0.5rem; margin-top: 0.6rem; font-size: 0.78rem; color: #64748b; }
+    .ar-botones { display: flex; gap: 0.4rem; }
   `],
 })
 export class ArMediapipe implements AfterViewInit, OnChanges, OnDestroy {
@@ -383,6 +389,11 @@ export class ArMediapipe implements AfterViewInit, OnChanges, OnDestroy {
   personaDetectada = signal(false);
   metodoRecorte = signal('-');
   aviso = signal<string | null>(null);
+  // Frontal ("user") se ve en espejo, como un probador; la trasera ("environment") sirve para
+  // que otra persona sostenga el celular, y se muestra tal cual
+  camara = signal<'user' | 'environment'>('user');
+  variasCamaras = signal(false);
+  cambiandoCamara = signal(false);
 
   private modelos: Modelos | null = null;
   private prenda: HTMLCanvasElement | null = null;
@@ -405,17 +416,16 @@ export class ArMediapipe implements AfterViewInit, OnChanges, OnDestroy {
   async ngAfterViewInit(): Promise<void> {
     this.activo = true;
     try {
-      this.stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } },
-        audio: false,
-      });
+      await this.abrirCamara();
     } catch {
       this.estado.set('sin-camara');
       return;
     }
-    const video = this.videoRef.nativeElement;
-    video.srcObject = this.stream;
-    await video.play().catch(() => undefined);
+    // Recién con el permiso dado el navegador lista todas las cámaras
+    navigator.mediaDevices
+      .enumerateDevices()
+      .then((d) => this.variasCamaras.set(d.filter((x) => x.kind === 'videoinput').length > 1))
+      .catch(() => undefined);
 
     try {
       this.modelos = await cargarModelos();
@@ -442,6 +452,34 @@ export class ArMediapipe implements AfterViewInit, OnChanges, OnDestroy {
     this.stream?.getTracks().forEach((t) => t.stop());
   }
 
+  private async abrirCamara(): Promise<void> {
+    this.stream?.getTracks().forEach((t) => t.stop());
+    this.stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { ideal: this.camara() }, width: { ideal: 640 }, height: { ideal: 480 } },
+      audio: false,
+    });
+    const video = this.videoRef.nativeElement;
+    video.srcObject = this.stream;
+    await video.play().catch(() => undefined);
+  }
+
+  async cambiarCamara(): Promise<void> {
+    const anterior = this.camara();
+    this.camara.set(anterior === 'user' ? 'environment' : 'user');
+    this.cambiandoCamara.set(true);
+    // Los puntos suavizados de la otra cámara no sirven (además cambia el espejo)
+    this.puntos = null;
+    try {
+      await this.abrirCamara();
+    } catch {
+      // Si no se pudo abrir la otra, se vuelve a la que andaba
+      this.camara.set(anterior);
+      await this.abrirCamara().catch(() => this.estado.set('sin-camara'));
+    } finally {
+      this.cambiandoCamara.set(false);
+    }
+  }
+
   private async prepararPrenda(): Promise<void> {
     if (!this.imagenUrl || !this.modelos) {
       this.prenda = null;
@@ -465,11 +503,15 @@ export class ArMediapipe implements AfterViewInit, OnChanges, OnDestroy {
       if (lienzo.height !== H) lienzo.height = H;
       const ctx = lienzo.getContext('2d')!;
 
-      // Vista espejo, como un probador real
-      ctx.save();
-      ctx.scale(-1, 1);
-      ctx.drawImage(video, -W, 0, W, H);
-      ctx.restore();
+      // Con la frontal, vista espejo como un probador real
+      if (this.camara() === 'user') {
+        ctx.save();
+        ctx.scale(-1, 1);
+        ctx.drawImage(video, -W, 0, W, H);
+        ctx.restore();
+      } else {
+        ctx.drawImage(video, 0, 0, W, H);
+      }
 
       // Con callback las máscaras no se copian: solo valen dentro de esta función
       this.modelos.pose.detectForVideo(video, performance.now(), (resultado) => {
@@ -500,10 +542,12 @@ export class ArMediapipe implements AfterViewInit, OnChanges, OnDestroy {
     this.raf = requestAnimationFrame(() => this.cuadro());
   }
 
-  // Pasa los puntos a píxeles en espejo y los suaviza entre cuadros para que la prenda no tiemble
+  // Pasa los puntos a píxeles (en espejo con la frontal) y los suaviza entre cuadros para que la
+  // prenda no tiemble
   private suavizar(lm: NormalizedLandmark[], W: number, H: number): Punto[] {
+    const espejo = this.camara() === 'user';
     const nuevos = lm.map((l) => ({
-      x: (1 - l.x) * W,
+      x: (espejo ? 1 - l.x : l.x) * W,
       y: l.y * H,
       v: l.visibility ?? 1,
       ok: (l.visibility ?? 1) > 0.5 && l.x > -0.05 && l.x < 1.05 && l.y > -0.05 && l.y < 1.1,
@@ -597,10 +641,14 @@ export class ArMediapipe implements AfterViewInit, OnChanges, OnDestroy {
     if (this.fuenteSilueta) {
       // La prenda queda solo donde está la persona: toma la forma del cuerpo y no tapa el fondo
       cctx.globalCompositeOperation = 'destination-in';
-      cctx.save();
-      cctx.scale(-1, 1);
-      cctx.drawImage(this.fuenteSilueta, -W, 0, W, H);
-      cctx.restore();
+      if (this.camara() === 'user') {
+        cctx.save();
+        cctx.scale(-1, 1);
+        cctx.drawImage(this.fuenteSilueta, -W, 0, W, H);
+        cctx.restore();
+      } else {
+        cctx.drawImage(this.fuenteSilueta, 0, 0, W, H);
+      }
     }
     // ...ni la cara, el cuello o las manos
     cctx.globalCompositeOperation = 'destination-out';
