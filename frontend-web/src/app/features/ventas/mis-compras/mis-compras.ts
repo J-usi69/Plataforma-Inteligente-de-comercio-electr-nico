@@ -3,11 +3,12 @@ import { Component, OnInit, inject, signal } from '@angular/core';
 import { ComprobanteVenta, Venta } from '../../../core/models/user.model';
 import { BusinessService } from '../../../core/services/business.service';
 import { descargarComprobantePdf } from '../../../core/utils/comprobante-pdf';
+import { PagoQrLibelula } from '../pago-qr-libelula/pago-qr-libelula';
 
 @Component({
   selector: 'app-mis-compras',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, PagoQrLibelula],
   templateUrl: './mis-compras.html',
   styles: [`
     .compra-card {
@@ -34,6 +35,7 @@ export class MisCompras implements OnInit {
   compras = signal<Venta[]>([]);
   isLoading = signal(true);
   comprobanteSeleccionado = signal<ComprobanteVenta | null>(null);
+  ventaPorPagar = signal<Venta | null>(null);
 
   ngOnInit(): void {
     this.cargarCompras();
@@ -58,6 +60,28 @@ export class MisCompras implements OnInit {
 
   cerrarComprobante(): void {
     this.comprobanteSeleccionado.set(null);
+  }
+
+  // Una compra en línea que quedó sin pagar (se cerró la pasarela, se cortó la conexión...) se
+  // puede pagar después con un QR nuevo. Las ventas de caja las cobra el cajero.
+  sePuedePagarConQr(c: Venta): boolean {
+    return c.estado === 'pendiente' && c.tipo_origen !== 'presencial';
+  }
+
+  pagarConQr(c: Venta): void {
+    this.ventaPorPagar.set(c);
+  }
+
+  // Al cerrar se recarga igual: la compra pudo pagarse mientras tanto con un QR anterior
+  cerrarPagoQr(): void {
+    this.ventaPorPagar.set(null);
+    this.cargarCompras();
+  }
+
+  onPagoQrCompletado(): void {
+    const venta = this.ventaPorPagar();
+    this.cerrarPagoQr();
+    if (venta) this.verComprobante(venta.id);
   }
 
   imprimirComprobante(): void {

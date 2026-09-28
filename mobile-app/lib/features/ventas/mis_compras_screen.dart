@@ -1,6 +1,9 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/services/api_service.dart';
+import 'pago_qr_libelula.dart';
 
 class MisComprasScreen extends StatefulWidget {
   const MisComprasScreen({super.key});
@@ -38,6 +41,78 @@ class _MisComprasScreenState extends State<MisComprasScreen> {
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  // Las fechas llegan en ISO (UTC): se muestran en la hora del celular
+  String _fecha(dynamic iso) {
+    final fecha = DateTime.tryParse(iso?.toString() ?? '')?.toLocal();
+    if (fecha == null) return '-';
+    String dos(int n) => n.toString().padLeft(2, '0');
+    return '${dos(fecha.day)}/${dos(fecha.month)}/${fecha.year} ${dos(fecha.hour)}:${dos(fecha.minute)}';
+  }
+
+  // Una compra en línea que quedó sin pagar (se cerró la hoja de pago, se cortó la conexión...)
+  // se puede pagar después con un QR nuevo
+  void _pagarConQr(int ventaId, double total) {
+    var pagada = false;
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        final mq = MediaQuery.of(ctx);
+        return Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          padding: EdgeInsets.only(
+            top: 20,
+            left: 20,
+            right: 20,
+            bottom: math.max(mq.viewInsets.bottom, mq.viewPadding.bottom) + 24,
+          ),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Pagar Orden #$ventaId',
+                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Total a cancelar: Bs. ${total.toStringAsFixed(2)}',
+                  style: const TextStyle(color: Color(0xFF4F46E5), fontWeight: FontWeight.w700, fontSize: 16),
+                ),
+                const SizedBox(height: 20),
+                PagoQrLibelula(
+                  ventaId: ventaId,
+                  onPagado: () async {
+                    pagada = true;
+                    Navigator.of(ctx).pop();
+                  },
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    ).then((_) {
+      if (!mounted) return;
+      // Se recarga aunque no se haya pagado acá: pudo entrar el pago de un QR anterior
+      _cargarCompras();
+      if (pagada) _verComprobante(ventaId);
+    });
   }
 
   void _verComprobante(int ventaId) async {
@@ -93,7 +168,7 @@ class _MisComprasScreenState extends State<MisComprasScreen> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Fecha: ${comprobante['fecha_emision'] ?? '-'}',
+                  'Fecha: ${_fecha(comprobante['fecha_emision'])}',
                   style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
                 ),
                 const Divider(height: 24),
@@ -101,7 +176,7 @@ class _MisComprasScreenState extends State<MisComprasScreen> {
                 // Datos cliente y sucursal
                 _infoFila('Cliente', comprobante['cliente_nombre'] ?? 'Cliente'),
                 _infoFila('Sucursal', comprobante['sucursal_nombre'] ?? 'Central'),
-                _infoFila('Tipo Venta', comprobante['tipo_venta'] ?? 'DIGITAL'),
+                _infoFila('Tipo Venta', (comprobante['tipo_origen'] ?? 'digital').toString().toUpperCase()),
                 _infoFila('Método Pago', comprobante['metodo_pago'] ?? 'ELECTRÓNICO'),
 
                 const Divider(height: 24),
@@ -117,7 +192,7 @@ class _MisComprasScreenState extends State<MisComprasScreen> {
                     children: [
                       Expanded(
                         child: Text(
-                          '${item['cantidad']}x ${item['prenda_nombre']} (${item['talla']}/${item['color']})',
+                          '${item['cantidad']}x ${item['descripcion'] ?? 'Prenda'} (${item['talla'] ?? '-'}/${item['color'] ?? '-'})',
                           style: const TextStyle(fontSize: 13, color: Color(0xFF1E293B)),
                         ),
                       ),
@@ -144,19 +219,21 @@ class _MisComprasScreenState extends State<MisComprasScreen> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 16),
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF1F5F9),
-                    borderRadius: BorderRadius.circular(8),
+                if (comprobante['transaccion_id'] != null) ...[
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF1F5F9),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      'Transacción: ${comprobante['transaccion_id']}',
+                      style: const TextStyle(fontSize: 10, fontFamily: 'monospace', color: Color(0xFF64748B)),
+                      textAlign: TextAlign.center,
+                    ),
                   ),
-                  child: Text(
-                    'Cód. Control: ${comprobante['codigo_control']}',
-                    style: const TextStyle(fontSize: 10, fontFamily: 'monospace', color: Color(0xFF64748B)),
-                    textAlign: TextAlign.center,
-                  ),
-                ),
+                ],
                 const SizedBox(height: 20),
                 ElevatedButton(
                   onPressed: () => Navigator.of(ctx).pop(),
@@ -247,8 +324,12 @@ class _MisComprasScreenState extends State<MisComprasScreen> {
                     itemCount: _compras.length,
                     itemBuilder: (context, index) {
                       final compra = _compras[index];
+                      // El backend manda estado pendiente/pagada/anulada y canal web/movil/presencial
                       final estado = (compra['estado'] ?? '').toString().toUpperCase();
-                      final tipo = (compra['tipo_venta'] ?? '').toString().toUpperCase();
+                      final tipo = (compra['tipo_origen'] ?? '').toString().toUpperCase();
+                      final pagada = estado == 'PAGADA';
+                      final anulada = estado == 'ANULADA';
+                      final pendiente = estado == 'PENDIENTE';
                       final total = (compra['total'] as num?)?.toDouble() ?? 0.0;
                       final detalles = (compra['detalles'] as List?) ?? [];
 
@@ -277,7 +358,7 @@ class _MisComprasScreenState extends State<MisComprasScreen> {
                                       Container(
                                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                                         decoration: BoxDecoration(
-                                          color: tipo == 'DIGITAL' ? const Color(0xFFEFF6FF) : const Color(0xFFFAF5FF),
+                                          color: tipo != 'PRESENCIAL' ? const Color(0xFFEFF6FF) : const Color(0xFFFAF5FF),
                                           borderRadius: BorderRadius.circular(6),
                                         ),
                                         child: Text(
@@ -285,7 +366,7 @@ class _MisComprasScreenState extends State<MisComprasScreen> {
                                           style: TextStyle(
                                             fontSize: 10,
                                             fontWeight: FontWeight.bold,
-                                            color: tipo == 'DIGITAL' ? const Color(0xFF2563EB) : const Color(0xFF7C3AED),
+                                            color: tipo != 'PRESENCIAL' ? const Color(0xFF2563EB) : const Color(0xFF7C3AED),
                                           ),
                                         ),
                                       ),
@@ -293,7 +374,11 @@ class _MisComprasScreenState extends State<MisComprasScreen> {
                                       Container(
                                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                                         decoration: BoxDecoration(
-                                          color: estado == 'PAGADO' ? const Color(0xFFECFDF5) : const Color(0xFFFFFBEB),
+                                          color: pagada
+                                              ? const Color(0xFFECFDF5)
+                                              : anulada
+                                                  ? const Color(0xFFFEF2F2)
+                                                  : const Color(0xFFFFFBEB),
                                           borderRadius: BorderRadius.circular(6),
                                         ),
                                         child: Text(
@@ -301,7 +386,11 @@ class _MisComprasScreenState extends State<MisComprasScreen> {
                                           style: TextStyle(
                                             fontSize: 10,
                                             fontWeight: FontWeight.bold,
-                                            color: estado == 'PAGADO' ? const Color(0xFF059669) : const Color(0xFFD97706),
+                                            color: pagada
+                                                ? const Color(0xFF059669)
+                                                : anulada
+                                                    ? const Color(0xFFDC2626)
+                                                    : const Color(0xFFD97706),
                                           ),
                                         ),
                                       ),
@@ -311,7 +400,7 @@ class _MisComprasScreenState extends State<MisComprasScreen> {
                               ),
                               const SizedBox(height: 8),
                               Text(
-                                'Fecha: ${compra['fecha'] != null ? compra['fecha'].toString().substring(0, 16).replaceAll('T', ' ') : '-'}',
+                                'Fecha: ${_fecha(compra['fecha_venta'])}',
                                 style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
                               ),
                               Text(
@@ -347,7 +436,10 @@ class _MisComprasScreenState extends State<MisComprasScreen> {
                                   Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      const Text('Total Pagado', style: TextStyle(fontSize: 11, color: Color(0xFF64748B))),
+                                      Text(
+                                        pagada ? 'Total Pagado' : pendiente ? 'Total a Pagar' : 'Total',
+                                        style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                                      ),
                                       Text(
                                         'Bs. ${total.toStringAsFixed(2)}',
                                         style: const TextStyle(
@@ -358,13 +450,25 @@ class _MisComprasScreenState extends State<MisComprasScreen> {
                                       ),
                                     ],
                                   ),
-                                  if (estado == 'PAGADO')
+                                  if (pagada)
                                     ElevatedButton.icon(
                                       onPressed: () => _verComprobante(compra['id']),
                                       icon: const Icon(Icons.receipt, size: 16),
                                       label: const Text('Comprobante'),
                                       style: ElevatedButton.styleFrom(
                                         backgroundColor: const Color(0xFF0F172A),
+                                        foregroundColor: Colors.white,
+                                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                                      ),
+                                    )
+                                  // Las ventas de caja las cobra el cajero
+                                  else if (pendiente && tipo != 'PRESENCIAL')
+                                    ElevatedButton.icon(
+                                      onPressed: () => _pagarConQr(compra['id'], total),
+                                      icon: const Icon(Icons.qr_code_2, size: 16),
+                                      label: const Text('Pagar con QR'),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: const Color(0xFF4F46E5),
                                         foregroundColor: Colors.white,
                                         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                                       ),
