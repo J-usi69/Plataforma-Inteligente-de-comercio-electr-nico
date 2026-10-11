@@ -2,6 +2,8 @@
 .env
 .env.*
 !.env.example
+# Credenciales de Firebase en Base64: van como variable de entorno en Railway, nunca al repo
+backend/firebase_b64.txt
 
 # Python
 __pycache__/
