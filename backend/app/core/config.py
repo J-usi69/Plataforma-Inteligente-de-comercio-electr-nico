@@ -18,6 +18,9 @@ class Settings(BaseSettings):
     # URLs públicas: donde Libélula avisa el pago (backend) y adonde devuelve al cliente (frontend)
     backend_public_url: str = "https://fashionstore-backend-production-4c32.up.railway.app"
     frontend_public_url: str = "https://fashionstore-uagrm.up.railway.app"
+    # Sitios web que pueden llamar a la API desde el navegador, separados por coma (localhost en
+    # cualquier puerto siempre se permite para desarrollo). La app móvil no pasa por CORS.
+    cors_origins: str = "https://fashionstore-uagrm.up.railway.app"
     ai_api_key: str = ""
     gemini_api_key: str = ""
     gemini_model: str = "gemini-3.6-flash"
@@ -39,6 +42,10 @@ class Settings(BaseSettings):
         env_file_encoding="utf-8",
         extra="ignore",
     )
+
+    @property
+    def origenes_cors(self) -> list[str]:
+        return [o.strip().rstrip("/") for o in self.cors_origins.split(",") if o.strip()]
 
 
 settings = Settings()

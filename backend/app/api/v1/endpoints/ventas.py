@@ -188,18 +188,73 @@ def _ventas_a_out_bulk(db: Session, ventas: List[Venta]) -> List[VentaOut]:
     return resultado
 
 
-def _cerrar_venta_pagada(db: Session, venta: Venta, usuario_id: Optional[int], ahora: datetime) -> None:
-    """Descuenta del inventario lo vendido, registra el kardex y marca la venta como pagada
-    (sin commit). La usan todos los cobros: caja, tarjeta con Stripe y QR con Libélula."""
-    detalles = db.scalars(select(DetalleVenta).where(DetalleVenta.venta_id == venta.id)).all()
+def _venta_pendiente_bloqueada(db: Session, venta_id: int) -> Optional[Venta]:
+    """Relee la venta bloqueando su fila hasta el commit y la devuelve solo si sigue pendiente.
+    Dos cobros a la vez de la misma venta (doble click en caja, el callback de Libélula junto
+    con la consulta de estado) quedan en fila: el segundo ya la ve pagada y no cobra de nuevo."""
+    venta = db.scalars(
+        select(Venta).where(Venta.id == venta_id).with_for_update().execution_options(populate_existing=True)
+    ).first()
+    if not venta or venta.estado != EstadoVenta.pendiente:
+        db.rollback()
+        return None
+    return venta
 
-    for d in detalles:
+
+def _exigir_stock_para_cobrar(db: Session, venta: Venta) -> None:
+    """Entre que se arma el pedido y se paga pueden pasar minutos: antes de cobrar se revisa
+    que el stock siga alcanzando. Las ventas de una reserva no, ese stock ya está apartado."""
+    if venta.reserva_id is not None:
+        return
+    for d in db.scalars(select(DetalleVenta).where(DetalleVenta.venta_id == venta.id)).all():
         inv = db.scalars(
             select(InventarioSucursal).where(
                 InventarioSucursal.variante_id == d.variante_id,
                 InventarioSucursal.sucursal_id == venta.sucursal_id,
             )
         ).first()
+        if not inv or inv.stock_disponible < d.cantidad:
+            variante = db.get(VariantePrenda, d.variante_id)
+            prenda = db.get(Prenda, variante.prenda_id) if variante else None
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Ya no hay stock suficiente de '{prenda.nombre if prenda else 'Prenda'}' en la sucursal",
+            )
+
+
+def _cerrar_venta_pagada(
+    db: Session, venta: Venta, usuario_id: Optional[int], ahora: datetime, exigir_stock: bool = False
+) -> None:
+    """Descuenta del inventario lo vendido, registra el kardex y marca la venta como pagada
+    (sin commit). La usan todos los cobros: caja, tarjeta con Stripe y QR con Libélula.
+
+    Las filas de inventario quedan bloqueadas hasta el commit, así dos ventas de la misma
+    prenda que se cierran a la vez descuentan una después de la otra en vez de pisarse.
+    Con exigir_stock (caja: todavía no se recibió el dinero) se rechaza si ya no alcanza; en
+    los pagos ya cobrados (tarjeta, QR) la venta se cierra igual."""
+    # Siempre en el mismo orden, para que dos ventas no se bloqueen mutuamente
+    detalles = db.scalars(
+        select(DetalleVenta).where(DetalleVenta.venta_id == venta.id).order_by(DetalleVenta.variante_id)
+    ).all()
+
+    for d in detalles:
+        inv = db.scalars(
+            select(InventarioSucursal)
+            .where(
+                InventarioSucursal.variante_id == d.variante_id,
+                InventarioSucursal.sucursal_id == venta.sucursal_id,
+            )
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        ).first()
+
+        if exigir_stock and venta.reserva_id is None and (not inv or inv.stock_disponible < d.cantidad):
+            db.rollback()
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"Ya no hay stock suficiente de la variante #{d.variante_id} en la sucursal "
+                f"(disponible: {inv.stock_disponible if inv else 0})",
+            )
 
         if inv:
             if venta.reserva_id is not None:
@@ -370,6 +425,9 @@ def procesar_pago_en_caja(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Venta no encontrada")
     if venta.estado == EstadoVenta.pagada:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Esta venta ya fue cobrada previamente")
+    venta = _venta_pendiente_bloqueada(db, venta_id)
+    if not venta:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Esta venta ya fue cobrada o anulada")
 
     ahora = datetime.now(timezone.utc)
 
@@ -385,8 +443,8 @@ def procesar_pago_en_caja(
     )
     db.add(nuevo_pago)
 
-    # 2. Descontar Inventario según origen
-    _cerrar_venta_pagada(db, venta, current_user.id, ahora)
+    # 2. Descontar Inventario según origen (el dinero todavía no entró: si ya no alcanza, no se cobra)
+    _cerrar_venta_pagada(db, venta, current_user.id, ahora, exigir_stock=True)
     db.commit()
     db.refresh(venta)
 
@@ -511,6 +569,7 @@ def crear_intento_pago(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Venta no encontrada")
     if venta.estado == EstadoVenta.pagada:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Esta compra ya se encuentra pagada")
+    _exigir_stock_para_cobrar(db, venta)
 
     try:
         intento = stripe.PaymentIntent.create(
@@ -565,6 +624,11 @@ def procesar_pago_electronico(
 
     transaccion_id = intento.id
     pasarela = "Stripe"
+
+    # Si el mismo pago se confirma dos veces a la vez, el segundo espera y ya la ve pagada
+    venta = _venta_pendiente_bloqueada(db, venta_id)
+    if not venta:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Esta compra ya se encuentra pagada")
 
     # Registrar el pago digital
     nuevo_pago = Pago(
@@ -638,11 +702,8 @@ def _aprobar_pago_qr(db: Session, venta_id: int, pago: Pago, actor_id: Optional[
     """Aprueba el pago QR y cierra la venta. El callback de Libélula y la consulta del estado
     pueden llegar a la vez: la fila de la venta se bloquea para no descontar el stock dos
     veces. Devuelve False si la venta ya no estaba pendiente."""
-    venta = db.scalars(
-        select(Venta).where(Venta.id == venta_id).with_for_update().execution_options(populate_existing=True)
-    ).first()
-    if not venta or venta.estado != EstadoVenta.pendiente:
-        db.rollback()
+    venta = _venta_pendiente_bloqueada(db, venta_id)
+    if not venta:
         return False
 
     ahora = datetime.now(timezone.utc)
@@ -675,6 +736,8 @@ def generar_qr_libelula(
     venta = _venta_accesible(db, venta_id, current_user)
     if venta.estado != EstadoVenta.pendiente:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Esta venta ya fue pagada o anulada")
+    # Pagar con QR puede tardar unos minutos: se revisa que el stock siga alcanzando
+    _exigir_stock_para_cobrar(db, venta)
 
     lineas = []
     for d in db.scalars(select(DetalleVenta).where(DetalleVenta.venta_id == venta.id)).all():
@@ -683,20 +746,6 @@ def generar_qr_libelula(
         talla = db.get(Talla, variante.talla_id) if variante else None
         color = db.get(Color, variante.color_id) if variante else None
         nombre = prenda.nombre if prenda else "Prenda"
-
-        # Pagar con QR puede tardar unos minutos: se revisa que el stock siga alcanzando
-        if venta.reserva_id is None:
-            inv = db.scalars(
-                select(InventarioSucursal).where(
-                    InventarioSucursal.variante_id == d.variante_id,
-                    InventarioSucursal.sucursal_id == venta.sucursal_id,
-                )
-            ).first()
-            if not inv or inv.stock_disponible < d.cantidad:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"Ya no hay stock suficiente de '{nombre}' en la sucursal",
-                )
 
         lineas.append({
             "concepto": " ".join(p for p in [nombre, f"T-{talla.nombre}" if talla else "", color.nombre if color else ""] if p),

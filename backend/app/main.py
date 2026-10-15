@@ -1,21 +1,37 @@
+from contextlib import asynccontextmanager
+
 from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.api.v1.api import api_router
+from app.core.config import settings
+from app.core.security import clave_jwt
 from app.db.session import get_db
+
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    # Mejor no arrancar que arrancar sin poder firmar sesiones (se valida al levantar el
+    # servidor y no al importar, para que el CI pueda importar la app sin secretos)
+    clave_jwt()
+    yield
+
 
 app = FastAPI(
     title="FashionStore API",
     description="API REST para Plataforma Inteligente de Comercio Electrónico FashionStore - UAGRM",
     version="1.0.0",
+    lifespan=lifespan,
 )
 
-# Configuración de CORS
+# Configuración de CORS: solo la web publicada y localhost (desarrollo). La web en producción
+# llega por el proxy de nginx (mismo origen) y la app móvil no pasa por CORS.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=settings.origenes_cors,
+    allow_origin_regex=r"https?://(localhost|127\.0\.0\.1)(:\d+)?",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

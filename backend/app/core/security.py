@@ -19,6 +19,14 @@ def get_password_hash(password: str) -> str:
     return pwd_context.hash(password)
 
 
+def clave_jwt() -> str:
+    # Sin clave propia no se firma con una de respaldo: estaría en el repo y cualquiera
+    # podría fabricarse un token de Administrador
+    if not settings.jwt_secret_key:
+        raise RuntimeError("Falta JWT_SECRET_KEY: configúrala en el .env o en las variables de Railway")
+    return settings.jwt_secret_key
+
+
 def create_access_token(data: dict[str, Any], expires_delta: Optional[timedelta] = None) -> str:
     to_encode = data.copy()
     if expires_delta:
@@ -26,17 +34,13 @@ def create_access_token(data: dict[str, Any], expires_delta: Optional[timedelta]
     else:
         expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     to_encode.update({"exp": expire})
-    encoded_jwt = jwt.encode(to_encode, settings.jwt_secret_key or "default_secret_key_fashionstore", algorithm=ALGORITHM)
+    encoded_jwt = jwt.encode(to_encode, clave_jwt(), algorithm=ALGORITHM)
     return encoded_jwt
 
 
 def decode_access_token(token: str) -> Optional[dict[str, Any]]:
     try:
-        payload = jwt.decode(
-            token,
-            settings.jwt_secret_key or "default_secret_key_fashionstore",
-            algorithms=[ALGORITHM],
-        )
+        payload = jwt.decode(token, clave_jwt(), algorithms=[ALGORITHM])
         return payload
     except JWTError:
         return None
