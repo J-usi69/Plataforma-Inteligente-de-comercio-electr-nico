@@ -116,16 +116,25 @@ class _MisComprasScreenState extends State<MisComprasScreen> {
   }
 
   void _verComprobante(int ventaId) async {
-    showDialog(
+    // Se guarda la ruta del "cargando" para cerrar justo esa: con pop() a secas, si el usuario
+    // ya la cerró con "atrás", se cerraba la pantalla de Mis compras
+    final navegador = Navigator.of(context, rootNavigator: true);
+    final cargando = DialogRoute<void>(
       context: context,
       barrierDismissible: false,
       builder: (ctx) => const Center(child: CircularProgressIndicator()),
     );
+    navegador.push(cargando);
+    // Devuelve false si el usuario ya lo había cerrado (no quiere ver el resultado)
+    bool cerrarCargando() {
+      if (!cargando.isActive) return false;
+      navegador.removeRoute(cargando);
+      return true;
+    }
 
     try {
       final comprobante = await _apiService.getComprobanteVenta(ventaId);
-      if (!mounted) return;
-      Navigator.of(context).pop(); // Cierra loading
+      if (!cerrarCargando() || !mounted) return;
 
       showDialog(
         context: context,
@@ -249,8 +258,7 @@ class _MisComprasScreenState extends State<MisComprasScreen> {
         ),
       );
     } catch (e) {
-      if (!mounted) return;
-      Navigator.of(context).pop(); // Cierra loading
+      if (!cerrarCargando() || !mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Error al cargar comprobante: $e'),

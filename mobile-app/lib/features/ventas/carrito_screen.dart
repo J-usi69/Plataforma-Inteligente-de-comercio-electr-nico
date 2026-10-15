@@ -40,6 +40,10 @@ class _CarritoScreenState extends State<CarritoScreen> {
     if (mounted) setState(() {});
   }
 
+  // Si las sucursales no cargaron, el id por defecto no es una opción real: el combo fallaba
+  // y la orden salía con una sucursal que quizás no existe
+  bool get _sucursalValida => _sucursales.any((s) => s['id'] == _selectedSucursalId);
+
   Future<void> _cargarSucursales() async {
     setState(() => _isLoadingSucursales = true);
     try {
@@ -110,9 +114,17 @@ class _CarritoScreenState extends State<CarritoScreen> {
         ventaId: ventaId,
         total: total,
         onPagoCompletado: (comprobante) {
-          Navigator.of(ctx).pop();
+          // La hoja pudo cerrarse mientras se pedía el comprobante: el pago ya entró igual
+          if (ctx.mounted) Navigator.of(ctx).pop();
           _cartService.clear();
-          _mostrarModalComprobante(comprobante);
+          if (!mounted) return;
+          if (comprobante != null) {
+            _mostrarModalComprobante(comprobante);
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Pago aprobado. Podés ver el comprobante en Mis compras.')),
+            );
+          }
         },
       ),
     );
@@ -395,9 +407,21 @@ class _CarritoScreenState extends State<CarritoScreen> {
                         const SizedBox(height: 6),
                         if (_isLoadingSucursales)
                           const LinearProgressIndicator()
+                        else if (_sucursales.isEmpty)
+                          Row(
+                            children: [
+                              const Expanded(
+                                child: Text(
+                                  'No se pudieron cargar las sucursales.',
+                                  style: TextStyle(fontSize: 13, color: Color(0xFFB91C1C)),
+                                ),
+                              ),
+                              TextButton(onPressed: _cargarSucursales, child: const Text('Reintentar')),
+                            ],
+                          )
                         else
                           DropdownButtonFormField<int>(
-                            value: _selectedSucursalId,
+                            value: _sucursalValida ? _selectedSucursalId : null,
                             isExpanded: true,
                             decoration: InputDecoration(
                               contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -447,7 +471,7 @@ class _CarritoScreenState extends State<CarritoScreen> {
 
                 // Botón de Pago
                 ElevatedButton(
-                  onPressed: _isProcessingSale ? null : _iniciarCheckout,
+                  onPressed: _isProcessingSale || !_sucursalValida ? null : _iniciarCheckout,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF4F46E5),
                     foregroundColor: Colors.white,
@@ -476,7 +500,8 @@ class _CarritoScreenState extends State<CarritoScreen> {
 class _ModalPagoDigital extends StatefulWidget {
   final int ventaId;
   final double total;
-  final Function(Map<String, dynamic> comprobante) onPagoCompletado;
+  // null si el pago entró pero el comprobante no se pudo cargar
+  final void Function(Map<String, dynamic>? comprobante) onPagoCompletado;
 
   const _ModalPagoDigital({
     required this.ventaId,
@@ -529,7 +554,12 @@ class _ModalPagoDigitalState extends State<_ModalPagoDigital> {
   }
 
   Future<void> _finalizarPago() async {
-    final comprobante = await _apiService.getComprobanteVenta(widget.ventaId);
+    // El pago ya está aprobado: si el comprobante no carga, la compra se cierra igual. Antes el
+    // error se perdía dentro del QR y la hoja se quedaba "esperando" un pago que ya había entrado.
+    Map<String, dynamic>? comprobante;
+    try {
+      comprobante = await _apiService.getComprobanteVenta(widget.ventaId);
+    } catch (_) {}
     widget.onPagoCompletado(comprobante);
   }
 

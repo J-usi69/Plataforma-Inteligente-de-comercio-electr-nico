@@ -38,6 +38,7 @@ class _PagoQrLibelulaState extends State<PagoQrLibelula> {
 
   @override
   void dispose() {
+    _terminado = true;
     _consultaTimer?.cancel();
     super.dispose();
   }
@@ -93,7 +94,9 @@ class _PagoQrLibelulaState extends State<PagoQrLibelula> {
   }
 
   Future<void> _confirmarPagado() async {
-    if (_terminado) return;
+    // Si la hoja se cerró mientras se consultaba, no se avisa: quien la abrió cerraría con un
+    // contexto que ya no existe (o peor, otra pantalla). El pago se ve igual en Mis compras.
+    if (_terminado || !mounted) return;
     _terminado = true;
     _consultaTimer?.cancel();
     await widget.onPagado();
