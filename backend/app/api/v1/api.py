@@ -7,6 +7,7 @@ from app.api.v1.endpoints import (
     inventario,
     notificaciones,
     personal,
+    plataforma,
     prendas,
     proveedor_self,
     proveedores,
@@ -15,6 +16,7 @@ from app.api.v1.endpoints import (
     roles,
     sucursales,
     temporadas,
+    tienda,
     variantes,
     ventas,
     vestidor_ar,
@@ -39,4 +41,6 @@ api_router.include_router(ventas.router, prefix="/ventas", tags=["Ventas, Caja y
 api_router.include_router(reportes.router, prefix="/reportes", tags=["Reportes e Indicadores (CU-31, CU-32)"])
 api_router.include_router(ia.router, prefix="/ia", tags=["Inteligencia Artificial (CU-28, CU-29, CU-30)"])
 api_router.include_router(notificaciones.router, prefix="/notificaciones", tags=["Notificaciones Push"])
+api_router.include_router(tienda.router, prefix="/tienda", tags=["SaaS: marca y plan de la tienda"])
+api_router.include_router(plataforma.router, prefix="/plataforma", tags=["SaaS: plataforma (alta de tiendas, superadmin)"])
 

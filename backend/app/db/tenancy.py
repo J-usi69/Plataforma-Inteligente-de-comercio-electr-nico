@@ -98,6 +98,13 @@ _CACHE_SEGUNDOS = 60
 _cache: dict[str, tuple[Optional[TiendaActual], float]] = {}
 
 
+def url_web(slug: str, ruta: str) -> str:
+    """URL de una página de la web de la tienda: la tienda por defecto vive en la raíz y las
+    demás bajo /t/<slug> (con dominio propio será <slug>.dominio)."""
+    prefijo = "" if slug == settings.tienda_por_defecto else f"/t/{slug}"
+    return f"{settings.frontend_public_url.rstrip('/')}{prefijo}{ruta}"
+
+
 def olvidar_tienda(slug: str) -> None:
     """Llamar al cambiar el estado o los datos de una tienda (si no, se ve hasta 60 s después)."""
     _cache.pop(slug, None)

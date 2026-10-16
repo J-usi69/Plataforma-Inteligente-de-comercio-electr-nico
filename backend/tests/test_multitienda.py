@@ -15,28 +15,16 @@ from app.services.tiendas_service import crear_tienda
 client = TestClient(app)
 PASSWORD = "ClaveSegura123*"
 
-# Hijas antes que madres, para poder borrar la tienda de prueba al final
-TABLAS_A_LIMPIAR = [
-    "rol_permiso", "usuario_rol", "bitacora", "push_token", "interaccion_ia", "pago", "detalle_venta",
-    "venta", "detalle_reserva", "reserva", "movimiento_inventario", "inventario_sucursal",
-    "disponibilidad_proveedor", "variante_prenda", "prenda", "coleccion", "temporada", "personal",
-    "proveedor", "sucursal", "categoria", "talla", "color", "usuario", "rol", "suscripcion",
-]
-
 
 @pytest.fixture(scope="module")
-def tienda_b():
+def tienda_b(borrar_tienda):
     slug = f"prueba-{int(time.time() * 1000)}"
     correo = f"dueno{int(time.time() * 1000)}@tienda-b.com"
     with SessionLocal() as db:
         tienda = crear_tienda(db, slug=slug, nombre="Tienda B", correo_admin=correo, password_admin=PASSWORD)
         datos = {"id": tienda.id, "slug": slug, "correo": correo}
     yield datos
-    with engine.begin() as conn:
-        for tabla in TABLAS_A_LIMPIAR:
-            conn.execute(text(f"DELETE FROM {tabla} WHERE tienda_id = :t"), {"t": datos["id"]})
-        conn.execute(text("DELETE FROM tienda WHERE id = :t"), {"t": datos["id"]})
-    olvidar_tienda(slug)
+    borrar_tienda(datos["id"])
 
 
 def _token(login: str, password: str, slug: str | None = None) -> str:

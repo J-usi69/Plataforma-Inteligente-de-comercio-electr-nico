@@ -22,6 +22,7 @@ import httpx
 import segno
 
 from app.core.config import settings
+from app.db.tenancy import url_web
 
 logger = logging.getLogger(__name__)
 
@@ -66,11 +67,6 @@ def _post(ruta: str, cuerpo: dict) -> dict:
     return datos
 
 
-def _prefijo_tienda(tienda_slug: str) -> str:
-    # La web de la tienda por defecto vive en la raíz; las demás bajo /t/<slug>
-    return "" if tienda_slug == settings.tienda_por_defecto else f"/t/{tienda_slug}"
-
-
 def registrar_deuda(
     *,
     identificador: str,
@@ -101,7 +97,7 @@ def registrar_deuda(
             "identificador_deuda": identificador,
             "descripcion": descripcion,
             "callback_url": f"{settings.backend_public_url.rstrip('/')}/api/v1/ventas/libelula/callback/{tienda_slug}",
-            "url_retorno": f"{settings.frontend_public_url.rstrip('/')}{_prefijo_tienda(tienda_slug)}/mis-compras",
+            "url_retorno": url_web(tienda_slug, "/mis-compras"),
             "nombre_cliente": nombre_cliente or "",
             "moneda": "BOB",
             # Un QR de compra no debería quedar pagable para siempre

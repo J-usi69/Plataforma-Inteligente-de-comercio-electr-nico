@@ -9,6 +9,7 @@ from app.models.inventario import InventarioSucursal
 from app.models.reserva import Reserva
 from app.models.seguridad import Usuario
 from app.models.sucursal import Ciudad, Sucursal
+from app.services.planes_service import exigir_cupo
 from app.schemas.sucursal import (
     CiudadCreate,
     CiudadOut,
@@ -107,6 +108,7 @@ def crear_sucursal(
     _: Usuario = Depends(require_roles(["Administrador"])),
 ):
     """CU-06: Registrar nueva sucursal con ciudad, dirección y horarios"""
+    exigir_cupo(db, "sucursales")  # el plan de la tienda limita cuántas puede tener
     ciudad = db.get(Ciudad, datos.ciudad_id)
     if not ciudad or not ciudad.estado:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="La ciudad especificada no es válida")

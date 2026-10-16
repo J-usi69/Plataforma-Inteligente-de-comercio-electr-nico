@@ -9,6 +9,7 @@ from app.core.security import get_password_hash
 from app.models.seguridad import Rol, Usuario, UsuarioRol
 from app.models.sucursal import Personal, Sucursal
 from app.schemas.personal import PersonalCreate, PersonalOut, PersonalUpdate
+from app.services.planes_service import exigir_cupo
 
 router = APIRouter()
 
@@ -56,6 +57,7 @@ def crear_personal(
     _: Usuario = Depends(require_roles(["Administrador"])),
 ):
     """CU-05: Registrar miembro del personal (Encargado o Cajero)"""
+    exigir_cupo(db, "personal")  # el plan de la tienda limita cuántas puede tener
     # Validar sucursal si viene especificada
     if datos.sucursal_id:
         sucursal = db.get(Sucursal, datos.sucursal_id)

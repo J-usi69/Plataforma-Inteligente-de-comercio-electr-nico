@@ -8,6 +8,7 @@ from app.api.deps import get_db
 from app.core.config import settings
 from app.models.catalogo import Color, Prenda, VariantePrenda
 from app.schemas.vestidor_ar import TryOnCapabilities, TryOnJobOut
+from app.services.planes_service import exigir_funcion
 
 router = APIRouter()
 
@@ -105,7 +106,12 @@ def capabilities():
     )
 
 
-@router.post("/jobs", response_model=TryOnJobOut, status_code=status.HTTP_202_ACCEPTED)
+@router.post(
+    "/jobs",
+    response_model=TryOnJobOut,
+    status_code=status.HTTP_202_ACCEPTED,
+    dependencies=[Depends(exigir_funcion("vestidor_ar"))],
+)
 async def crear_generacion(
     prenda_id: int = Form(...),
     persona: UploadFile = File(...),

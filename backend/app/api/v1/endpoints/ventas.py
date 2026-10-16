@@ -32,6 +32,7 @@ from app.schemas.venta import (
     VentaPresencialCreate,
 )
 from app.services import libelula_service, push_service
+from app.services.planes_service import exigir_funcion
 
 router = APIRouter()
 
@@ -724,7 +725,7 @@ def _aprobar_pago_qr(db: Session, venta_id: int, pago: Pago, actor_id: Optional[
     return True
 
 
-@router.post("/{venta_id}/qr-libelula", response_model=QrLibelulaOut)
+@router.post("/{venta_id}/qr-libelula", response_model=QrLibelulaOut, dependencies=[Depends(exigir_funcion("pago_qr"))])
 def generar_qr_libelula(
     venta_id: int,
     request: Request,

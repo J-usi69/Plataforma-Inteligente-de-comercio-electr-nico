@@ -14,6 +14,7 @@ from app.schemas.catalogo import (
     PrendaUpdate,
 )
 from app.services import push_service
+from app.services.planes_service import exigir_cupo
 
 router = APIRouter()
 
@@ -139,6 +140,7 @@ def crear_prenda(
     _: Usuario = Depends(require_roles(["Administrador"])),
 ):
     """CU-08: Registrar nueva prenda en el catálogo con modelo 3D para vestidor virtual"""
+    exigir_cupo(db, "prendas")  # el plan de la tienda limita cuántas puede tener
     # 3. Validar existencia de categoría referenciada
     categoria = db.get(Categoria, datos.categoria_id)
     if not categoria or not categoria.estado:
