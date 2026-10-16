@@ -7,8 +7,11 @@ from sqlalchemy.orm import Session
 
 from app.api.v1.api import api_router
 from app.core.config import settings
+from app.core.observabilidad import configurar_logging, registrar_pedido
 from app.core.security import clave_jwt
 from app.db.session import get_db
+
+configurar_logging()
 
 
 @asynccontextmanager
@@ -25,6 +28,10 @@ app = FastAPI(
     version="1.0.0",
     lifespan=lifespan,
 )
+
+# Log de cada pedido con su id y respuesta genérica ante errores inesperados. Se agrega antes que
+# CORS para que CORS quede por fuera y también un 500 llegue al navegador con sus cabeceras.
+app.middleware("http")(registrar_pedido)
 
 # Configuración de CORS: solo la web publicada y localhost (desarrollo). La web en producción
 # llega por el proxy de nginx (mismo origen) y la app móvil no pasa por CORS.

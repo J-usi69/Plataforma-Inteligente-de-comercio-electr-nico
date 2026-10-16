@@ -13,6 +13,20 @@ jobs:
     defaults:
       run:
         working-directory: backend
+    # Base desechable para los tests: nunca se usa la de Supabase
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: fashionstore
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     steps:
       - uses: actions/checkout@v4
 
@@ -31,6 +45,17 @@ jobs:
           DATABASE_URL: "postgresql://user:pass@localhost:5432/fashionstore_ci"
         run: |
           python -c "from app.main import app; print('OK - la app importa correctamente')"
+
+      - name: Armar la base de pruebas (migraciones + datos semilla)
+        env:
+          DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/fashionstore"
+        run: python preparar_bd_pruebas.py
+
+      - name: Tests del backend
+        env:
+          DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/fashionstore"
+          JWT_SECRET_KEY: "clave-solo-para-el-ci-no-se-usa-en-ningun-otro-lado"
+        run: python -m pytest -q
 
   frontend:
     name: Frontend (Angular)

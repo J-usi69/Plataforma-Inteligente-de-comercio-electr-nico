@@ -32,6 +32,8 @@ services:
       dockerfile: Dockerfile
     container_name: fashionstore-backend
     restart: unless-stopped
+    # Desarrollo: recarga en caliente con el código montado (el Dockerfile arranca en modo producción)
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
     ports:
       - "8000:8000"
     volumes:

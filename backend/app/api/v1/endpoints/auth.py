@@ -12,6 +12,7 @@ from app.api.deps import (
     registrar_bitacora,
     require_roles,
 )
+from app.core.limite_intentos import LimiteIntentos
 from app.core.security import create_access_token, get_password_hash, verify_password
 from app.db.session import get_db
 from app.models.seguridad import Bitacora, Rol, Usuario, UsuarioRol
@@ -28,6 +29,23 @@ from app.schemas.auth import (
 )
 
 router = APIRouter()
+
+# Contra quien prueba contraseñas: pocos fallos por cuenta desde una IP y un tope por IP (para
+# quien prueba muchas cuentas). Un inicio de sesión correcto limpia el contador de esa cuenta.
+VENTANA_INTENTOS_SEGUNDOS = 15 * 60
+intentos_por_cuenta = LimiteIntentos(maximo=5, ventana_segundos=VENTANA_INTENTOS_SEGUNDOS)
+intentos_por_ip = LimiteIntentos(maximo=30, ventana_segundos=VENTANA_INTENTOS_SEGUNDOS)
+
+
+def _rechazar_si_bloqueado(clave_cuenta: str, clave_ip: str) -> None:
+    espera = max(intentos_por_cuenta.segundos_bloqueado(clave_cuenta), intentos_por_ip.segundos_bloqueado(clave_ip))
+    if espera:
+        minutos = -(-espera // 60)  # redondeo hacia arriba
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=f"Demasiados intentos fallidos. Probá de nuevo en {minutos} minuto{'s' if minutos > 1 else ''}.",
+            headers={"Retry-After": str(espera)},
+        )
 
 
 def _construir_usuario_out(db: Session, usuario: Usuario) -> UsuarioOut:
@@ -118,6 +136,9 @@ def login(
 ):
     """CU-02: Iniciar sesión con correo o celular"""
     client_ip = get_client_ip(request)
+    clave_ip = client_ip or "sin-ip"
+    clave_cuenta = f"{clave_ip}|{credenciales.login.strip().lower()}"
+    _rechazar_si_bloqueado(clave_cuenta, clave_ip)
 
     # 2. Buscar usuario por correo o celular
     usuario = db.scalars(
@@ -130,6 +151,8 @@ def login(
     ).first()
 
     if not usuario or not verify_password(credenciales.password, usuario.password_hash):
+        intentos_por_cuenta.registrar_fallo(clave_cuenta)
+        intentos_por_ip.registrar_fallo(clave_ip)
         if usuario:
             registrar_bitacora(db, usuario.id, "Intento fallido de inicio de sesión", client_ip)
         raise HTTPException(
@@ -144,6 +167,8 @@ def login(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="La cuenta de usuario se encuentra inactiva",
         )
+
+    intentos_por_cuenta.limpiar(clave_cuenta)
 
     # 4. Obtener roles y permisos
     roles = get_user_roles(usuario.id, db)

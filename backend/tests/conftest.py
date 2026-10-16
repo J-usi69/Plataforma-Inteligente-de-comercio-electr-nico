@@ -8,7 +8,16 @@ que ningun dato real de la plataforma usa) que backend/limpiar_datos_prueba.py.
 import pytest
 from sqlalchemy import text
 
+from app.api.v1.endpoints import auth
 from app.db.session import engine
+
+
+@pytest.fixture(autouse=True)
+def reiniciar_limite_de_intentos():
+    # Todos los tests inician sesión desde la misma "IP" del TestClient: sin esto, los fallos
+    # adrede de un test bloquearían el inicio de sesión de los siguientes
+    auth.intentos_por_cuenta.reiniciar()
+    auth.intentos_por_ip.reiniciar()
 
 
 @pytest.fixture(scope="session", autouse=True)
