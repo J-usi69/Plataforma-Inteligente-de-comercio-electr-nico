@@ -4,10 +4,11 @@ from sqlalchemy import DateTime, Enum, ForeignKey, Index, Integer, String, Uniqu
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.session import Base
+from app.db.tenancy import PerteneceATienda
 from app.models.enums import TipoMovimiento
 
 
-class InventarioSucursal(Base):
+class InventarioSucursal(PerteneceATienda, Base):
     __tablename__ = "inventario_sucursal"
     __table_args__ = (
         UniqueConstraint("variante_id", "sucursal_id"),
@@ -23,7 +24,7 @@ class InventarioSucursal(Base):
     stock_maximo: Mapped[int | None] = mapped_column(Integer)
 
 
-class MovimientoInventario(Base):
+class MovimientoInventario(PerteneceATienda, Base):
     __tablename__ = "movimiento_inventario"
     __table_args__ = (
         Index("idx_movimiento_variante_sucursal", "variante_id", "sucursal_id"),

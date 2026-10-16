@@ -177,6 +177,7 @@ def login(
     # 5. Generar token de sesión y registrar en bitácora
     token_data = {
         "sub": str(usuario.id),
+        "tid": usuario.tienda_id,  # la sesión solo vale en esta tienda
         "email": usuario.correo,
         "roles": roles,
         "permisos": permisos,

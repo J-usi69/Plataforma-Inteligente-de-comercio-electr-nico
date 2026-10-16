@@ -66,6 +66,11 @@ def _post(ruta: str, cuerpo: dict) -> dict:
     return datos
 
 
+def _prefijo_tienda(tienda_slug: str) -> str:
+    # La web de la tienda por defecto vive en la raíz; las demás bajo /t/<slug>
+    return "" if tienda_slug == settings.tienda_por_defecto else f"/t/{tienda_slug}"
+
+
 def registrar_deuda(
     *,
     identificador: str,
@@ -73,9 +78,11 @@ def registrar_deuda(
     nombre_cliente: Optional[str],
     descripcion: str,
     lineas: list[dict],
+    tienda_slug: str,
 ) -> dict:
     """Registra la venta como deuda en Libélula. Devuelve id_transaccion, qr_url (imagen del
-    QR: URL o data URI) y url_pasarela (None en modo de prueba)."""
+    QR: URL o data URI) y url_pasarela (None en modo de prueba). La tienda va en la ruta del
+    aviso (Libélula le agrega ?transaction_id=..., así que no puede ir como parámetro)."""
     if modo_prueba():
         return {
             "id_transaccion": f"PRUEBA-{uuid.uuid4()}",
@@ -93,8 +100,8 @@ def registrar_deuda(
             "identificador": identificador,
             "identificador_deuda": identificador,
             "descripcion": descripcion,
-            "callback_url": f"{settings.backend_public_url.rstrip('/')}/api/v1/ventas/libelula/callback",
-            "url_retorno": f"{settings.frontend_public_url.rstrip('/')}/mis-compras",
+            "callback_url": f"{settings.backend_public_url.rstrip('/')}/api/v1/ventas/libelula/callback/{tienda_slug}",
+            "url_retorno": f"{settings.frontend_public_url.rstrip('/')}{_prefijo_tienda(tienda_slug)}/mis-compras",
             "nombre_cliente": nombre_cliente or "",
             "moneda": "BOB",
             # Un QR de compra no debería quedar pagable para siempre

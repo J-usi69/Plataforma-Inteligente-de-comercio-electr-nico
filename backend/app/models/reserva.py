@@ -4,10 +4,11 @@ from sqlalchemy import DateTime, Enum, ForeignKey, Index, Integer, Time, UniqueC
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.session import Base
+from app.db.tenancy import PerteneceATienda
 from app.models.enums import EstadoReserva
 
 
-class Reserva(Base):
+class Reserva(PerteneceATienda, Base):
     __tablename__ = "reserva"
     __table_args__ = (Index("idx_reserva_usuario", "usuario_id"),)
 
@@ -24,7 +25,7 @@ class Reserva(Base):
     detalles: Mapped[list["DetalleReserva"]] = relationship(back_populates="reserva")
 
 
-class DetalleReserva(Base):
+class DetalleReserva(PerteneceATienda, Base):
     __tablename__ = "detalle_reserva"
     __table_args__ = (
         UniqueConstraint("reserva_id", "variante_id"),

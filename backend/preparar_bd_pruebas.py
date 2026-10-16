@@ -48,7 +48,9 @@ def main() -> None:
     command.upgrade(alembic, "0001")
     with engine.begin() as conn:
         conn.exec_driver_sql((RAIZ.parent / "database" / "init-seeds.sql").read_text(encoding="utf-8"))
-    command.upgrade(alembic, "head")
+    # Los seeds en Python insertan sin tienda_id: corren mientras la columna todavía tiene DEFAULT 1
+    # (todo queda en la tienda "fashionstore"); saas04 lo quita al final
+    command.upgrade(alembic, "saas03")
 
     seed_users.seed()
     seed_permisos_tienda.seed()
@@ -56,6 +58,8 @@ def main() -> None:
     # Los tests venden de verdad (descuentan stock): con 30 unidades alcanza para pocas corridas
     with engine.begin() as conn:
         conn.execute(text("UPDATE inventario_sucursal SET stock_disponible = 1000"))
+
+    command.upgrade(alembic, "head")
 
     with engine.connect() as conn:
         resumen = conn.execute(text(

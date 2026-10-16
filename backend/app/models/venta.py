@@ -4,10 +4,11 @@ from sqlalchemy import DateTime, Enum, ForeignKey, Index, Integer, Numeric, Stri
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.session import Base
+from app.db.tenancy import PerteneceATienda
 from app.models.enums import CanalVenta, EstadoPago, EstadoVenta
 
 
-class Venta(Base):
+class Venta(PerteneceATienda, Base):
     __tablename__ = "venta"
     __table_args__ = (
         Index("idx_venta_sucursal", "sucursal_id"),
@@ -30,7 +31,7 @@ class Venta(Base):
     pagos: Mapped[list["Pago"]] = relationship(back_populates="venta")
 
 
-class DetalleVenta(Base):
+class DetalleVenta(PerteneceATienda, Base):
     __tablename__ = "detalle_venta"
     __table_args__ = (Index("idx_detalle_venta_venta", "venta_id"),)
 
@@ -44,7 +45,7 @@ class DetalleVenta(Base):
     venta: Mapped["Venta"] = relationship(back_populates="detalles")
 
 
-class Pago(Base):
+class Pago(PerteneceATienda, Base):
     __tablename__ = "pago"
 
     id: Mapped[int] = mapped_column(primary_key=True)

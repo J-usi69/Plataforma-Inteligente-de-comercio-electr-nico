@@ -12,6 +12,7 @@ from sqlalchemy.pool import StaticPool
 import app.main  # noqa: F401  (registra todos los modelos para configurar las relaciones)
 from app.api.v1.endpoints.ventas import _cerrar_venta_pagada, _venta_pendiente_bloqueada
 from app.db.session import Base
+from app.db.tenancy import CLAVE_TIENDA
 from app.models.enums import CanalVenta, EstadoVenta
 from app.models.inventario import InventarioSucursal, MovimientoInventario
 from app.models.venta import DetalleVenta, Pago, Venta
@@ -24,7 +25,8 @@ def db():
     engine = create_engine("sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool)
     tablas = [t.__table__ for t in (Venta, DetalleVenta, Pago, InventarioSucursal, MovimientoInventario)]
     Base.metadata.create_all(engine, tables=tablas)
-    with Session(engine) as sesion:
+    # Como en cada pedido, la sesión es de una tienda: lo que se crea queda en ella
+    with Session(engine, info={CLAVE_TIENDA: 1}) as sesion:
         yield sesion
 
 

@@ -5,11 +5,23 @@ from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from app.core.security import decode_access_token
 from app.db.session import get_db
+from app.db.tenancy import CLAVE_TIENDA, buscar_tienda
 from app.models.seguridad import Bitacora, Permiso, Rol, RolPermiso, Usuario, UsuarioRol
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login", auto_error=False)
+
+
+def _token_es_de_esta_tienda(payload: dict, db: Session) -> bool:
+    """Una sesión iniciada en una tienda no sirve en otra. Los tokens anteriores al SaaS no
+    traen tienda: eran todos de la tienda por defecto y solo valen ahí."""
+    tienda_token = payload.get("tid")
+    if tienda_token is None:
+        por_defecto = buscar_tienda(settings.tienda_por_defecto)
+        tienda_token = por_defecto.id if por_defecto else None
+    return tienda_token == db.info.get(CLAVE_TIENDA)
 
 
 def get_client_ip(request: Request) -> Optional[str]:
@@ -81,6 +93,12 @@ def get_current_user(
             detail="Token no contiene identificador de usuario",
             headers={"WWW-Authenticate": "Bearer"},
         )
+    if not _token_es_de_esta_tienda(payload, db):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="La sesión pertenece a otra tienda: iniciá sesión en esta",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
     user = db.get(Usuario, int(user_id))
     if not user:
         raise HTTPException(
@@ -113,7 +131,7 @@ def get_optional_current_user(
     if not payload:
         return None
     user_id = payload.get("sub")
-    if not user_id:
+    if not user_id or not _token_es_de_esta_tienda(payload, db):
         return None
     user = db.get(Usuario, int(user_id))
     if not user or not user.estado or user.fecha_eliminacion is not None:

@@ -110,7 +110,8 @@ def test_qr_libelula_callback_confirma_contra_libelula(libelula_falsa: _Libelula
     assert qr["qr_url"] == "https://api.libelula.bo/qr/falso.png"
     registrada = libelula_falsa.registradas[-1]
     assert registrada["appkey"] == "llave-de-prueba"
-    assert registrada["callback_url"].endswith("/api/v1/ventas/libelula/callback")
+    # La tienda viaja en la ruta del aviso: Libélula no manda cabeceras
+    assert registrada["callback_url"].endswith("/api/v1/ventas/libelula/callback/fashionstore")
     assert sum(l["cantidad"] * l["costo_unitario"] for l in registrada["lineas_detalle_deuda"]) == pytest.approx(venta["total"])
 
     # Con la llave real no se puede "simular" un pago
@@ -118,7 +119,7 @@ def test_qr_libelula_callback_confirma_contra_libelula(libelula_falsa: _Libelula
     assert res_simular.status_code == 404
 
     # Aviso sin que Libélula tenga el pago registrado (aviso falso): no se aprueba
-    callback = f"/api/v1/ventas/libelula/callback?transaction_id={qr['transaccion_id']}"
+    callback = f"/api/v1/ventas/libelula/callback/fashionstore?transaction_id={qr['transaccion_id']}"
     assert client.get(callback).json()["ok"] is False
     assert client.get(f"/api/v1/ventas/{venta['id']}", headers=headers).json()["estado"] == "pendiente"
 

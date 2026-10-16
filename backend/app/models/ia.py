@@ -4,9 +4,10 @@ from sqlalchemy import DateTime, ForeignKey, Index, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.session import Base
+from app.db.tenancy import PerteneceATienda
 
 
-class InteraccionIA(Base):
+class InteraccionIA(PerteneceATienda, Base):
     __tablename__ = "interaccion_ia"
     __table_args__ = (Index("idx_interaccion_ia_usuario", "usuario_id"),)
 

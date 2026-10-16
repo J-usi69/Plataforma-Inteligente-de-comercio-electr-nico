@@ -9,7 +9,7 @@ def seed():
         conn.execute(text("""
             INSERT INTO usuario (correo, password_hash, celular, estado, verificado, creado_en)
             VALUES ('cliente@fashionstore.com', :h, '71234567', true, now(), now())
-            ON CONFLICT (correo) DO UPDATE SET password_hash = :h;
+            ON CONFLICT (tienda_id, correo) WHERE tienda_id IS NOT NULL DO UPDATE SET password_hash = :h;
         """), {"h": h_cliente})
         u_c = conn.execute(text("SELECT id FROM usuario WHERE correo = 'cliente@fashionstore.com'")).scalar()
         conn.execute(text("INSERT INTO usuario_rol (usuario_id, rol_id) VALUES (:u, 2) ON CONFLICT DO NOTHING"), {"u": u_c})
@@ -19,7 +19,7 @@ def seed():
         conn.execute(text("""
             INSERT INTO usuario (correo, password_hash, celular, estado, verificado, creado_en)
             VALUES ('encargado@fashionstore.com', :h, '72345678', true, now(), now())
-            ON CONFLICT (correo) DO UPDATE SET password_hash = :h;
+            ON CONFLICT (tienda_id, correo) WHERE tienda_id IS NOT NULL DO UPDATE SET password_hash = :h;
         """), {"h": h_enc})
         u_e = conn.execute(text("SELECT id FROM usuario WHERE correo = 'encargado@fashionstore.com'")).scalar()
         conn.execute(text("INSERT INTO usuario_rol (usuario_id, rol_id) VALUES (:u, 3) ON CONFLICT DO NOTHING"), {"u": u_e})
@@ -34,7 +34,7 @@ def seed():
         conn.execute(text("""
             INSERT INTO usuario (correo, password_hash, celular, estado, verificado, creado_en)
             VALUES ('cajero@fashionstore.com', :h, '73456789', true, now(), now())
-            ON CONFLICT (correo) DO UPDATE SET password_hash = :h;
+            ON CONFLICT (tienda_id, correo) WHERE tienda_id IS NOT NULL DO UPDATE SET password_hash = :h;
         """), {"h": h_caj})
         u_k = conn.execute(text("SELECT id FROM usuario WHERE correo = 'cajero@fashionstore.com'")).scalar()
         conn.execute(text("INSERT INTO usuario_rol (usuario_id, rol_id) VALUES (:u, 4) ON CONFLICT DO NOTHING"), {"u": u_k})
@@ -49,7 +49,7 @@ def seed():
         conn.execute(text("""
             INSERT INTO usuario (correo, password_hash, celular, estado, verificado, creado_en)
             VALUES ('proveedor@fashionstore.com', :h, '74567890', true, now(), now())
-            ON CONFLICT (correo) DO UPDATE SET password_hash = :h;
+            ON CONFLICT (tienda_id, correo) WHERE tienda_id IS NOT NULL DO UPDATE SET password_hash = :h;
         """), {"h": h_prov})
         u_p = conn.execute(text("SELECT id FROM usuario WHERE correo = 'proveedor@fashionstore.com'")).scalar()
         rol_proveedor_id = conn.execute(text("SELECT id FROM rol WHERE nombre = 'Proveedor'")).scalar()

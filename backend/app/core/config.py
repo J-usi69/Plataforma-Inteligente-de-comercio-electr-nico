@@ -21,6 +21,12 @@ class Settings(BaseSettings):
     # Sitios web que pueden llamar a la API desde el navegador, separados por coma (localhost en
     # cualquier puerto siempre se permite para desarrollo). La app móvil no pasa por CORS.
     cors_origins: str = "https://fashionstore-uagrm.up.railway.app"
+    # SaaS: tienda que se usa cuando el pedido no dice de cuál es (la web y la app actuales)
+    tienda_por_defecto: str = "fashionstore"
+    # Con dominio propio (ej. "fashionstore.app"), mi-tienda.fashionstore.app identifica a la tienda
+    dominio_base: str = ""
+    # Row Level Security en Postgres (requiere la migración que crea el rol fashionstore_app)
+    rls_habilitado: bool = True
     ai_api_key: str = ""
     gemini_api_key: str = ""
     gemini_model: str = "gemini-3.6-flash"

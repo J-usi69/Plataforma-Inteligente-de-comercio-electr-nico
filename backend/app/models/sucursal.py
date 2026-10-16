@@ -4,6 +4,7 @@ from sqlalchemy import Boolean, DateTime, ForeignKey, String, Time
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.session import Base
+from app.db.tenancy import PerteneceATienda
 
 
 class Ciudad(Base):
@@ -15,7 +16,7 @@ class Ciudad(Base):
     fecha_eliminacion: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
-class Sucursal(Base):
+class Sucursal(PerteneceATienda, Base):
     __tablename__ = "sucursal"
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -29,7 +30,7 @@ class Sucursal(Base):
     fecha_eliminacion: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
-class Personal(Base):
+class Personal(PerteneceATienda, Base):
     __tablename__ = "personal"
 
     id: Mapped[int] = mapped_column(primary_key=True)

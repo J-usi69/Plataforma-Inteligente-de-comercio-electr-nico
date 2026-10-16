@@ -772,8 +772,9 @@ def generar_qr_libelula(
             # Venta de mostrador sin cliente registrado: el aviso de Libélula le llega al cajero
             email_cliente=(cliente or current_user).correo,
             nombre_cliente=None,
-            descripcion=f"Compra FashionStore #{venta.id}",
+            descripcion=f"Compra {request.state.tienda.nombre} #{venta.id}",
             lineas=lineas,
+            tienda_slug=request.state.tienda.slug,
         )
     except libelula_service.LibelulaError as exc:
         db.rollback()
@@ -841,11 +842,15 @@ def simular_pago_qr_libelula(
     return _venta_a_out(db, venta)
 
 
+# Con la tienda en la ruta (SaaS). Sin ella, la tienda por defecto: así siguen llegando los avisos
+# de los QR generados antes de que existieran otras tiendas.
+@router.api_route("/libelula/callback/{tienda_slug}", methods=["GET", "POST"])
 @router.api_route("/libelula/callback", methods=["GET", "POST"])
 def callback_pago_libelula(
     transaction_id: str,
     request: Request,
     db: Session = Depends(get_db),
+    tienda_slug: Optional[str] = None,  # lo usa get_db para elegir la tienda
 ):
     """Libélula avisa acá que se pagó una deuda (?transaction_id=..., más invoice_id e
     invoice_url si emitió factura). Es público y el aviso no viene firmado: no se le cree,

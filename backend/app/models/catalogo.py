@@ -4,33 +4,39 @@ from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Index, Integer, Nume
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.session import Base
+from app.db.tenancy import PerteneceATienda
 
 
-class Categoria(Base):
+class Categoria(PerteneceATienda, Base):
     __tablename__ = "categoria"
+    # Único dentro de cada tienda (dos tiendas pueden tener una categoría "Poleras")
+    __table_args__ = (UniqueConstraint("tienda_id", "nombre"),)
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    nombre: Mapped[str] = mapped_column(String(100), unique=True)
+    nombre: Mapped[str] = mapped_column(String(100))
     descripcion: Mapped[str | None] = mapped_column(String(255))
     estado: Mapped[bool] = mapped_column(Boolean, default=True)
 
 
-class Talla(Base):
+class Talla(PerteneceATienda, Base):
     __tablename__ = "talla"
+    # Único dentro de cada tienda (dos tiendas pueden tener la misma talla "M")
+    __table_args__ = (UniqueConstraint("tienda_id", "nombre"),)
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    nombre: Mapped[str] = mapped_column(String(20), unique=True)
+    nombre: Mapped[str] = mapped_column(String(20))
 
 
-class Color(Base):
+class Color(PerteneceATienda, Base):
     __tablename__ = "color"
+    __table_args__ = (UniqueConstraint("tienda_id", "nombre"),)
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    nombre: Mapped[str] = mapped_column(String(50), unique=True)
+    nombre: Mapped[str] = mapped_column(String(50))
     hex: Mapped[str | None] = mapped_column(String(7))
 
 
-class Temporada(Base):
+class Temporada(PerteneceATienda, Base):
     __tablename__ = "temporada"
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -41,7 +47,7 @@ class Temporada(Base):
     estado: Mapped[bool] = mapped_column(Boolean, default=True)
 
 
-class Coleccion(Base):
+class Coleccion(PerteneceATienda, Base):
     __tablename__ = "coleccion"
     __table_args__ = (Index("idx_coleccion_temporada", "temporada_id"),)
 
@@ -52,7 +58,7 @@ class Coleccion(Base):
     estado: Mapped[bool] = mapped_column(Boolean, default=True)
 
 
-class Proveedor(Base):
+class Proveedor(PerteneceATienda, Base):
     __tablename__ = "proveedor"
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -64,7 +70,7 @@ class Proveedor(Base):
     usuario: Mapped["Usuario | None"] = relationship(back_populates="proveedor")
 
 
-class Prenda(Base):
+class Prenda(PerteneceATienda, Base):
     __tablename__ = "prenda"
     __table_args__ = (
         Index("idx_prenda_categoria", "categoria_id"),
@@ -85,10 +91,11 @@ class Prenda(Base):
     variantes: Mapped[list["VariantePrenda"]] = relationship(back_populates="prenda")
 
 
-class VariantePrenda(Base):
+class VariantePrenda(PerteneceATienda, Base):
     __tablename__ = "variante_prenda"
     __table_args__ = (
         UniqueConstraint("prenda_id", "talla_id", "color_id"),
+        UniqueConstraint("tienda_id", "codigo_barras"),
         Index("idx_variante_prenda", "prenda_id"),
     )
 
@@ -96,7 +103,7 @@ class VariantePrenda(Base):
     prenda_id: Mapped[int] = mapped_column(ForeignKey("prenda.id", ondelete="CASCADE"))
     talla_id: Mapped[int] = mapped_column(ForeignKey("talla.id"))
     color_id: Mapped[int] = mapped_column(ForeignKey("color.id"))
-    codigo_barras: Mapped[str] = mapped_column(String(50), unique=True)
+    codigo_barras: Mapped[str] = mapped_column(String(50))
     estado: Mapped[bool] = mapped_column(Boolean, default=True)
     # Foto de referencia de ESTE color específico para el vestidor virtual (CU-14).
     # Si es NULL, se usa la foto genérica de Prenda.imagen_url como respaldo.
@@ -105,7 +112,7 @@ class VariantePrenda(Base):
     prenda: Mapped["Prenda"] = relationship(back_populates="variantes")
 
 
-class DisponibilidadProveedor(Base):
+class DisponibilidadProveedor(PerteneceATienda, Base):
     __tablename__ = "disponibilidad_proveedor"
     __table_args__ = (Index("idx_disponibilidad_prenda", "prenda_id"),)
 
