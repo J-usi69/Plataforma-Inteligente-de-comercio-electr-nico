@@ -1,4 +1,5 @@
-import { Injectable, computed, signal } from '@angular/core';
+import { Injectable, computed, inject, signal } from '@angular/core';
+import { TiendaService } from './tienda.service';
 
 export interface CartItem {
   variante_id: number;
@@ -13,6 +14,8 @@ export interface CartItem {
 
 @Injectable({ providedIn: 'root' })
 export class CartService {
+  // La bolsa es de la empresa de la URL: con otra empresa, otra bolsa
+  private readonly claveBolsa = inject(TiendaService).clave('fs_cart');
   private readonly _items = signal<CartItem[]>([]);
   private readonly _sucursalId = signal<number>(1);
 
@@ -32,7 +35,7 @@ export class CartService {
   }
 
   private cargarDesdeStorage(): void {
-    const raw = localStorage.getItem('fs_cart');
+    const raw = localStorage.getItem(this.claveBolsa);
     if (raw) {
       try {
         const parsed = JSON.parse(raw);
@@ -48,7 +51,7 @@ export class CartService {
 
   private guardarEnStorage(): void {
     localStorage.setItem(
-      'fs_cart',
+      this.claveBolsa,
       JSON.stringify({
         items: this._items(),
         sucursalId: this._sucursalId(),
@@ -92,7 +95,7 @@ export class CartService {
 
   vaciar(): void {
     this._items.set([]);
-    localStorage.removeItem('fs_cart');
+    localStorage.removeItem(this.claveBolsa);
   }
 }
 

@@ -1,15 +1,19 @@
 <header *ngIf="!pantallaLimpia()" class="navbar">
   <a routerLink="/" class="brand">
-    <div class="brand-icon">
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/>
-        <path d="M3 6h18"/>
-        <path d="M16 10a4 4 0 0 1-8 0"/>
-      </svg>
-    </div>
+    @if (tienda.tienda()?.logo_url; as logo) {
+      <img [src]="logo" [alt]="tienda.nombre()" class="brand-logo" />
+    } @else {
+      <div class="brand-icon">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/>
+          <path d="M3 6h18"/>
+          <path d="M16 10a4 4 0 0 1-8 0"/>
+        </svg>
+      </div>
+    }
     <div style="display: flex; flex-direction: column;">
       <div style="display: flex; align-items: center; gap: 0.5rem;">
-        <span>FashionStore</span>
+        <span>{{ tienda.nombre() }}</span>
         <span class="brand-tag">Online</span>
       </div>
       <span style="font-size: 0.68rem; color: #64748b; font-weight: 500; letter-spacing: -0.01em;">Moda & Realidad Aumentada</span>
@@ -100,18 +104,52 @@
   </div>
 </header>
 
+<!-- SaaS: suscripción vencida (modo consulta) y rechazos por el plan (402) -->
+@if (!pantallaLimpia() && !tienda.vigente()) {
+  <div class="aviso-plan aviso-consulta" role="status">
+    <span>La suscripción de {{ tienda.nombre() }} no está vigente: la tienda está en modo consulta y no se pueden registrar ventas, reservas ni cambios.</span>
+    @if (authService.isAdmin()) {
+      <a routerLink="/admin/plan" class="btn btn-primary btn-sm">Renovar el plan</a>
+    }
+  </div>
+}
+@if (!pantallaLimpia() && tienda.vigente() && tienda.avisoPlan(); as aviso) {
+  <div class="aviso-plan" role="alert">
+    <span>{{ aviso }}</span>
+    @if (authService.isAdmin()) {
+      <a routerLink="/admin/plan" class="btn btn-primary btn-sm" (click)="tienda.avisoPlan.set(null)">Ver planes</a>
+    }
+    <button type="button" class="cerrar-aviso" aria-label="Cerrar aviso" (click)="tienda.avisoPlan.set(null)">✕</button>
+  </div>
+}
+
 <main>
-  <router-outlet></router-outlet>
+  @if (tienda.noExiste()) {
+    <div class="container tienda-inexistente">
+      <h2>Esta tienda no existe</h2>
+      <p>La dirección no corresponde a ninguna empresa de FashionStore. Revisá el enlace o creá tu propia tienda.</p>
+      <a href="/crear-tienda" class="btn btn-primary">Crear una empresa</a>
+    </div>
+  } @else {
+    <router-outlet></router-outlet>
+  }
 </main>
 
-<!-- CU-29: Asistente conversacional, disponible incluso sin sesión iniciada; oculto para el personal (tienen sus propios paneles) -->
-<app-chat-widget *ngIf="!pantallaLimpia() && !authService.isAdmin() && !authService.isEncargado() && !authService.isCajero() && !authService.isProveedor()"></app-chat-widget>
+<!-- CU-29: Asistente conversacional, disponible incluso sin sesión iniciada; oculto para el personal (tienen sus propios paneles) y si el plan no lo incluye -->
+@if (!pantallaLimpia() && tienda.tiene('asistente_ia') && !authService.isAdmin() && !authService.isEncargado() && !authService.isCajero() && !authService.isProveedor()) {
+  <app-chat-widget></app-chat-widget>
+}
 
 <footer *ngIf="!pantallaLimpia()" class="footer">
   <div style="max-width: 1200px; margin: 0 auto; display: flex; flex-direction: column; align-items: center; gap: 0.5rem;">
-    <div style="font-weight: 700; color: #0f172a; font-size: 0.95rem;">FashionStore — Plataforma Inteligente de Comercio Electrónico</div>
+    <div style="font-weight: 700; color: #0f172a; font-size: 0.95rem;">{{ tienda.nombre() }}</div>
     <div style="font-size: 0.8rem; color: #64748b;">
-      Experiencia Omnicanal de Moda y Realidad Aumentada · Santa Cruz, Bolivia
+      Tienda en FashionStore — Plataforma Inteligente de Comercio Electrónico
+    </div>
+    <div class="enlaces-plataforma">
+      <a href="/crear-tienda">Creá tu tienda en FashionStore</a>
+      <span aria-hidden="true">·</span>
+      <a href="/plataforma">Administración de la plataforma</a>
     </div>
     <div style="font-size: 0.75rem; color: #94a3b8; margin-top: 0.25rem;">
       Todos los derechos reservados &copy; 2026 FashionStore

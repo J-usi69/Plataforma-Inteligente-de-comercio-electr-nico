@@ -179,8 +179,8 @@ def solicitar_cambio_de_plan(db: Session, tienda: Tienda, plan_codigo: str, usua
             client_reference_id=str(tienda.id),
             metadata=metadata,
             subscription_data={"metadata": metadata},
-            success_url=url_web(tienda.slug, "/admin?suscripcion=ok&session_id={CHECKOUT_SESSION_ID}"),
-            cancel_url=url_web(tienda.slug, "/admin?suscripcion=cancelada"),
+            success_url=url_web(tienda.slug, "/admin/plan?suscripcion=ok&session_id={CHECKOUT_SESSION_ID}"),
+            cancel_url=url_web(tienda.slug, "/admin/plan?suscripcion=cancelada"),
         )
     except stripe.error.StripeError as exc:
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=f"Stripe: {exc.user_message or exc}")

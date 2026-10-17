@@ -13,6 +13,7 @@ import {
 import { AuthService } from '../../../core/services/auth.service';
 import { BusinessService } from '../../../core/services/business.service';
 import { CartService } from '../../../core/services/cart.service';
+import { TiendaService } from '../../../core/services/tienda.service';
 import { VestidorVirtual } from '../vestidor-virtual/vestidor-virtual';
 
 @Component({
@@ -269,6 +270,7 @@ export class Listado implements OnInit {
   private readonly business = inject(BusinessService);
   private readonly auth = inject(AuthService);
   readonly cart = inject(CartService);
+  readonly tienda = inject(TiendaService);
 
   isLoggedIn = this.auth.isLoggedIn;
 

@@ -215,7 +215,7 @@ def test_con_cobro_por_stripe_el_cambio_pasa_por_checkout(tienda_nueva):
         enviado = crear.call_args.kwargs
         assert enviado["mode"] == "subscription"
         assert enviado["metadata"] == {"tienda_id": str(tienda_nueva["id"]), "plan_codigo": "profesional"}
-        assert f"/t/{tienda_nueva['slug']}/admin?suscripcion=ok" in enviado["success_url"]
+        assert f"/t/{tienda_nueva['slug']}/admin/plan?suscripcion=ok" in enviado["success_url"]
 
         pagada = {
             "status": "complete", "customer": "cus_123", "metadata": {"tienda_id": str(tienda_nueva["id"]), "plan_codigo": "profesional"},

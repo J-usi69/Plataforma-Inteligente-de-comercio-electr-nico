@@ -5,6 +5,7 @@ import { NavigationEnd, Router, RouterModule } from '@angular/router';
 import { filter, map } from 'rxjs';
 import { AuthService } from './core/services/auth.service';
 import { CartService } from './core/services/cart.service';
+import { TiendaService } from './core/services/tienda.service';
 import { ChatWidget } from './features/asistente/chat-widget/chat-widget';
 
 @Component({
@@ -17,6 +18,7 @@ import { ChatWidget } from './features/asistente/chat-widget/chat-widget';
 export class App {
   readonly authService = inject(AuthService);
   readonly cartService = inject(CartService);
+  readonly tienda = inject(TiendaService);
   private readonly router = inject(Router);
 
   // El probador AR se abre dentro de la app móvil: ahí sobran el menú, el pie y el chat de la tienda

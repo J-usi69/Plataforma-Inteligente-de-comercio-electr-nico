@@ -1,0 +1,150 @@
+.alta {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
+  gap: 2.5rem;
+  align-items: start;
+
+  @media (max-width: 900px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.etiqueta-seccion {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--primary);
+}
+
+.presentacion {
+  padding-top: 1rem;
+
+  h1 {
+    font-size: clamp(1.8rem, 3vw, 2.4rem);
+    line-height: 1.15;
+    margin: 0.5rem 0 1rem;
+  }
+
+  p {
+    color: var(--text-muted);
+    line-height: 1.6;
+  }
+
+  ul {
+    margin-top: 1.25rem;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+  }
+
+  li::before {
+    content: '✓';
+    color: var(--success);
+    font-weight: 800;
+    margin-right: 0.5rem;
+  }
+}
+
+.formulario {
+  h2 {
+    font-size: 1.3rem;
+    margin-bottom: 1.25rem;
+  }
+
+  > .btn {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+.direccion {
+  display: flex;
+  align-items: center;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+
+  span {
+    padding: 0 0.6rem;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    background: var(--bg-page);
+    white-space: nowrap;
+    align-self: stretch;
+    display: flex;
+    align-items: center;
+  }
+
+  input {
+    border: 0;
+    flex: 1;
+    min-width: 0;
+  }
+}
+
+small.ok {
+  color: var(--success);
+}
+
+small.mal {
+  color: var(--danger);
+}
+
+.planes {
+  border: 0;
+  padding: 0;
+  margin: 0 0 1.25rem;
+  display: grid;
+  gap: 0.75rem;
+
+  legend {
+    font-size: 0.85rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+  }
+}
+
+.plan {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 0.2rem 0.75rem;
+  align-items: center;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+
+  &.elegido {
+    border-color: var(--primary);
+    background: var(--primary-light);
+  }
+
+  input {
+    grid-row: span 2;
+  }
+}
+
+.plan-nombre {
+  font-weight: 700;
+}
+
+.plan-precio {
+  font-weight: 700;
+  color: var(--primary);
+}
+
+.plan-detalle {
+  grid-column: 2 / span 2;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.nota {
+  margin-top: 0.6rem;
+  text-align: center;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}

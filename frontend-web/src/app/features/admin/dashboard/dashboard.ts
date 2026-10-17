@@ -24,6 +24,7 @@ import {
 } from '../../../core/models/user.model';
 import { AuthService } from '../../../core/services/auth.service';
 import { BusinessService } from '../../../core/services/business.service';
+import { TiendaService } from '../../../core/services/tienda.service';
 import { Paginador } from '../../../shared/paginador/paginador';
 
 @Component({
@@ -149,11 +150,26 @@ import { Paginador } from '../../../shared/paginador/paginador';
       justify-content: center;
       margin-right: 0.75rem;
     }
+    .reporte-ia-bloqueado {
+      margin-bottom: 1.5rem;
+      border: 1px dashed var(--primary);
+      background: var(--primary-light);
+    }
+    .reporte-ia-bloqueado h4 {
+      font-size: 0.95rem;
+      margin-bottom: 0.5rem;
+    }
+    .reporte-ia-bloqueado p {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      margin-bottom: 0.75rem;
+    }
   `],
 })
 export class Dashboard implements OnInit {
   private readonly business = inject(BusinessService);
   readonly authService = inject(AuthService);
+  readonly tienda = inject(TiendaService);
 
   activeTab = signal<'roles' | 'personal' | 'sucursales' | 'proveedores' | 'temporadas' | 'prendas' | 'catalogo-maestro' | 'reportes' | 'bitacora'>('roles');
   isLoading = signal(false);

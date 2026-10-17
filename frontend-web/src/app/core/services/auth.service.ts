@@ -3,12 +3,16 @@ import { Injectable, computed, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { Observable, tap } from 'rxjs';
 import { TokenResponse, Usuario } from '../models/user.model';
+import { TiendaService } from './tienda.service';
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
   private readonly http = inject(HttpClient);
   private readonly router = inject(Router);
   private readonly baseUrl = '/api/v1/auth';
+  // Cada empresa guarda su propia sesión: un token solo vale en la empresa que lo emitió
+  private readonly claveToken = inject(TiendaService).clave('fs_token');
+  private readonly claveUsuario = inject(TiendaService).clave('fs_user');
 
   private readonly _currentUser = signal<Usuario | null>(null);
   private readonly _token = signal<string | null>(null);
@@ -36,8 +40,8 @@ export class AuthService {
   }
 
   private initSession(): void {
-    const savedToken = localStorage.getItem('fs_token');
-    const savedUser = localStorage.getItem('fs_user');
+    const savedToken = localStorage.getItem(this.claveToken);
+    const savedUser = localStorage.getItem(this.claveUsuario);
     if (savedToken && savedUser) {
       try {
         this._token.set(savedToken);
@@ -53,8 +57,8 @@ export class AuthService {
       tap((res) => {
         this._token.set(res.access_token);
         this._currentUser.set(res.usuario);
-        localStorage.setItem('fs_token', res.access_token);
-        localStorage.setItem('fs_user', JSON.stringify(res.usuario));
+        localStorage.setItem(this.claveToken, res.access_token);
+        localStorage.setItem(this.claveUsuario, JSON.stringify(res.usuario));
       })
     );
   }
@@ -77,8 +81,8 @@ export class AuthService {
   private clearSession(): void {
     this._token.set(null);
     this._currentUser.set(null);
-    localStorage.removeItem('fs_token');
-    localStorage.removeItem('fs_user');
+    localStorage.removeItem(this.claveToken);
+    localStorage.removeItem(this.claveUsuario);
     this.router.navigate(['/login']);
   }
 
@@ -86,7 +90,7 @@ export class AuthService {
     return this.http.put<Usuario>(`${this.baseUrl}/me`, data).pipe(
       tap((updated) => {
         this._currentUser.set(updated);
-        localStorage.setItem('fs_user', JSON.stringify(updated));
+        localStorage.setItem(this.claveUsuario, JSON.stringify(updated));
       })
     );
   }

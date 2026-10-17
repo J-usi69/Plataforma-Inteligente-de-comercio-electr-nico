@@ -1,0 +1,72 @@
+<div class="container alta">
+  <section class="presentacion">
+    <span class="etiqueta-seccion">FashionStore para empresas</span>
+    <h1>Llevá tu tienda de ropa a FashionStore</h1>
+    <p>
+      Catálogo, sucursales, inventario, reservas, ventas en caja y online, vestidor virtual y reportes,
+      en un espacio solo para tu empresa. Empezá con el plan que necesites y cambialo cuando quieras.
+    </p>
+    <ul>
+      <li>Tus datos separados de los de cualquier otra empresa</li>
+      <li>Tu marca: nombre, logo y colores propios</li>
+      <li>Funciona también sin conexión en caja y en la app</li>
+    </ul>
+  </section>
+
+  <form class="card formulario" (ngSubmit)="crear()" #formulario="ngForm">
+    <h2>Creá tu empresa</h2>
+
+    <div class="form-group">
+      <label for="nombre">Nombre de la empresa</label>
+      <input id="nombre" name="nombre" [(ngModel)]="nombre" (ngModelChange)="alCambiarNombre()" required minlength="2" maxlength="80" placeholder="Ej. Moda Sureña" />
+    </div>
+
+    <div class="form-group">
+      <label for="slug">Dirección de tu tienda</label>
+      <div class="direccion">
+        <span>{{ origen }}/t/</span>
+        <input id="slug" name="slug" [(ngModel)]="slug" (ngModelChange)="alCambiarSlug()" required minlength="3" maxlength="40" />
+      </div>
+      @if (disponibilidad(); as d) {
+        <small [class.ok]="d.disponible" [class.mal]="!d.disponible">
+          {{ d.disponible ? 'Disponible' : d.motivo }}
+        </small>
+      }
+    </div>
+
+    <div class="grid-2">
+      <div class="form-group">
+        <label for="correo">Correo del administrador</label>
+        <input id="correo" name="correo" type="email" [(ngModel)]="correo" required email autocomplete="email" />
+      </div>
+      <div class="form-group">
+        <label for="password">Contraseña</label>
+        <input id="password" name="password" type="password" [(ngModel)]="password" required minlength="8" autocomplete="new-password" />
+      </div>
+    </div>
+
+    <fieldset class="planes">
+      <legend>Plan</legend>
+      @for (p of planes(); track p.codigo) {
+        <label class="plan" [class.elegido]="planCodigo === p.codigo">
+          <input type="radio" name="plan" [value]="p.codigo" [(ngModel)]="planCodigo" />
+          <span class="plan-nombre">{{ p.nombre }}</span>
+          <span class="plan-precio">{{ p.precio_mensual | number: '1.0-2' }} {{ p.moneda }}/mes</span>
+          <span class="plan-detalle">
+            {{ p.max_sucursales ? 'Hasta ' + p.max_sucursales + ' sucursales' : 'Sucursales sin límite' }}
+            · {{ p.reportes_ia ? 'con' : 'sin' }} reportes con IA
+          </span>
+        </label>
+      }
+    </fieldset>
+
+    @if (error()) {
+      <div class="alert alert-danger">{{ error() }}</div>
+    }
+
+    <button class="btn btn-primary" type="submit" [disabled]="formulario.invalid || enviando() || disponibilidad()?.disponible === false">
+      {{ enviando() ? 'Creando tu empresa...' : 'Crear empresa' }}
+    </button>
+    <p class="nota">El primer mes queda registrado como pago simulado.</p>
+  </form>
+</div>

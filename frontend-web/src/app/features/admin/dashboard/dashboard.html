@@ -6,7 +6,7 @@
         <span class="brand-tag">Administración Central</span>
         <span style="font-size: 0.75rem; color: #818cf8; font-weight: 600;">Gestión Empresarial</span>
       </div>
-      <h2>Panel de Control FashionStore</h2>
+      <h2>Panel de Control {{ tienda.nombre() }}</h2>
       <p>Supervisa sucursales, personal, catálogo de prendas 3D y auditoría de eventos en tiempo real.</p>
     </div>
     <div style="display: flex; gap: 0.75rem;">
@@ -15,6 +15,9 @@
           <circle cx="12" cy="12" r="10"/><polygon points="12 8 8 12 12 16 12 8"/><line x1="16" y1="12" x2="8" y2="12"/>
         </svg>
         Ver Catálogo Público
+      </a>
+      <a routerLink="/admin/plan" class="btn btn-primary btn-sm">
+        Mi plan: {{ tienda.tienda()?.plan_nombre ?? '...' }}
       </a>
     </div>
   </div>
@@ -810,6 +813,7 @@
         </div>
       </div>
 
+      @if (tienda.tiene('reportes_ia')) {
       <div class="card" style="margin-bottom: 1.5rem; background: #f8fafc;">
         <h4 style="margin-bottom: 0.5rem; font-size: 0.95rem;">✨ Generar Reporte con IA</h4>
         <p style="font-size: 0.8rem; color: #64748b; margin-bottom: 0.75rem;">
@@ -862,6 +866,16 @@
           </div>
         </div>
       </div>
+      } @else {
+      <div class="card reporte-ia-bloqueado">
+        <h4>✨ Reportes generados con IA</h4>
+        <p>
+          Pedí reportes en lenguaje natural ("ventas de septiembre por sucursal", "las 10 prendas más vendidas"). Esta función
+          está en el plan Profesional; tu plan actual es {{ tienda.tienda()?.plan_nombre }}.
+        </p>
+        <a routerLink="/admin/plan" class="btn btn-primary btn-sm">Ver planes</a>
+      </div>
+      }
 
       <div class="stats-grid">
         <div class="stat-card">

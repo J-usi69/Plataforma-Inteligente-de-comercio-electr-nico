@@ -1,0 +1,162 @@
+<div class="container">
+  <div class="cabecera">
+    <div>
+      <span class="etiqueta-seccion">Suscripción</span>
+      <h2>Plan de {{ tienda.nombre() }}</h2>
+      <p>Tu plan define cuántas sucursales podés tener y qué funciones incluye la plataforma.</p>
+    </div>
+    <a routerLink="/admin" class="btn btn-secondary btn-sm">← Volver al panel</a>
+  </div>
+
+  @if (mensaje()) {
+    <div class="alert alert-success">{{ mensaje() }}</div>
+  }
+  @if (error()) {
+    <div class="alert alert-danger">{{ error() }}</div>
+  }
+
+  @if (estado(); as e) {
+    <div class="resumen">
+      <section class="card">
+        <h3>Suscripción</h3>
+        <div class="fila-plan">
+          <span class="nombre-plan">{{ e.plan.nombre }}</span>
+          <span
+            class="badge"
+            [class.badge-success]="e.suscripcion.estado === 'activa'"
+            [class.badge-warning]="e.suscripcion.estado === 'vencida'"
+            [class.badge-danger]="e.suscripcion.estado === 'cancelada'"
+          >
+            {{ e.suscripcion.estado }}
+          </span>
+        </div>
+        <dl class="datos">
+          <dt>Desde</dt>
+          <dd>{{ e.suscripcion.fecha_inicio | date: 'dd/MM/yyyy' }}</dd>
+          <dt>Vence</dt>
+          <dd>
+            @if (e.suscripcion.fecha_vencimiento) {
+              {{ e.suscripcion.fecha_vencimiento | date: 'dd/MM/yyyy' }}
+              <span class="dias">({{ e.suscripcion.dias_restantes }} días)</span>
+            } @else {
+              Sin vencimiento
+            }
+          </dd>
+          <dt>Precio</dt>
+          <dd>{{ e.plan.precio_mensual | number: '1.0-2' }} {{ e.plan.moneda }} / mes</dd>
+        </dl>
+
+        @if (e.suscripcion.estado !== 'activa') {
+          <div class="alert alert-danger">
+            La suscripción {{ e.suscripcion.estado === 'cancelada' ? 'está cancelada' : 'venció' }}: la tienda está en
+            modo consulta. Se puede ver todo, pero no registrar ventas, reservas ni cambios hasta renovar.
+          </div>
+        }
+
+        @if (e.suscripcion.cobro === 'simulado') {
+          <div class="renovar">
+            <select [(ngModel)]="mesesRenovacion" aria-label="Meses a renovar">
+              <option [ngValue]="1">1 mes</option>
+              <option [ngValue]="3">3 meses</option>
+              <option [ngValue]="6">6 meses</option>
+              <option [ngValue]="12">12 meses</option>
+            </select>
+            <button class="btn btn-primary btn-sm" [disabled]="procesando()" (click)="renovar()">
+              {{ procesando() === 'renovar' ? 'Renovando...' : 'Renovar' }}
+              ({{ e.plan.precio_mensual * mesesRenovacion | number: '1.0-2' }} {{ e.plan.moneda }})
+            </button>
+          </div>
+          <p class="nota">Pago simulado: queda registrado en el historial.</p>
+        } @else {
+          <p class="nota">Tu suscripción se cobra con Stripe y se renueva sola cada mes.</p>
+        }
+      </section>
+
+      <section class="card">
+        <h3>Uso de tu plan</h3>
+        @for (r of recursos; track r.clave) {
+          <div class="uso">
+            <div class="uso-texto">
+              <span>{{ r.nombre }}</span>
+              <strong>
+                {{ e.uso[r.clave] }}
+                @if (limite(r) !== null) {
+                  de {{ limite(r) }}
+                } @else {
+                  <span class="sin-limite">· sin límite</span>
+                }
+              </strong>
+            </div>
+            @if (limite(r) !== null) {
+              <div class="barra" role="progressbar" [attr.aria-valuenow]="porcentaje(r)" aria-valuemin="0" aria-valuemax="100">
+                <div class="barra-relleno" [class.llena]="porcentaje(r) >= 100" [style.width.%]="porcentaje(r)"></div>
+              </div>
+            }
+          </div>
+        }
+      </section>
+    </div>
+
+    <h3 class="titulo-planes">Planes disponibles</h3>
+    <div class="planes">
+      @for (p of e.planes_disponibles; track p.codigo) {
+        <article class="card plan" [class.actual]="p.codigo === e.plan.codigo">
+          @if (p.codigo === e.plan.codigo) {
+            <span class="cinta">Tu plan</span>
+          }
+          <h4>{{ p.nombre }}</h4>
+          <div class="precio">
+            {{ p.precio_mensual | number: '1.0-2' }} <small>{{ p.moneda }} / mes</small>
+          </div>
+          @if (p.descripcion) {
+            <p class="descripcion">{{ p.descripcion }}</p>
+          }
+          <ul class="caracteristicas">
+            <li class="si">{{ p.max_sucursales ?? 'Sucursales sin límite' }}{{ p.max_sucursales ? ' sucursales activas' : '' }}</li>
+            <li class="si">Productos, ventas y reservas</li>
+            @for (f of funciones; track f.clave) {
+              <li [class.si]="p[f.clave]" [class.no]="!p[f.clave]">{{ f.nombre }}</li>
+            }
+          </ul>
+          @if (p.codigo !== e.plan.codigo) {
+            <button class="btn btn-primary" [disabled]="procesando()" (click)="cambiarA(p)">
+              {{ procesando() === p.codigo ? 'Cambiando...' : 'Cambiar a ' + p.nombre }}
+            </button>
+          }
+        </article>
+      }
+    </div>
+
+    <section class="card">
+      <h3>Historial de la suscripción</h3>
+      <div class="table-responsive">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Fecha</th>
+              <th>Movimiento</th>
+              <th>Plan</th>
+              <th>Monto</th>
+              <th>Origen</th>
+              <th>Detalle</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (m of e.movimientos; track $index) {
+              <tr>
+                <td>{{ m.fecha | date: 'dd/MM/yyyy HH:mm' }}</td>
+                <td>{{ etiqueta(m.tipo) }}</td>
+                <td>{{ m.plan }}</td>
+                <td>{{ m.monto | number: '1.2-2' }}</td>
+                <td>{{ m.origen }}</td>
+                <td>{{ m.detalle }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </section>
+  } @else if (!error()) {
+    <p class="cargando">Cargando tu plan...</p>
+  }
+</div>

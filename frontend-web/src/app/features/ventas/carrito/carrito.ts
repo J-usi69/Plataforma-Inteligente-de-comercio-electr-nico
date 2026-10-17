@@ -7,6 +7,7 @@ import { ComprobanteVenta, Sucursal, Venta } from '../../../core/models/user.mod
 import { AuthService } from '../../../core/services/auth.service';
 import { BusinessService } from '../../../core/services/business.service';
 import { CartService } from '../../../core/services/cart.service';
+import { TiendaService } from '../../../core/services/tienda.service';
 import { PagoQrLibelula } from '../pago-qr-libelula/pago-qr-libelula';
 
 // Stripe.js se carga por <script> en index.html (no via npm) y expone `Stripe` en window.
@@ -73,6 +74,7 @@ export class Carrito implements OnInit {
   readonly cart = inject(CartService);
   private readonly business = inject(BusinessService);
   readonly authService = inject(AuthService);
+  readonly tienda = inject(TiendaService);
   private readonly router = inject(Router);
 
   sucursales = signal<Sucursal[]>([]);

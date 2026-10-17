@@ -126,15 +126,17 @@
       >
         💳 Tarjeta
       </button>
-      <button
-        type="button"
-        class="btn btn-secondary"
-        [style.background]="metodoPago() === 'qr' ? '#4f46e5' : '#ffffff'"
-        [style.color]="metodoPago() === 'qr' ? '#ffffff' : '#0f172a'"
-        (click)="metodoPago.set('qr')"
-      >
-        📱 QR (Libélula)
-      </button>
+      @if (tienda.tiene('pago_qr')) {
+        <button
+          type="button"
+          class="btn btn-secondary"
+          [style.background]="metodoPago() === 'qr' ? '#4f46e5' : '#ffffff'"
+          [style.color]="metodoPago() === 'qr' ? '#ffffff' : '#0f172a'"
+          (click)="metodoPago.set('qr')"
+        >
+          📱 QR (Libélula)
+        </button>
+      }
     </div>
 
     <!-- Stripe Elements monta aquí el iframe seguro de la tarjeta. Se oculta (no se quita) al

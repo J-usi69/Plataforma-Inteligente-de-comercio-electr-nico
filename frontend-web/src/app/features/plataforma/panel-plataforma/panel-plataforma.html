@@ -1,0 +1,212 @@
+<div class="container">
+  <div class="cabecera">
+    <div>
+      <span class="etiqueta-seccion">Plataforma SaaS</span>
+      <h2>Administración de FashionStore</h2>
+      <p>Empresas suscritas, sus planes y suscripciones, y la configuración de los planes.</p>
+    </div>
+    @if (plataforma.conSesion()) {
+      <button class="btn btn-secondary btn-sm" (click)="salir()">Cerrar sesión</button>
+    }
+  </div>
+
+  @if (mensaje()) {
+    <div class="alert alert-success">{{ mensaje() }}</div>
+  }
+  @if (error()) {
+    <div class="alert alert-danger">{{ error() }}</div>
+  }
+
+  @if (!plataforma.conSesion()) {
+    <form class="card ingreso" (ngSubmit)="entrar()">
+      <h3>Ingreso del superadmin</h3>
+      <div class="form-group">
+        <label for="correo">Correo</label>
+        <input id="correo" name="correo" type="email" [(ngModel)]="correo" required autocomplete="username" />
+      </div>
+      <div class="form-group">
+        <label for="password">Contraseña</label>
+        <input id="password" name="password" type="password" [(ngModel)]="password" required autocomplete="current-password" />
+      </div>
+      <button class="btn btn-primary" type="submit">Entrar</button>
+    </form>
+  } @else {
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-data">
+          <span class="stat-value">{{ resumen().total }}</span>
+          <span class="stat-label">Empresas</span>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-data">
+          <span class="stat-value">{{ resumen().activas }}</span>
+          <span class="stat-label">Con suscripción vigente</span>
+        </div>
+      </div>
+      @for (p of resumen().porPlan; track p.nombre) {
+        <div class="stat-card">
+          <div class="stat-data">
+            <span class="stat-value">{{ p.cantidad }}</span>
+            <span class="stat-label">Plan {{ p.nombre }}</span>
+          </div>
+        </div>
+      }
+    </div>
+
+    <div class="pestanas" role="tablist">
+      <button role="tab" [class.activa]="pestana() === 'empresas'" (click)="pestana.set('empresas')">Empresas</button>
+      <button role="tab" [class.activa]="pestana() === 'planes'" (click)="pestana.set('planes')">Planes</button>
+    </div>
+
+    @if (pestana() === 'empresas') {
+      <div class="acciones">
+        <button class="btn btn-primary btn-sm" (click)="mostrarAlta = !mostrarAlta">
+          {{ mostrarAlta ? 'Cerrar' : '+ Registrar empresa' }}
+        </button>
+      </div>
+
+      @if (mostrarAlta) {
+        <form class="card alta" (ngSubmit)="crearEmpresa()" #formAlta="ngForm">
+          <h3>Nueva empresa contratante</h3>
+          <div class="grid-3">
+            <div class="form-group">
+              <label for="alta-nombre">Nombre</label>
+              <input id="alta-nombre" name="nombre" [(ngModel)]="alta.nombre_tienda" (ngModelChange)="alCambiarNombreAlta()" required minlength="2" />
+            </div>
+            <div class="form-group">
+              <label for="alta-slug">Dirección (/t/...)</label>
+              <input id="alta-slug" name="slug" [(ngModel)]="alta.slug" required minlength="3" />
+            </div>
+            <div class="form-group">
+              <label for="alta-plan">Plan</label>
+              <select id="alta-plan" name="plan" [(ngModel)]="alta.plan_codigo">
+                @for (p of planes(); track p.codigo) {
+                  <option [value]="p.codigo">{{ p.nombre }}</option>
+                }
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="alta-correo">Correo del administrador</label>
+              <input id="alta-correo" name="correo" type="email" [(ngModel)]="alta.correo" required email />
+            </div>
+            <div class="form-group">
+              <label for="alta-password">Contraseña inicial</label>
+              <input id="alta-password" name="password" type="password" [(ngModel)]="alta.password" required minlength="8" autocomplete="new-password" />
+            </div>
+          </div>
+          <button class="btn btn-primary btn-sm" type="submit" [disabled]="formAlta.invalid || ocupado() === 'alta'">
+            {{ ocupado() === 'alta' ? 'Registrando...' : 'Registrar empresa' }}
+          </button>
+        </form>
+      }
+
+      <div class="table-responsive card">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Empresa</th>
+              <th>Plan</th>
+              <th>Suscripción</th>
+              <th>Vence</th>
+              <th>Uso</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (t of tiendas(); track t.id) {
+              <tr [class.suspendida]="t.estado === 'suspendida'">
+                <td>
+                  <a [href]="urlDe(t)" target="_blank" rel="noopener" class="nombre-empresa">{{ t.nombre }}</a>
+                  <div class="secundario">/t/{{ t.slug }}</div>
+                  @if (t.estado === 'suspendida') {
+                    <span class="badge badge-danger">suspendida</span>
+                  }
+                </td>
+                <td>
+                  <select [ngModel]="t.plan_codigo" (ngModelChange)="cambiarPlan(t, $event)" [disabled]="ocupado() === 'plan-' + t.id" [attr.aria-label]="'Plan de ' + t.nombre">
+                    @for (p of planes(); track p.codigo) {
+                      <option [value]="p.codigo">{{ p.nombre }}</option>
+                    }
+                  </select>
+                </td>
+                <td>
+                  <span
+                    class="badge"
+                    [class.badge-success]="t.estado_suscripcion === 'activa'"
+                    [class.badge-warning]="t.estado_suscripcion === 'vencida'"
+                    [class.badge-danger]="t.estado_suscripcion === 'cancelada'"
+                  >
+                    {{ t.estado_suscripcion }}
+                  </span>
+                </td>
+                <td>{{ t.fecha_vencimiento ? (t.fecha_vencimiento | date: 'dd/MM/yyyy') : 'Sin vencimiento' }}</td>
+                <td class="secundario">
+                  {{ t.sucursales }} suc. · {{ t.prendas }} prendas · {{ t.usuarios }} usuarios · {{ t.ventas }} ventas
+                </td>
+                <td class="botones">
+                  <button class="btn btn-secondary btn-sm" [disabled]="ocupado() === 'renovar-' + t.id" (click)="renovar(t)">Renovar 1 mes</button>
+                  <button class="btn btn-secondary btn-sm" [disabled]="ocupado() === 'suscripcion-' + t.id" (click)="alternarSuscripcion(t)">
+                    {{ t.estado_suscripcion === 'cancelada' ? 'Reactivar suscripción' : 'Cancelar suscripción' }}
+                  </button>
+                  <button
+                    class="btn btn-sm"
+                    [class.btn-danger]="t.estado === 'activa'"
+                    [class.btn-secondary]="t.estado !== 'activa'"
+                    [disabled]="ocupado() === 'estado-' + t.id"
+                    (click)="alternarTienda(t)"
+                  >
+                    {{ t.estado === 'activa' ? 'Suspender' : 'Reactivar' }}
+                  </button>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    } @else {
+      <p class="ayuda">
+        Los valores iniciales son los del enunciado (Básico hasta 2 sucursales, Profesional hasta 10). Un límite vacío significa
+        "sin límite". Los cambios rigen en el acto para todas las empresas con ese plan.
+      </p>
+      <div class="planes">
+        @for (p of planes(); track p.codigo) {
+          <form class="card" (ngSubmit)="guardarPlan(p)">
+            <h3>{{ p.nombre }} <small>({{ p.codigo }})</small></h3>
+            <div class="grid-2">
+              <div class="form-group">
+                <label [for]="'precio-' + p.codigo">Precio mensual ({{ p.moneda }})</label>
+                <input [id]="'precio-' + p.codigo" name="precio" type="number" min="0" step="0.01" [(ngModel)]="p.precio_mensual" />
+              </div>
+              <div class="form-group">
+                <label [for]="'suc-' + p.codigo">Máx. sucursales</label>
+                <input [id]="'suc-' + p.codigo" name="max_sucursales" type="number" min="1" [(ngModel)]="p.max_sucursales" placeholder="Sin límite" />
+              </div>
+              <div class="form-group">
+                <label [for]="'prendas-' + p.codigo">Máx. prendas</label>
+                <input [id]="'prendas-' + p.codigo" name="max_prendas" type="number" min="1" [(ngModel)]="p.max_prendas" placeholder="Sin límite" />
+              </div>
+              <div class="form-group">
+                <label [for]="'personal-' + p.codigo">Máx. empleados</label>
+                <input [id]="'personal-' + p.codigo" name="max_personal" type="number" min="1" [(ngModel)]="p.max_personal" placeholder="Sin límite" />
+              </div>
+            </div>
+            <div class="form-group">
+              <label [for]="'desc-' + p.codigo">Descripción</label>
+              <input [id]="'desc-' + p.codigo" name="descripcion" [(ngModel)]="p.descripcion" maxlength="200" />
+            </div>
+            <fieldset class="funciones">
+              <legend>Funciones incluidas</legend>
+              @for (f of funciones; track f.clave) {
+                <label><input type="checkbox" [name]="f.clave" [(ngModel)]="p[f.clave]" /> {{ f.nombre }}</label>
+              }
+            </fieldset>
+            <button class="btn btn-primary btn-sm" type="submit" [disabled]="ocupado() === 'plan-' + p.codigo">
+              {{ ocupado() === 'plan-' + p.codigo ? 'Guardando...' : 'Guardar plan' }}
+            </button>
+          </form>
+        }
+      </div>
+    }
+  }
+</div>
