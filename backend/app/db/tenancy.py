@@ -13,6 +13,7 @@ ninguna, la tienda por defecto, para que la web y la app actuales sigan funciona
 """
 import time
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import HTTPException, Request, status
@@ -86,12 +87,27 @@ def _activar_rls(session: Session, _transaccion, conexion) -> None:
 # ------------------------------------------------------------------------------
 # De qué tienda es cada pedido
 # ------------------------------------------------------------------------------
+def estado_de_suscripcion(estado: str, vence: Optional[datetime], ahora: Optional[datetime] = None) -> str:
+    """Una suscripción activa cuya fecha de vencimiento ya pasó está vencida, aunque nadie la
+    haya marcado (no hace falta una tarea programada que recorra las suscripciones)."""
+    ahora = ahora or datetime.now(timezone.utc)
+    if estado == "activa" and vence is not None and vence <= ahora:
+        return "vencida"
+    return estado
+
+
 @dataclass(frozen=True)
 class TiendaActual:
     id: int
     slug: str
     nombre: str
     estado: str
+    suscripcion_estado: str = "activa"
+    suscripcion_vence: Optional[datetime] = None
+
+    @property
+    def suscripcion_vigente(self) -> bool:
+        return estado_de_suscripcion(self.suscripcion_estado, self.suscripcion_vence) == "activa"
 
 
 _CACHE_SEGUNDOS = 60
@@ -135,7 +151,14 @@ def buscar_tienda(slug: str) -> Optional[TiendaActual]:
 
     with SessionLocal() as db:  # sin tienda: la tabla tienda es de la plataforma
         fila = db.query(Tienda).filter(Tienda.slug == slug).first()
-        tienda = TiendaActual(fila.id, fila.slug, fila.nombre, fila.estado) if fila else None
+        tienda = None
+        if fila:
+            suscripcion = fila.suscripcion
+            tienda = TiendaActual(
+                fila.id, fila.slug, fila.nombre, fila.estado,
+                suscripcion_estado=suscripcion.estado if suscripcion else "activa",
+                suscripcion_vence=suscripcion.fecha_vencimiento if suscripcion else None,
+            )
     _cache[slug] = (tienda, time.monotonic() + _CACHE_SEGUNDOS)
     return tienda
 

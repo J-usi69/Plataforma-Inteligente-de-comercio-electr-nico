@@ -30,6 +30,8 @@ TABLAS_DE_TIENDA = [
 ]
 # Globales: la app las lee; las escrituras de tienda/suscripción quedan acotadas a la propia
 TABLAS_GLOBALES_LECTURA = ["permiso", "plan"]
+# De la plataforma pero de una tienda cada fila: cada tienda ve y toca solo las suyas
+TABLAS_DE_SUSCRIPCION = ["suscripcion", "movimiento_suscripcion"]
 
 
 def upgrade() -> None:
@@ -74,8 +76,9 @@ def upgrade() -> None:
         CREATE POLICY tienda_edita_la_suya ON tienda FOR UPDATE TO {ROL}
         USING (id = app_tienda_actual()) WITH CHECK (id = app_tienda_actual())
     """)
-    op.execute("ALTER TABLE suscripcion ENABLE ROW LEVEL SECURITY")
-    op.execute(f"CREATE POLICY tienda_aislada ON suscripcion TO {ROL} USING (tienda_id = app_tienda_actual()) WITH CHECK (tienda_id = app_tienda_actual())")
+    for tabla in TABLAS_DE_SUSCRIPCION:
+        op.execute(f"ALTER TABLE {tabla} ENABLE ROW LEVEL SECURITY")
+        op.execute(f"CREATE POLICY tienda_aislada ON {tabla} TO {ROL} USING (tienda_id = app_tienda_actual()) WITH CHECK (tienda_id = app_tienda_actual())")
 
     # Versión de migraciones: solo para postgres (sin políticas, nadie más la ve)
     op.execute("ALTER TABLE alembic_version ENABLE ROW LEVEL SECURITY")
@@ -83,7 +86,11 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     op.execute("ALTER TABLE alembic_version DISABLE ROW LEVEL SECURITY")
-    for tabla, politicas in [("suscripcion", ["tienda_aislada"]), ("tienda", ["app_lee", "tienda_edita_la_suya"]), ("ciudad", ["app_usa"])]:
+    for tabla, politicas in [
+        *[(t, ["tienda_aislada"]) for t in TABLAS_DE_SUSCRIPCION],
+        ("tienda", ["app_lee", "tienda_edita_la_suya"]),
+        ("ciudad", ["app_usa"]),
+    ]:
         for politica in politicas:
             op.execute(f"DROP POLICY IF EXISTS {politica} ON {tabla}")
         op.execute(f"ALTER TABLE {tabla} DISABLE ROW LEVEL SECURITY")

@@ -37,6 +37,7 @@ def main() -> None:
     # Recién acá: app.core.config lee DATABASE_URL al importarse
     from sqlalchemy import text
 
+    import seed_empresa_demo
     import seed_permisos_tienda
     import seed_prendas_demo
     import seed_users
@@ -60,6 +61,8 @@ def main() -> None:
         conn.execute(text("UPDATE inventario_sucursal SET stock_disponible = 1000"))
 
     command.upgrade(alembic, "head")
+    # Segunda empresa de prueba (va con el esquema completo: se carga con la sesión de su tienda)
+    seed_empresa_demo.seed()
 
     with engine.connect() as conn:
         resumen = conn.execute(text(

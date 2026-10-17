@@ -73,7 +73,7 @@ def _fallback_mas_vendidas(db: Session, limit: int = 5) -> List[Prenda]:
     return resultado
 
 
-@router.post("/recomendaciones", response_model=RecomendacionOut, dependencies=[Depends(exigir_funcion("ia"))])
+@router.post("/recomendaciones", response_model=RecomendacionOut, dependencies=[Depends(exigir_funcion("asistente_ia"))])
 def obtener_recomendaciones(
     db: Session = Depends(get_db),
     current_user: Usuario = Depends(require_roles(["Cliente"])),
@@ -145,7 +145,7 @@ def _prenda_de_variante(db: Session, variante_id: int) -> Optional[Prenda]:
     return db.get(Prenda, variante.prenda_id) if variante else None
 
 
-@router.post("/chat", response_model=ChatResponse, dependencies=[Depends(exigir_funcion("ia"))])
+@router.post("/chat", response_model=ChatResponse, dependencies=[Depends(exigir_funcion("asistente_ia"))])
 def chat_asistente(
     datos: ChatRequest,
     db: Session = Depends(get_db),
@@ -185,7 +185,7 @@ def chat_asistente(
     return ChatResponse(respuesta=respuesta)
 
 
-@router.post("/reportes", response_model=ReporteIAResponse, dependencies=[Depends(exigir_funcion("ia"))])
+@router.post("/reportes", response_model=ReporteIAResponse, dependencies=[Depends(exigir_funcion("reportes_ia"))])
 def generar_reporte_ia(
     datos: ReporteIARequest,
     db: Session = Depends(get_db),

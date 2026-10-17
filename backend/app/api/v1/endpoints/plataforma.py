@@ -1,6 +1,6 @@
 """La plataforma SaaS: alta de tiendas (público), planes (público), webhook de Stripe y la
-administración de todas las tiendas por el superadmin. Ninguna de estas rutas es de una tienda:
-usan la sesión de la plataforma."""
+administración de todas las tiendas y de los planes por el superadmin. Ninguna de estas rutas es
+de una tienda: usan la sesión de la plataforma."""
 from typing import List, Optional
 
 import stripe
@@ -17,13 +17,16 @@ from app.db.session import get_db_plataforma
 from app.db.tenancy import olvidar_tienda
 from app.models.catalogo import Prenda
 from app.models.seguridad import Usuario
+from app.models.sucursal import Sucursal
 from app.models.tienda import Plan, Suscripcion, Tienda
 from app.models.venta import Venta
 from app.schemas.tienda import (
     LoginPlataformaIn,
     PlanOut,
+    PlanUpdate,
     RegistroTiendaIn,
     RegistroTiendaOut,
+    RenovarIn,
     TiendaAdminOut,
     TiendaAdminUpdate,
 )
@@ -48,6 +51,31 @@ def require_superadmin(token: Optional[str] = Depends(oauth2), db: Session = Dep
     return usuario
 
 
+def _tienda_o_404(db: Session, tienda_id: int) -> Tienda:
+    tienda = db.get(Tienda, tienda_id)
+    if not tienda:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tienda no encontrada")
+    return tienda
+
+
+def _tienda_admin_out(db: Session, tienda: Tienda) -> TiendaAdminOut:
+    def contar(modelo, *condiciones) -> int:
+        return db.scalar(select(func.count()).select_from(modelo).where(modelo.tienda_id == tienda.id, *condiciones)) or 0
+
+    suscripcion = db.scalars(select(Suscripcion).where(Suscripcion.tienda_id == tienda.id)).first()
+    plan = db.get(Plan, suscripcion.plan_id) if suscripcion else None
+    return TiendaAdminOut(
+        id=tienda.id, slug=tienda.slug, nombre=tienda.nombre, estado=tienda.estado,
+        plan=plan.nombre if plan else "-", plan_codigo=plan.codigo if plan else "-",
+        estado_suscripcion=suscripcion.estado_actual if suscripcion else "-",
+        fecha_inicio=suscripcion.fecha_inicio if suscripcion else None,
+        fecha_vencimiento=suscripcion.fecha_vencimiento if suscripcion else None,
+        creado_en=tienda.creado_en,
+        sucursales=contar(Sucursal, Sucursal.estado.is_(True)),
+        usuarios=contar(Usuario), prendas=contar(Prenda), ventas=contar(Venta),
+    )
+
+
 @router.get("/planes", response_model=List[PlanOut])
 def listar_planes(db: Session = Depends(get_db_plataforma)):
     """Planes y precios (página de precios del SaaS)."""
@@ -67,13 +95,17 @@ def direccion_disponible(slug: str, db: Session = Depends(get_db_plataforma)):
 
 @router.post("/registro", response_model=RegistroTiendaOut, status_code=status.HTTP_201_CREATED)
 def registrar_tienda(datos: RegistroTiendaIn, request: Request, db: Session = Depends(get_db_plataforma)):
-    """Alta de una tienda nueva con el plan Gratis. Devuelve la sesión de su administrador."""
+    """Alta de una empresa con el plan elegido (primer mes con pago simulado). Devuelve la sesión
+    de su administrador."""
     ip = get_client_ip(request) or "sin-ip"
     if altas_por_ip.segundos_bloqueado(ip):
         raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail="Demasiadas tiendas creadas desde esta conexión. Probá más tarde.")
     altas_por_ip.registrar_fallo(ip)  # cuenta cada alta, no solo las fallidas
 
-    tienda = crear_tienda(db, slug=datos.slug, nombre=datos.nombre_tienda, correo_admin=datos.correo, password_admin=datos.password)
+    tienda = crear_tienda(
+        db, slug=datos.slug, nombre=datos.nombre_tienda, correo_admin=datos.correo,
+        password_admin=datos.password, plan_codigo=datos.plan_codigo,
+    )
     admin = db.scalars(select(Usuario).where(Usuario.tienda_id == tienda.id)).one()
     token = create_access_token({"sub": str(admin.id), "tid": tienda.id, "email": admin.correo, "roles": ["Administrador"]})
     return RegistroTiendaOut(slug=tienda.slug, nombre=tienda.nombre, access_token=token)
@@ -95,21 +127,22 @@ def login_plataforma(datos: LoginPlataformaIn, request: Request, db: Session = D
 
 @router.get("/tiendas", response_model=List[TiendaAdminOut])
 def listar_tiendas(db: Session = Depends(get_db_plataforma), _: Usuario = Depends(require_superadmin)):
-    """Todas las tiendas con su plan y su actividad."""
-    def contar(modelo, tienda_id: int) -> int:
-        return db.scalar(select(func.count()).select_from(modelo).where(modelo.tienda_id == tienda_id)) or 0
+    """Todas las empresas con su plan, su suscripción y su actividad."""
+    return [_tienda_admin_out(db, t) for t in db.scalars(select(Tienda).order_by(Tienda.creado_en.desc())).all()]
 
-    resultado = []
-    for tienda in db.scalars(select(Tienda).order_by(Tienda.creado_en.desc())).all():
-        suscripcion = db.scalars(select(Suscripcion).where(Suscripcion.tienda_id == tienda.id)).first()
-        plan = db.get(Plan, suscripcion.plan_id) if suscripcion else None
-        resultado.append(TiendaAdminOut(
-            id=tienda.id, slug=tienda.slug, nombre=tienda.nombre, estado=tienda.estado,
-            plan=plan.nombre if plan else "-", estado_suscripcion=suscripcion.estado if suscripcion else "-",
-            creado_en=tienda.creado_en, usuarios=contar(Usuario, tienda.id), prendas=contar(Prenda, tienda.id),
-            ventas=contar(Venta, tienda.id),
-        ))
-    return resultado
+
+@router.post("/tiendas", response_model=TiendaAdminOut, status_code=status.HTTP_201_CREATED)
+def alta_de_tienda(
+    datos: RegistroTiendaIn,
+    db: Session = Depends(get_db_plataforma),
+    superadmin: Usuario = Depends(require_superadmin),
+):
+    """El superadmin registra una empresa contratante con su administrador y su plan."""
+    tienda = crear_tienda(
+        db, slug=datos.slug, nombre=datos.nombre_tienda, correo_admin=datos.correo,
+        password_admin=datos.password, plan_codigo=datos.plan_codigo, origen="plataforma", usuario_id=superadmin.id,
+    )
+    return _tienda_admin_out(db, tienda)
 
 
 @router.patch("/tiendas/{tienda_id}", response_model=TiendaAdminOut)
@@ -119,18 +152,66 @@ def actualizar_tienda(
     db: Session = Depends(get_db_plataforma),
     superadmin: Usuario = Depends(require_superadmin),
 ):
-    """Suspender o reactivar una tienda, o cambiarle el plan sin pasar por Stripe (cortesías)."""
-    tienda = db.get(Tienda, tienda_id)
-    if not tienda:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tienda no encontrada")
-    if datos.estado:
+    """Suspender o reactivar la tienda, asignarle otro plan (sin cobro, conserva las fechas),
+    cancelar o reactivar la suscripción y corregir su vencimiento. Todo queda en el historial."""
+    tienda = _tienda_o_404(db, tienda_id)
+    suscripcion = suscripciones_service.suscripcion_de(db, tienda.id)
+
+    def registrar(tipo: str, detalle: str) -> None:
+        suscripciones_service.registrar_movimiento(
+            db, tienda.id, tipo, db.get(Plan, suscripcion.plan_id), origen="plataforma", detalle=detalle, usuario_id=superadmin.id,
+        )
+
+    if datos.estado and datos.estado != tienda.estado:
         tienda.estado = datos.estado
+        registrar("suspension" if datos.estado == "suspendida" else "reactivacion", f"Tienda {datos.estado}")
     if datos.plan_codigo:
-        suscripcion = db.scalars(select(Suscripcion).where(Suscripcion.tienda_id == tienda.id)).one()
-        suscripciones_service.aplicar_plan(db, suscripcion, suscripciones_service._plan(db, datos.plan_codigo))
+        suscripciones_service.cambiar_plan(
+            db, tienda.id, datos.plan_codigo, origen="plataforma", usuario_id=superadmin.id, contratar_periodo=False,
+        )
+    if datos.estado_suscripcion and datos.estado_suscripcion != suscripcion.estado:
+        suscripcion.estado = datos.estado_suscripcion
+        registrar("cancelacion" if datos.estado_suscripcion == "cancelada" else "reactivacion", f"Suscripción {datos.estado_suscripcion}")
+    if datos.fecha_vencimiento:
+        suscripcion.fecha_vencimiento = datos.fecha_vencimiento
+        registrar("ajuste", f"Vencimiento corregido al {datos.fecha_vencimiento:%d/%m/%Y}")
     db.commit()
     olvidar_tienda(tienda.slug)
-    return next(t for t in listar_tiendas(db, superadmin) if t.id == tienda.id)
+    return _tienda_admin_out(db, tienda)
+
+
+@router.post("/tiendas/{tienda_id}/renovar", response_model=TiendaAdminOut)
+def renovar_tienda(
+    tienda_id: int,
+    datos: RenovarIn,
+    db: Session = Depends(get_db_plataforma),
+    superadmin: Usuario = Depends(require_superadmin),
+):
+    """Renovación registrada por la plataforma (por ejemplo, la empresa pagó por transferencia)."""
+    tienda = _tienda_o_404(db, tienda_id)
+    suscripciones_service.renovar(db, tienda.id, datos.meses, origen="plataforma", usuario_id=superadmin.id)
+    db.commit()
+    olvidar_tienda(tienda.slug)
+    return _tienda_admin_out(db, tienda)
+
+
+@router.put("/planes/{codigo}", response_model=PlanOut)
+def configurar_plan(
+    codigo: str,
+    datos: PlanUpdate,
+    db: Session = Depends(get_db_plataforma),
+    _: Usuario = Depends(require_superadmin),
+):
+    """Límites, precio y funciones de un plan (los valores del enunciado son los iniciales). Rige
+    desde ya para todas las tiendas con ese plan; lo que ya tienen creado no se borra."""
+    plan = db.scalars(select(Plan).where(Plan.codigo == codigo)).first()
+    if not plan:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"No existe el plan '{codigo}'")
+    for campo, valor in datos.model_dump(exclude_unset=True).items():
+        setattr(plan, campo, valor)
+    db.commit()
+    db.refresh(plan)
+    return plan
 
 
 @router.post("/stripe/webhook")
@@ -145,4 +226,8 @@ async def webhook_stripe(request: Request, db: Session = Depends(get_db_platafor
         )
     except (ValueError, stripe.error.SignatureVerificationError):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Firma de Stripe inválida")
-    return {"procesado": suscripciones_service.aplicar_evento_stripe(db, evento)}
+    tienda = suscripciones_service.aplicar_evento_stripe(db, evento)
+    if tienda:
+        db.commit()
+        olvidar_tienda(tienda.slug)
+    return {"procesado": tienda is not None}

@@ -17,7 +17,8 @@ TABLAS_DE_TIENDA = [
     "rol_permiso", "usuario_rol", "bitacora", "push_token", "interaccion_ia", "pago", "detalle_venta",
     "venta", "detalle_reserva", "reserva", "movimiento_inventario", "inventario_sucursal",
     "disponibilidad_proveedor", "variante_prenda", "prenda", "coleccion", "temporada", "personal",
-    "proveedor", "sucursal", "categoria", "talla", "color", "usuario", "rol", "suscripcion",
+    "proveedor", "sucursal", "categoria", "talla", "color", "movimiento_suscripcion", "usuario", "rol",
+    "suscripcion",
 ]
 
 

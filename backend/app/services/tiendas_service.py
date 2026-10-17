@@ -11,7 +11,8 @@ from app.core.config import settings
 from app.core.security import get_password_hash
 from app.db.tenancy import CLAVE_TIENDA
 from app.models.seguridad import Rol, RolPermiso, Usuario, UsuarioRol
-from app.models.tienda import Plan, Suscripcion, Tienda
+from app.models.tienda import Plan, Tienda
+from app.services.suscripciones_service import nueva_suscripcion
 
 # Roles con los que nace cada tienda; sus permisos se copian de la tienda por defecto, que hace
 # de plantilla (su administrador ya afinó esa matriz, CU-04)
@@ -39,9 +40,12 @@ def crear_tienda(
     nombre: str,
     correo_admin: str,
     password_admin: str,
-    plan_codigo: str = "gratis",
+    plan_codigo: str = "basico",
+    origen: str = "simulado",
+    usuario_id: int | None = None,
 ) -> Tienda:
-    """db: sesión de la plataforma (sin tienda). Hace commit al final."""
+    """db: sesión de la plataforma (sin tienda). Hace commit al final.
+    origen/usuario_id: quién contrató (alta pública "simulado"; superadmin "plataforma")."""
     if db.info.get(CLAVE_TIENDA) is not None:
         raise RuntimeError("crear_tienda necesita una sesión de la plataforma, no la de una tienda")
     slug = validar_slug(slug)
@@ -56,7 +60,7 @@ def crear_tienda(
     tienda = Tienda(slug=slug, nombre=nombre.strip(), estado="activa", correo_contacto=correo_admin, creado_en=ahora)
     db.add(tienda)
     db.flush()
-    db.add(Suscripcion(tienda_id=tienda.id, plan_id=plan.id, estado="activa", actualizado_en=ahora))
+    nueva_suscripcion(db, tienda.id, plan, origen=origen, usuario_id=usuario_id)
 
     roles_nuevos: dict[str, Rol] = {}
     for nombre_rol in ROLES_BASE:

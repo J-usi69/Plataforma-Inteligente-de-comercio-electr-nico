@@ -27,6 +27,9 @@ class Settings(BaseSettings):
     dominio_base: str = ""
     # Row Level Security en Postgres (requiere la migración que crea el rol fashionstore_app)
     rls_habilitado: bool = True
+    # Cobro de las suscripciones de las tiendas: "simulado" (el cambio de plan y la renovación se
+    # aplican en el acto y quedan registrados como pago simulado) o "stripe" (Stripe Billing)
+    cobro_suscripciones: str = "simulado"
     ai_api_key: str = ""
     gemini_api_key: str = ""
     gemini_model: str = "gemini-3.6-flash"
