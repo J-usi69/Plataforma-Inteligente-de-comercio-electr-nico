@@ -51,6 +51,8 @@ class Tienda(Base):
     color_primario: Mapped[str] = mapped_column(String(7), default="#4f46e5")
     color_acento: Mapped[str] = mapped_column(String(7), default="#ec4899")
     correo_contacto: Mapped[str | None] = mapped_column(String(120))
+    # Política comercial de la tienda: días desde la compra en que se acepta cambiar una prenda
+    dias_para_cambio: Mapped[int] = mapped_column(Integer, default=7)
     creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
     suscripcion: Mapped["Suscripcion | None"] = relationship(back_populates="tienda", uselist=False)

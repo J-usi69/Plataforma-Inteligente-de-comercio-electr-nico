@@ -1,4 +1,6 @@
-from contextlib import asynccontextmanager
+import asyncio
+import logging
+from contextlib import asynccontextmanager, suppress
 
 from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -10,8 +12,21 @@ from app.core.config import settings
 from app.core.observabilidad import configurar_logging, registrar_pedido
 from app.core.security import clave_jwt
 from app.db.session import get_db
+from app.services.inventario_service import liberar_apartados_vencidos
 
 configurar_logging()
+logger = logging.getLogger("fashionstore")
+
+
+async def _liberar_apartados_periodicamente(cada_segundos: int) -> None:
+    """Devuelve al stock lo apartado por pagos que no se completaron. Corre en cada instancia del
+    backend sin coordinarse con las demás: cada venta se libera una sola vez (SKIP LOCKED)."""
+    while True:
+        await asyncio.sleep(cada_segundos)
+        try:
+            await asyncio.to_thread(liberar_apartados_vencidos)
+        except Exception:
+            logger.exception("No se pudieron liberar los apartados de pago vencidos")
 
 
 @asynccontextmanager
@@ -19,7 +34,14 @@ async def lifespan(_: FastAPI):
     # Mejor no arrancar que arrancar sin poder firmar sesiones (se valida al levantar el
     # servidor y no al importar, para que el CI pueda importar la app sin secretos)
     clave_jwt()
+    tarea = None
+    if settings.segundos_entre_liberaciones > 0:
+        tarea = asyncio.create_task(_liberar_apartados_periodicamente(settings.segundos_entre_liberaciones))
     yield
+    if tarea:
+        tarea.cancel()
+        with suppress(asyncio.CancelledError):
+            await tarea
 
 
 app = FastAPI(

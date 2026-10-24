@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import DateTime, Enum, ForeignKey, Index, Integer, Numeric, String
+from sqlalchemy import DateTime, Enum, ForeignKey, Index, Integer, Numeric, String, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.session import Base
@@ -13,6 +13,8 @@ class Venta(PerteneceATienda, Base):
     __table_args__ = (
         Index("idx_venta_sucursal", "sucursal_id"),
         Index("idx_venta_usuario", "usuario_id"),
+        # Solo las ventas con prendas apartadas (pocas): lo recorre la liberación de apartados vencidos
+        Index("idx_venta_apartado", "apartado_hasta", postgresql_where=text("apartado_hasta IS NOT NULL")),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -26,6 +28,9 @@ class Venta(PerteneceATienda, Base):
     )
     total: Mapped[float] = mapped_column(Numeric(10, 2), default=0)
     fecha_venta: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    # Mientras se paga con tarjeta o QR, sus prendas están apartadas (en stock_reservado) hasta
+    # esta hora. Vacío: nada apartado. Ver app/services/inventario_service.py
+    apartado_hasta: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     detalles: Mapped[list["DetalleVenta"]] = relationship(back_populates="venta")
     pagos: Mapped[list["Pago"]] = relationship(back_populates="venta")

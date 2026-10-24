@@ -13,6 +13,7 @@ from app.models.ia import InteraccionIA
 from app.models.inventario import InventarioSucursal, MovimientoInventario
 from app.models.reserva import DetalleReserva, Reserva
 from app.models.seguridad import Bitacora, Permiso, PushToken, Rol, RolPermiso, Usuario, UsuarioRol
+from app.models.sincronizacion import CambioPrenda, DetalleCambio, OperacionSync
 from app.models.sucursal import Ciudad, Personal, Sucursal
 from app.models.tienda import MovimientoSuscripcion, Plan, Suscripcion, Tienda
 from app.models.venta import DetalleVenta, Pago, Venta
@@ -39,6 +40,9 @@ __all__ = [
     "RolPermiso",
     "Usuario",
     "UsuarioRol",
+    "CambioPrenda",
+    "DetalleCambio",
+    "OperacionSync",
     "Ciudad",
     "Personal",
     "Sucursal",

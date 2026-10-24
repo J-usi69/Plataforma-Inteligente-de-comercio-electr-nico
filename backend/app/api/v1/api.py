@@ -14,6 +14,7 @@ from app.api.v1.endpoints import (
     reportes,
     reservas,
     roles,
+    sincronizacion,
     sucursales,
     temporadas,
     tienda,
@@ -49,6 +50,11 @@ api_router.include_router(
     dependencies=[Depends(exigir_funcion("reportes"))],
 )
 api_router.include_router(ia.router, prefix="/ia", tags=["Inteligencia Artificial (CU-28, CU-29, CU-30)"], dependencies=operaciones)
+# Con la suscripción vencida, el lote se rechaza entero (402) y el dispositivo lo conserva hasta renovar
+api_router.include_router(
+    sincronizacion.router, prefix="/sync", tags=["Operación sin conexión y sincronización (PWA y móvil)"],
+    dependencies=[*operaciones, Depends(exigir_funcion("operacion_offline"))],
+)
 api_router.include_router(notificaciones.router, prefix="/notificaciones", tags=["Notificaciones Push"])
 api_router.include_router(tienda.router, prefix="/tienda", tags=["SaaS: marca y plan de la tienda"])
 api_router.include_router(plataforma.router, prefix="/plataforma", tags=["SaaS: plataforma (alta de tiendas, superadmin)"])

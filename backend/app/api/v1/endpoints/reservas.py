@@ -1,3 +1,4 @@
+from collections import defaultdict
 from datetime import datetime, timezone
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Request, status
@@ -20,8 +21,21 @@ from app.models.sucursal import Sucursal
 from app.models.venta import Venta
 from app.schemas.reserva import DetalleReservaOut, ReservaCreate, ReservaOut
 from app.services import push_service
+from app.services.inventario_service import bloquear_inventario
 
 router = APIRouter()
+
+
+def _reserva_bloqueada(db: Session, reserva_id: int) -> Optional[Reserva]:
+    """La reserva releída y bloqueada hasta el commit (antes que su inventario): dos cambios de
+    estado a la vez, como cancelar y marcar no-show, no devuelven dos veces el mismo stock."""
+    return db.scalars(
+        select(Reserva).where(Reserva.id == reserva_id).with_for_update().execution_options(populate_existing=True)
+    ).first()
+
+
+def _inventario_de(db: Session, reserva: Reserva, detalles: List[DetalleReserva]) -> dict[int, InventarioSucursal]:
+    return bloquear_inventario(db, reserva.sucursal_id, [d.variante_id for d in detalles])
 
 
 def _detalle_a_out(db: Session, detalle: DetalleReserva) -> DetalleReservaOut:
@@ -154,65 +168,58 @@ def crear_reserva(
     if not sucursal or not sucursal.estado or sucursal.fecha_eliminacion is not None:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="La sucursal especificada no es válida")
 
-    # Validar stock disponible suficiente para cada variante en esa sucursal
-    inventarios: dict[int, InventarioSucursal] = {}
+    # Una misma variante en dos líneas cuenta como una sola (el detalle es único por variante)
+    pedidas: dict[int, int] = defaultdict(int)
     for detalle in datos.detalles:
-        variante = db.get(VariantePrenda, detalle.variante_id)
+        pedidas[detalle.variante_id] += detalle.cantidad
+    for variante_id in pedidas:
+        variante = db.get(VariantePrenda, variante_id)
         if not variante or not variante.estado:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"La variante {detalle.variante_id} no existe o no está activa",
+                detail=f"La variante {variante_id} no existe o no está activa",
             )
 
-        # with_for_update(): bloquea esta fila hasta el commit de esta transacción, para
-        # que dos reservas simultáneas de la misma variante/sucursal no lean el mismo
-        # stock_disponible "viejo" y ambas crean poder reservar la última unidad.
-        inventario = db.scalars(
-            select(InventarioSucursal)
-            .where(
-                InventarioSucursal.variante_id == detalle.variante_id,
-                InventarioSucursal.sucursal_id == datos.sucursal_id,
-            )
-            .with_for_update()
-        ).first()
-
-        if not inventario or inventario.stock_disponible < detalle.cantidad:
+    # Verificar y descontar en una sola transacción, con las filas de inventario bloqueadas hasta
+    # el commit: si dos clientes van por la última unidad a la vez, el segundo espera y después
+    # ya la ve reservada (ver app/services/inventario_service.py)
+    inventarios = bloquear_inventario(db, datos.sucursal_id, pedidas)
+    for variante_id, cantidad in sorted(pedidas.items()):
+        inventario = inventarios.get(variante_id)
+        if not inventario or inventario.stock_disponible < cantidad:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=(
-                    f"Stock insuficiente para la variante {detalle.variante_id} en la sucursal seleccionada "
-                    f"(disponible: {inventario.stock_disponible if inventario else 0}, solicitado: {detalle.cantidad})"
+                    f"Stock insuficiente para la variante {variante_id} en la sucursal seleccionada "
+                    f"(disponible: {inventario.stock_disponible if inventario else 0}, solicitado: {cantidad})"
                 ),
             )
-        inventarios[detalle.variante_id] = inventario
 
-    # Crear la reserva y sus detalles
+    ahora = datetime.now(timezone.utc)
     nueva_reserva = Reserva(
         usuario_id=current_user.id,
         sucursal_id=datos.sucursal_id,
-        fecha_reserva=datetime.now(timezone.utc),
+        fecha_reserva=ahora,
         horario_atencion=datos.horario_atencion,
         estado=EstadoReserva.pendiente,
     )
     db.add(nueva_reserva)
-    db.commit()
-    db.refresh(nueva_reserva)
+    db.flush()  # solo el id: el commit es uno, al final, con el stock ya descontado
 
-    ahora = datetime.now(timezone.utc)
-    for detalle in datos.detalles:
-        db.add(DetalleReserva(reserva_id=nueva_reserva.id, variante_id=detalle.variante_id, cantidad=detalle.cantidad))
+    for variante_id, cantidad in sorted(pedidas.items()):
+        db.add(DetalleReserva(reserva_id=nueva_reserva.id, variante_id=variante_id, cantidad=cantidad))
 
         # Incrementar stockReservado (y descontar de stockDisponible) por sucursal
-        inventario = inventarios[detalle.variante_id]
-        inventario.stock_disponible -= detalle.cantidad
-        inventario.stock_reservado += detalle.cantidad
+        inventario = inventarios[variante_id]
+        inventario.stock_disponible -= cantidad
+        inventario.stock_reservado += cantidad
 
         db.add(
             MovimientoInventario(
-                variante_id=detalle.variante_id,
+                variante_id=variante_id,
                 sucursal_id=datos.sucursal_id,
                 tipo_movimiento=TipoMovimiento.reserva,
-                cantidad=detalle.cantidad,
+                cantidad=cantidad,
                 referencia_id=nueva_reserva.id,
                 referencia_tipo="reserva",
                 usuario_id=current_user.id,
@@ -283,7 +290,7 @@ def confirmar_preparacion_reserva(
     current_user: Usuario = Depends(require_roles(_ROLES_STAFF_SUCURSAL)),
 ):
     """El Encargado de Sucursal confirma que apartó físicamente las prendas de la reserva"""
-    reserva = db.get(Reserva, reserva_id)
+    reserva = _reserva_bloqueada(db, reserva_id)
     if not reserva:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Reserva no encontrada")
     if reserva.estado != EstadoReserva.pendiente:
@@ -317,7 +324,7 @@ def confirmar_recepcion_cliente(
     current_user: Usuario = Depends(require_roles(_ROLES_STAFF_SUCURSAL)),
 ):
     """El Encargado confirma la llegada del cliente a la sucursal y entrega las prendas al vestidor"""
-    reserva = db.get(Reserva, reserva_id)
+    reserva = _reserva_bloqueada(db, reserva_id)
     if not reserva:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Reserva no encontrada")
     if reserva.estado != EstadoReserva.confirmada:
@@ -327,14 +334,10 @@ def confirmar_recepcion_cliente(
         )
 
     detalles = db.scalars(select(DetalleReserva).where(DetalleReserva.reserva_id == reserva.id)).all()
+    inventarios = _inventario_de(db, reserva, detalles)
     ahora = datetime.now(timezone.utc)
     for detalle in detalles:
-        inventario = db.scalars(
-            select(InventarioSucursal).where(
-                InventarioSucursal.variante_id == detalle.variante_id,
-                InventarioSucursal.sucursal_id == reserva.sucursal_id,
-            )
-        ).first()
+        inventario = inventarios.get(detalle.variante_id)
         if inventario:
             # La prenda ya se entrego al cliente: sale del stock reservado
             # de forma definitiva (no vuelve a "disponible", fue vendida/entregada).
@@ -378,7 +381,7 @@ def marcar_reserva_no_show(
     current_user: Usuario = Depends(require_roles(_ROLES_STAFF_SUCURSAL)),
 ):
     """Excepción: el cliente no se presentó a su cita, liberando el stock reservado"""
-    reserva = db.get(Reserva, reserva_id)
+    reserva = _reserva_bloqueada(db, reserva_id)
     if not reserva:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Reserva no encontrada")
     if reserva.estado not in [EstadoReserva.pendiente, EstadoReserva.confirmada]:
@@ -388,14 +391,10 @@ def marcar_reserva_no_show(
         )
 
     detalles = db.scalars(select(DetalleReserva).where(DetalleReserva.reserva_id == reserva.id)).all()
+    inventarios = _inventario_de(db, reserva, detalles)
     ahora = datetime.now(timezone.utc)
     for detalle in detalles:
-        inventario = db.scalars(
-            select(InventarioSucursal).where(
-                InventarioSucursal.variante_id == detalle.variante_id,
-                InventarioSucursal.sucursal_id == reserva.sucursal_id,
-            )
-        ).first()
+        inventario = inventarios.get(detalle.variante_id)
         if inventario:
             inventario.stock_disponible += detalle.cantidad
             inventario.stock_reservado = max(0, inventario.stock_reservado - detalle.cantidad)
@@ -434,7 +433,7 @@ def cancelar_reserva(
     current_user: Usuario = Depends(get_current_active_user),
 ):
     """CU-16: Cancelar una reserva propia que aún esté pendiente"""
-    reserva = db.get(Reserva, reserva_id)
+    reserva = _reserva_bloqueada(db, reserva_id)
     if not reserva or reserva.usuario_id != current_user.id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Reserva no encontrada")
 
@@ -445,14 +444,10 @@ def cancelar_reserva(
         )
 
     detalles = db.scalars(select(DetalleReserva).where(DetalleReserva.reserva_id == reserva.id)).all()
+    inventarios = _inventario_de(db, reserva, detalles)
     ahora = datetime.now(timezone.utc)
     for detalle in detalles:
-        inventario = db.scalars(
-            select(InventarioSucursal).where(
-                InventarioSucursal.variante_id == detalle.variante_id,
-                InventarioSucursal.sucursal_id == reserva.sucursal_id,
-            )
-        ).first()
+        inventario = inventarios.get(detalle.variante_id)
         if inventario:
             inventario.stock_disponible += detalle.cantidad
             inventario.stock_reservado = max(0, inventario.stock_reservado - detalle.cantidad)

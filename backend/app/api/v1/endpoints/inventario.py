@@ -16,6 +16,7 @@ from app.schemas.inventario import (
     MovimientoManualCreate,
     MovimientoManualOut,
 )
+from app.services.inventario_service import bloquear_inventario
 
 router = APIRouter()
 
@@ -125,12 +126,9 @@ def registrar_movimiento_manual(
     if datos.cantidad == 0:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="La cantidad debe ser distinta de cero")
 
-    inventario = db.scalars(
-        select(InventarioSucursal).where(
-            InventarioSucursal.variante_id == datos.variante_id,
-            InventarioSucursal.sucursal_id == sucursal_id,
-        )
-    ).first()
+    # Bloqueada hasta el commit: una venta o reserva simultánea de la misma prenda espera, y nadie
+    # pisa el stock que calculó el otro (ver app/services/inventario_service.py)
+    inventario = bloquear_inventario(db, sucursal_id, [datos.variante_id]).get(datos.variante_id)
     if not inventario:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

@@ -42,6 +42,8 @@ class PagoDigitalCreate(BaseModel):
 
 class IntentoPagoOut(BaseModel):
     client_secret: str
+    # Hasta cuándo quedan apartadas las prendas mientras se paga
+    apartado_hasta: Optional[datetime] = None
 
 
 class QrLibelulaOut(BaseModel):
@@ -52,6 +54,7 @@ class QrLibelulaOut(BaseModel):
     url_pasarela: Optional[str] = None
     monto: float
     modo_prueba: bool
+    apartado_hasta: Optional[datetime] = None  # hasta cuándo quedan apartadas las prendas
 
 
 class EstadoPagoQrOut(BaseModel):

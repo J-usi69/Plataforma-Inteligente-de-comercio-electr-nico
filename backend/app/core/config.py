@@ -30,6 +30,10 @@ class Settings(BaseSettings):
     # Cobro de las suscripciones de las tiendas: "simulado" (el cambio de plan y la renovación se
     # aplican en el acto y quedan registrados como pago simulado) o "stripe" (Stripe Billing)
     cobro_suscripciones: str = "simulado"
+    # Mientras se paga con tarjeta o QR, las prendas quedan apartadas este tiempo
+    minutos_apartado_pago: int = 15
+    # Cada cuánto se devuelven al stock los apartados de pagos que no se completaron (0: nunca)
+    segundos_entre_liberaciones: int = 60
     ai_api_key: str = ""
     gemini_api_key: str = ""
     gemini_model: str = "gemini-3.6-flash"

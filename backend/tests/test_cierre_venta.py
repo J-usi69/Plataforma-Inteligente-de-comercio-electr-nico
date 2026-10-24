@@ -82,6 +82,21 @@ def test_pago_ya_cobrado_cierra_la_venta_aunque_falte_stock(db):
     assert venta.estado == EstadoVenta.pagada
 
 
+def test_pago_de_una_venta_apartada_sale_de_lo_reservado(db):
+    # Tarjeta o QR con las prendas apartadas mientras se pagaba: ya estaban fuera del disponible
+    venta = _venta_con_stock(db, stock=0, cantidad=2)
+    db.query(InventarioSucursal).filter_by(variante_id=7, sucursal_id=1).one().stock_reservado = 2
+    venta.apartado_hasta = AHORA
+    db.commit()
+
+    _cerrar_venta_pagada(db, venta, usuario_id=None, ahora=AHORA, exigir_stock=True)
+    db.commit()
+
+    fila = db.query(InventarioSucursal).filter_by(variante_id=7, sucursal_id=1).one()
+    assert (fila.stock_disponible, fila.stock_reservado) == (0, 0)
+    assert venta.apartado_hasta is None and venta.estado == EstadoVenta.pagada
+
+
 @pytest.mark.parametrize("estado", [EstadoVenta.pagada, EstadoVenta.anulada])
 def test_no_se_vuelve_a_cobrar_una_venta_pagada_o_anulada(db, estado):
     venta_id = _venta_con_stock(db, stock=5, cantidad=1, estado=estado).id

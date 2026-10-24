@@ -65,6 +65,7 @@ def _publica(db: Session) -> TiendaPublicaOut:
         plan_nombre=plan.nombre,
         funciones=FuncionesOut.model_validate(plan),
         suscripcion_vigente=suscripcion.estado_actual == "activa",
+        dias_para_cambio=tienda.dias_para_cambio,
     )
 
 

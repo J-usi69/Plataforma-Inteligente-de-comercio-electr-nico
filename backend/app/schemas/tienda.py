@@ -70,6 +70,7 @@ class TiendaPublicaOut(BaseModel):
     funciones: FuncionesOut
     # False: suscripción vencida o cancelada, la tienda está en modo consulta
     suscripcion_vigente: bool
+    dias_para_cambio: int  # plazo para cambiar una prenda comprada
 
 
 class TiendaUpdate(BaseModel):
@@ -78,6 +79,7 @@ class TiendaUpdate(BaseModel):
     color_primario: Optional[str] = Field(None, pattern=COLOR_HEX)
     color_acento: Optional[str] = Field(None, pattern=COLOR_HEX)
     correo_contacto: Optional[EmailStr] = None
+    dias_para_cambio: Optional[int] = Field(None, ge=0, le=90)  # 0: no se aceptan cambios
 
 
 class SuscripcionOut(BaseModel):
