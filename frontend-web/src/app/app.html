@@ -14,7 +14,7 @@
     <div style="display: flex; flex-direction: column;">
       <div style="display: flex; align-items: center; gap: 0.5rem;">
         <span>{{ tienda.nombre() }}</span>
-        <span class="brand-tag">Online</span>
+        <span class="brand-tag" [class.brand-tag-off]="!sync.enLinea()">{{ sync.enLinea() ? 'Online' : 'Sin conexión' }}</span>
       </div>
       <span style="font-size: 0.68rem; color: #64748b; font-weight: 500; letter-spacing: -0.01em;">Moda & Realidad Aumentada</span>
     </div>
@@ -76,6 +76,13 @@
   </nav>
 
   <div class="user-badge">
+    @if (instalable()) {
+      <button type="button" class="btn btn-secondary btn-sm" (click)="instalar()" title="Instalar {{ tienda.nombre() }} en este dispositivo">
+        Instalar app
+      </button>
+    }
+    <!-- Operaciones hechas sin conexión que faltan sincronizar (la cola se envía sola) -->
+    <app-cola-sincronizacion></app-cola-sincronizacion>
     <ng-container *ngIf="authService.isLoggedIn(); else noAuth">
       <div class="user-info">
         <span class="user-email">{{ authService.currentUser()?.correo }}</span>
@@ -103,6 +110,25 @@
     </ng-template>
   </div>
 </header>
+
+<!-- PWA: sin Internet se sigue trabajando con lo guardado; versión nueva lista para recargar -->
+@if (!pantallaLimpia() && !sync.enLinea()) {
+  <div class="aviso-plan aviso-sin-conexion" role="status">
+    <span>
+      Sin conexión a Internet: seguís trabajando con los datos guardados en este dispositivo.
+      @if (sync.info(); as info) {
+        Son del {{ info.generado_en | date: 'dd/MM HH:mm' }}{{ sync.desactualizado() ? ' y pueden estar desactualizados' : '' }}.
+      }
+      Lo que registres se envía solo cuando vuelva la conexión.
+    </span>
+  </div>
+}
+@if (versionNueva()) {
+  <div class="aviso-plan" role="status">
+    <span>Hay una versión nueva de la web.</span>
+    <button type="button" class="btn btn-primary btn-sm" (click)="recargar()">Actualizar</button>
+  </div>
+}
 
 <!-- SaaS: suscripción vencida (modo consulta) y rechazos por el plan (402) -->
 @if (!pantallaLimpia() && !tienda.vigente()) {

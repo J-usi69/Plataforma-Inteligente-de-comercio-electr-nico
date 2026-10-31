@@ -23,11 +23,11 @@
           <span class="nombre-plan">{{ e.plan.nombre }}</span>
           <span
             class="badge"
-            [class.badge-success]="e.suscripcion.estado === 'activa'"
-            [class.badge-warning]="e.suscripcion.estado === 'vencida'"
+            [class.badge-success]="e.suscripcion.estado === 'activa' && !porVencer()"
+            [class.badge-warning]="e.suscripcion.estado === 'vencida' || porVencer()"
             [class.badge-danger]="e.suscripcion.estado === 'cancelada'"
           >
-            {{ e.suscripcion.estado }}
+            {{ porVencer() ? 'por vencer' : e.suscripcion.estado }}
           </span>
         </div>
         <dl class="datos">
@@ -46,6 +46,12 @@
           <dd>{{ e.plan.precio_mensual | number: '1.0-2' }} {{ e.plan.moneda }} / mes</dd>
         </dl>
 
+        @if (porVencer()) {
+          <div class="alert alert-warning">
+            La suscripción vence en {{ e.suscripcion.dias_restantes }} {{ e.suscripcion.dias_restantes === 1 ? 'día' : 'días' }}. Renovala
+            para que la tienda no quede en modo consulta.
+          </div>
+        }
         @if (e.suscripcion.estado !== 'activa') {
           <div class="alert alert-danger">
             La suscripción {{ e.suscripcion.estado === 'cancelada' ? 'está cancelada' : 'venció' }}: la tienda está en

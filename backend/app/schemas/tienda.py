@@ -31,6 +31,32 @@ class PlanOut(FuncionesOut):
     max_personal: Optional[int]
 
 
+class PlanAdminOut(PlanOut):
+    """El plan visto por el superadmin: también los desactivados (ya no se ofrecen) y cuántas
+    empresas lo tienen contratado."""
+
+    estado: bool
+    empresas: int = 0
+
+
+class PlanCreate(BaseModel):
+    """Plan nuevo creado por el superadmin (CU-02). Un límite en null significa "sin límite"."""
+
+    codigo: str = Field(..., pattern=r"^[a-z0-9](?:[a-z0-9-]{0,28}[a-z0-9])?$")
+    nombre: str = Field(..., min_length=2, max_length=60)
+    descripcion: Optional[str] = Field(None, max_length=200)
+    precio_mensual: float = Field(0, ge=0)
+    max_sucursales: Optional[int] = Field(None, ge=1)
+    max_prendas: Optional[int] = Field(None, ge=1)
+    max_personal: Optional[int] = Field(None, ge=1)
+    operacion_offline: bool = True
+    reportes: bool = True
+    reportes_ia: bool = False
+    asistente_ia: bool = True
+    vestidor_ar: bool = True
+    pago_qr: bool = True
+
+
 class PlanUpdate(BaseModel):
     """Configuración de un plan por el superadmin. Un límite en null significa "sin límite"."""
 

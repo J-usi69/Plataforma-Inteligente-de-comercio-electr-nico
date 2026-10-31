@@ -4,6 +4,7 @@ import math
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi.responses import JSONResponse
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -95,6 +96,33 @@ def ver_tienda(db: Session = Depends(get_db)):
     """Marca, funciones del plan y si la suscripción está vigente (público: la web lo pide antes
     de que haya sesión)."""
     return _publica(db)
+
+
+@router.get("/manifest.webmanifest", response_class=JSONResponse)
+def manifest_de_la_tienda(db: Session = Depends(get_db)):
+    """Manifest de la app instalable (PWA): cada empresa se instala con su nombre y su color y abre
+    en su dirección. La web lo pide con ?tienda=<slug>, porque un <link rel="manifest"> no manda
+    cabeceras. Los íconos son los de la web (mismo origen, detrás del proxy)."""
+    tienda = _tienda(db)
+    base = "/" if tienda.slug == settings.tienda_por_defecto else f"/t/{tienda.slug}/"
+    manifest = {
+        "id": base,
+        "name": tienda.nombre,
+        "short_name": tienda.nombre[:12],
+        "description": f"{tienda.nombre}: catálogo, reservas y ventas, también sin conexión",
+        "lang": "es",
+        "start_url": base,
+        "scope": base,
+        "display": "standalone",
+        "theme_color": tienda.color_primario,
+        "background_color": "#f8fafc",
+        "icons": [
+            {"src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png"},
+            {"src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png"},
+            {"src": "/icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"},
+        ],
+    }
+    return JSONResponse(manifest, media_type="application/manifest+json")
 
 
 @router.put("", response_model=TiendaPublicaOut)

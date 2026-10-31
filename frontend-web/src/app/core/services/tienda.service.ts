@@ -50,14 +50,25 @@ export class TiendaService {
   async cargar(): Promise<void> {
     try {
       const tienda = await firstValueFrom(this.http.get<TiendaPublica>('/api/v1/tienda').pipe(timeout(5000)));
-      this._tienda.set(tienda);
-      aplicarMarca(tienda.color_primario, tienda.color_acento);
-      document.title = tienda.nombre;
+      this.aplicar(tienda);
+      localStorage.setItem(this.clave('fs_tienda'), JSON.stringify(tienda));
     } catch (err) {
-      // 404: la dirección no es de ninguna empresa. Otros errores (red, timeout): se sigue con la marca por defecto
+      // 404: la dirección no es de ninguna empresa. Sin conexión (la app abierta desde el Service
+      // Worker), la última marca y funciones conocidas; si no hay, la marca por defecto
       if (err instanceof HttpErrorResponse && err.status === 404) {
         this.noExiste.set(true);
+        return;
+      }
+      const guardada = localStorage.getItem(this.clave('fs_tienda'));
+      if (guardada) {
+        this.aplicar(JSON.parse(guardada) as TiendaPublica);
       }
     }
+  }
+
+  private aplicar(tienda: TiendaPublica): void {
+    this._tienda.set(tienda);
+    aplicarMarca(tienda.color_primario, tienda.color_acento);
+    document.title = tienda.nombre;
   }
 }

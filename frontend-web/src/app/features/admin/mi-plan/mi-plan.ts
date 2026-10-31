@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { CambioPlan, FUNCIONES_PLAN, Plan, UsoPlan } from '../../../core/models/tienda.model';
@@ -8,6 +8,9 @@ import { AuthService } from '../../../core/services/auth.service';
 import { TiendaService } from '../../../core/services/tienda.service';
 
 type Recurso = 'sucursales' | 'prendas' | 'personal';
+
+/** Desde cuántos días antes del vencimiento la suscripción se muestra "por vencer". */
+const DIAS_AVISO_VENCIMIENTO = 7;
 
 const MOVIMIENTOS: Record<string, string> = {
   alta: 'Alta',
@@ -36,6 +39,11 @@ export class MiPlan implements OnInit {
   readonly tienda = inject(TiendaService);
 
   readonly estado = signal<UsoPlan | null>(null);
+  /** Activa pero le quedan pocos días (CU-04: "por vencer"): se avisa para renovar a tiempo. */
+  readonly porVencer = computed(() => {
+    const suscripcion = this.estado()?.suscripcion;
+    return suscripcion?.estado === 'activa' && suscripcion.dias_restantes !== null && suscripcion.dias_restantes <= DIAS_AVISO_VENCIMIENTO;
+  });
   readonly procesando = signal<string | null>(null); // código del plan que se está contratando, o 'renovar'
   readonly error = signal<string | null>(null);
   readonly mensaje = signal<string | null>(null);

@@ -1,0 +1,80 @@
+<div class="card" style="margin-bottom: 1.5rem;">
+  <h4 style="margin-bottom: 0.25rem;">Cambio de prenda</h4>
+  @if (!sync.datos()) {
+    <p style="color: var(--text-muted);">Cargando las ventas que se pueden cambiar…</p>
+  } @else {
+    <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 1rem;">
+      Hasta {{ sync.info()?.dias_para_cambio }} días desde la compra, por prendas de igual o mayor valor.
+    </p>
+    @if (aviso(); as a) {
+      <div class="alert" [class.alert-success]="a.ok" [class.alert-danger]="!a.ok">{{ a.texto }}</div>
+    }
+    <div class="form-group">
+      <label>Venta</label>
+      <select [ngModel]="ventaClave()" (ngModelChange)="elegirVenta($event)">
+        <option [ngValue]="null">Elegí la venta…</option>
+        @for (v of ventas(); track v.clave) {
+          <option [ngValue]="v.clave">{{ v.fecha | date: 'dd/MM HH:mm' }} · {{ v.etiqueta }}</option>
+        }
+      </select>
+    </div>
+
+    @if (venta(); as v) {
+      @if (!enPlazo()) {
+        <div class="alert alert-danger">Fuera de plazo: se podía cambiar hasta el {{ vencimiento(v.fecha) | date: 'dd/MM/yyyy' }}.</div>
+      }
+      <label style="font-weight: 600; font-size: 0.85rem;">Devuelve</label>
+      <table class="table" style="margin-bottom: 1rem;">
+        <tbody>
+          @for (l of v.lineas; track l.variante_id) {
+            <tr>
+              <td>{{ nombreDe(l.variante_id) }}</td>
+              <td>{{ formatoBs(l.precio_unitario) }}</td>
+              <td style="width: 6rem;">
+                <input
+                  type="number"
+                  min="0"
+                  [max]="l.disponible"
+                  [disabled]="!l.disponible"
+                  [title]="l.disponible + ' sin cambiar'"
+                  [ngModel]="devolver()[l.variante_id] || 0"
+                  (ngModelChange)="fijarDevolucion(l.variante_id, $event, l.disponible)"
+                  style="width: 100%;"
+                />
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+
+      <label style="font-weight: 600; font-size: 0.85rem;">Se lleva</label>
+      <div style="display: flex; gap: 0.5rem; margin: 0.35rem 0 0.75rem;">
+        <select [(ngModel)]="entregaVarianteId" style="flex: 1;">
+          <option [ngValue]="null">Elegí la prenda…</option>
+          @for (o of opcionesDeEntrega(); track o.id) {
+            <option [ngValue]="o.id">{{ o.texto }}</option>
+          }
+        </select>
+        <button type="button" class="btn btn-secondary btn-sm" (click)="agregarEntrega()">Agregar</button>
+      </div>
+      @for (l of entrega(); track l.variante_id) {
+        <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.4rem 0; border-bottom: 1px solid var(--border); font-size: 0.85rem;">
+          <span>{{ l.nombre }} × {{ l.cantidad }} — {{ formatoBs(l.precio_unitario * l.cantidad) }}</span>
+          <button type="button" class="btn btn-secondary btn-sm" (click)="quitarEntrega(l.variante_id)">Quitar</button>
+        </div>
+      }
+
+      <div style="display: flex; justify-content: space-between; align-items: center; margin: 1rem 0; padding: 1rem; border-radius: 12px; background: var(--bg-page);">
+        <span>Diferencia a cobrar</span>
+        <strong style="font-size: 1.35rem;" [style.color]="diferencia() < 0 ? 'var(--danger)' : null">{{ formatoBs(diferencia()) }}</strong>
+      </div>
+      <div class="form-group">
+        <label>Motivo (opcional)</label>
+        <input [(ngModel)]="motivo" maxlength="200" placeholder="Talla, color, falla de fábrica…" />
+      </div>
+      <button type="button" class="btn btn-primary" style="width: 100%;" [disabled]="guardando() || !enPlazo()" (click)="registrar()">
+        Registrar cambio
+      </button>
+    }
+  }
+</div>

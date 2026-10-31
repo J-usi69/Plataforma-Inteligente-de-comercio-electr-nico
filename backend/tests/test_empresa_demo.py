@@ -49,6 +49,20 @@ def test_los_reportes_de_cada_empresa_salen_solo_de_sus_ventas():
     assert all(not v["sucursal_nombre"].startswith("Moda Andina") for v in ventas_fashion)
 
 
+def test_cada_empresa_se_instala_como_app_con_su_nombre_su_color_y_su_direccion():
+    # El <link rel="manifest"> no manda cabeceras: la empresa va como parámetro
+    res = client.get("/api/v1/tienda/manifest.webmanifest", params={"tienda": seed_empresa_demo.SLUG})
+    assert res.status_code == 200
+    assert res.headers["content-type"].startswith("application/manifest+json")
+    manifest = res.json()
+    assert (manifest["name"], manifest["theme_color"]) == ("Moda Andina", "#0F766E")
+    assert manifest["start_url"] == manifest["scope"] == manifest["id"] == f"/t/{seed_empresa_demo.SLUG}/"
+    assert {i["sizes"] for i in manifest["icons"]} == {"192x192", "512x512"}
+
+    por_defecto = client.get("/api/v1/tienda/manifest.webmanifest").json()
+    assert (por_defecto["name"], por_defecto["start_url"]) == ("FashionStore", "/")
+
+
 def test_las_cuentas_de_una_empresa_no_entran_en_la_otra():
     assert _token(f"cajero@{seed_empresa_demo.DOMINIO}", "Cajero123*", EN_MODA_ANDINA)
     otra = client.post("/api/v1/auth/login", json={"login": f"cajero@{seed_empresa_demo.DOMINIO}", "password": "Cajero123*"})

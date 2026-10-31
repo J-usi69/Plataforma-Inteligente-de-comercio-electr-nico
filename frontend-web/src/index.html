@@ -1,14 +1,28 @@
 <!doctype html>
-<html lang="en">
+<html lang="es">
 <head>
   <meta charset="utf-8">
-  <title>FrontendWeb</title>
+  <title>FashionStore</title>
   <base href="/">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#4f46e5">
   <link rel="icon" type="image/x-icon" href="favicon.ico">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <script>
+    // App instalable (PWA): cada empresa tiene su manifest (nombre, color y dirección /t/<slug>/).
+    // El backend lo arma; acá solo se elige el de la empresa de la URL (misma regla que slugDeLaUrl).
+    (function () {
+      var empresa = /^\/t\/([a-z0-9][a-z0-9-]{1,38}[a-z0-9])(?:\/|$)/.exec(location.pathname);
+      var manifest = document.createElement('link');
+      manifest.rel = 'manifest';
+      manifest.href = '/api/v1/tienda/manifest.webmanifest' + (empresa ? '?tienda=' + empresa[1] : '');
+      document.head.appendChild(manifest);
+    })();
+  </script>
   <script src="https://js.stripe.com/v3/"></script>
 </head>
 <body>
   <app-root></app-root>
+  <noscript>FashionStore necesita JavaScript para funcionar.</noscript>
 </body>
 </html>

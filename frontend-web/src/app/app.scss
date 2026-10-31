@@ -24,6 +24,16 @@
     background: var(--danger-bg);
     border-bottom-color: var(--danger-border);
   }
+
+  &.aviso-sin-conexion {
+    background: var(--warning-bg);
+    border-bottom-color: var(--warning-border);
+  }
+}
+
+.brand-tag.brand-tag-off {
+  background: var(--warning-bg);
+  color: #b45309;
 }
 
 .cerrar-aviso {

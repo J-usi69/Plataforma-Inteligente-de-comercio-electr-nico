@@ -12,6 +12,7 @@ import {
 import { AuthService } from '../../../core/services/auth.service';
 import { BusinessService } from '../../../core/services/business.service';
 import { descargarComprobantePdf } from '../../../core/utils/comprobante-pdf';
+import { CambioPrenda } from '../cambio-prenda/cambio-prenda';
 import { PagoQrLibelula } from '../pago-qr-libelula/pago-qr-libelula';
 
 interface VentaItemFila {
@@ -26,7 +27,7 @@ interface VentaItemFila {
 @Component({
   selector: 'app-caja-pos',
   standalone: true,
-  imports: [CommonModule, FormsModule, PagoQrLibelula],
+  imports: [CommonModule, FormsModule, PagoQrLibelula, CambioPrenda],
   templateUrl: './caja-pos.html',
   styles: [`
     .caja-hero {
@@ -128,6 +129,12 @@ export class CajaPos implements OnInit {
   metodoPago = 'efectivo';
   montoRecibido: number = 0;
   comprobanteEmitido = signal<ComprobanteVenta | null>(null);
+  mostrarCambio = signal(false);
+
+  /** Venta armada sin conexión (id negativo): solo se puede cobrar en efectivo. */
+  ventaSinConexion(): boolean {
+    return (this.ventaCreada()?.id ?? 0) < 0;
+  }
 
   totalVenta = computed(() =>
     this.items().reduce((sum, item) => sum + item.precio_unitario * item.cantidad, 0)

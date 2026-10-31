@@ -12,6 +12,13 @@ server {
         proxy_set_header X-Forwarded-Proto $scheme;
     }
 
+    # PWA: el Service Worker, su lista de archivos y el index se revisan en cada visita; si se
+    # cachearan, el navegador seguiría con la versión vieja de la web después de un deploy
+    location ~ ^/(ngsw-worker\.js|ngsw\.json|safety-worker\.js|worker-basic\.min\.js|index\.html)$ {
+        root /usr/share/nginx/html;
+        add_header Cache-Control "no-cache";
+    }
+
     location / {
         root /usr/share/nginx/html;
         index index.html index.htm;

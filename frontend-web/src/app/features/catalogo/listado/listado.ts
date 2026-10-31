@@ -10,6 +10,7 @@ import {
   Talla,
   VariantePrenda,
 } from '../../../core/models/user.model';
+import { SincronizacionService } from '../../../core/offline/sincronizacion.service';
 import { AuthService } from '../../../core/services/auth.service';
 import { BusinessService } from '../../../core/services/business.service';
 import { CartService } from '../../../core/services/cart.service';
@@ -269,6 +270,7 @@ import { VestidorVirtual } from '../vestidor-virtual/vestidor-virtual';
 export class Listado implements OnInit {
   private readonly business = inject(BusinessService);
   private readonly auth = inject(AuthService);
+  readonly sync = inject(SincronizacionService);
   readonly cart = inject(CartService);
   readonly tienda = inject(TiendaService);
 

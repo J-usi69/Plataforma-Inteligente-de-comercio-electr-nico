@@ -274,6 +274,9 @@
         <p style="margin-top: 0.5rem;">
           Preséntate en la sucursal seleccionada para probarte la prenda. Puedes ver el estado en "Mis Reservas".
         </p>
+        <p *ngIf="!sync.enLinea()" style="margin-top: 0.5rem; color: #b45309;">
+          No hay conexión: la reserva quedó guardada en este dispositivo y se confirma sola cuando vuelva Internet.
+        </p>
       </div>
       <div style="display: flex; justify-content: flex-end; gap: 0.75rem;">
         <button class="btn btn-secondary" (click)="cerrarModalReserva()">Cerrar</button>

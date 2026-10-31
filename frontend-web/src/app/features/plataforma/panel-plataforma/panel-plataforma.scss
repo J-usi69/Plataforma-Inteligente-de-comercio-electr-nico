@@ -110,12 +110,25 @@ td select {
 
   h3 {
     font-size: 1.1rem;
-    margin-bottom: 1rem;
+    margin-bottom: 0.25rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
 
     small {
       font-weight: 500;
       color: var(--text-muted);
     }
+  }
+
+  .uso-plan {
+    margin-bottom: 1rem;
+  }
+
+  .plan-inactivo {
+    opacity: 0.75;
+    border-style: dashed;
   }
 }
 

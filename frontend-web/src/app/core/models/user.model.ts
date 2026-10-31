@@ -217,6 +217,8 @@ export interface Reserva {
   estado: 'pendiente' | 'confirmada' | 'atendida' | 'cancelada' | 'expirada';
   total_estimado?: number | null;
   detalles: DetalleReserva[];
+  // Solo en reservas hechas sin conexión que todavía no confirmó el servidor (ver core/offline)
+  sincronizacion?: 'registrada' | 'enviada' | 'conflicto';
 }
 
 export interface DetalleVenta {

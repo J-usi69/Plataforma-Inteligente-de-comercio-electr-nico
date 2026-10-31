@@ -4,7 +4,7 @@ de una tienda: usan la sesión de la plataforma."""
 from typing import List, Optional
 
 import stripe
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -18,10 +18,12 @@ from app.db.tenancy import olvidar_tienda
 from app.models.catalogo import Prenda
 from app.models.seguridad import Usuario
 from app.models.sucursal import Sucursal
-from app.models.tienda import Plan, Suscripcion, Tienda
+from app.models.tienda import MovimientoSuscripcion, Plan, Suscripcion, Tienda
 from app.models.venta import Venta
 from app.schemas.tienda import (
     LoginPlataformaIn,
+    PlanAdminOut,
+    PlanCreate,
     PlanOut,
     PlanUpdate,
     RegistroTiendaIn,
@@ -195,7 +197,43 @@ def renovar_tienda(
     return _tienda_admin_out(db, tienda)
 
 
-@router.put("/planes/{codigo}", response_model=PlanOut)
+def _plan_o_404(db: Session, codigo: str) -> Plan:
+    plan = db.scalars(select(Plan).where(Plan.codigo == codigo)).first()
+    if not plan:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"No existe el plan '{codigo}'")
+    return plan
+
+
+def _empresas_con(db: Session, plan: Plan) -> int:
+    return db.scalar(select(func.count()).select_from(Suscripcion).where(Suscripcion.plan_id == plan.id)) or 0
+
+
+def _plan_admin_out(db: Session, plan: Plan) -> PlanAdminOut:
+    return PlanAdminOut.model_validate(plan).model_copy(update={"empresas": _empresas_con(db, plan)})
+
+
+@router.get("/planes/todos", response_model=List[PlanAdminOut])
+def listar_planes_admin(db: Session = Depends(get_db_plataforma), _: Usuario = Depends(require_superadmin)):
+    """Todos los planes, también los desactivados (que ya no se ofrecen), con cuántas empresas
+    tiene cada uno: el superadmin los configura y los vuelve a activar desde acá."""
+    empresas = dict(db.execute(select(Suscripcion.plan_id, func.count()).group_by(Suscripcion.plan_id)).all())
+    planes = db.scalars(select(Plan).order_by(Plan.orden, Plan.id)).all()
+    return [PlanAdminOut.model_validate(p).model_copy(update={"empresas": empresas.get(p.id, 0)}) for p in planes]
+
+
+@router.post("/planes", response_model=PlanAdminOut, status_code=status.HTTP_201_CREATED)
+def crear_plan(datos: PlanCreate, db: Session = Depends(get_db_plataforma), _: Usuario = Depends(require_superadmin)):
+    """Plan nuevo (CU-02): queda activo y se ofrece desde ya en el alta de empresas y en "Mi plan"."""
+    if db.scalars(select(Plan.id).where(Plan.codigo == datos.codigo)).first() is not None:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=f"Ya existe un plan con el código '{datos.codigo}'")
+    plan = Plan(**datos.model_dump(), orden=(db.scalar(select(func.max(Plan.orden))) or 0) + 1, estado=True)
+    db.add(plan)
+    db.commit()
+    db.refresh(plan)
+    return _plan_admin_out(db, plan)
+
+
+@router.put("/planes/{codigo}", response_model=PlanAdminOut)
 def configurar_plan(
     codigo: str,
     datos: PlanUpdate,
@@ -203,15 +241,34 @@ def configurar_plan(
     _: Usuario = Depends(require_superadmin),
 ):
     """Límites, precio y funciones de un plan (los valores del enunciado son los iniciales). Rige
-    desde ya para todas las tiendas con ese plan; lo que ya tienen creado no se borra."""
-    plan = db.scalars(select(Plan).where(Plan.codigo == codigo)).first()
-    if not plan:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"No existe el plan '{codigo}'")
+    desde ya para todas las tiendas con ese plan; lo que ya tienen creado no se borra. Con
+    estado=false deja de ofrecerse, pero las empresas que ya lo tienen lo conservan."""
+    plan = _plan_o_404(db, codigo)
     for campo, valor in datos.model_dump(exclude_unset=True).items():
         setattr(plan, campo, valor)
     db.commit()
     db.refresh(plan)
-    return plan
+    return _plan_admin_out(db, plan)
+
+
+@router.delete("/planes/{codigo}", status_code=status.HTTP_204_NO_CONTENT)
+def eliminar_plan(codigo: str, db: Session = Depends(get_db_plataforma), _: Usuario = Depends(require_superadmin)):
+    """Solo se elimina un plan que nunca se contrató. Si alguna empresa lo tiene o lo tuvo (está en
+    su historial), se rechaza y se ofrece desactivarlo (CU-02, flujo alternativo)."""
+    plan = _plan_o_404(db, codigo)
+    empresas = _empresas_con(db, plan)
+    if empresas:
+        motivo = f"tiene {empresas} {'empresa suscrita' if empresas == 1 else 'empresas suscritas'}"
+    elif db.scalars(select(MovimientoSuscripcion.id).where(MovimientoSuscripcion.plan_id == plan.id)).first() is not None:
+        motivo = "ya fue contratado (figura en el historial de suscripciones)"
+    else:
+        db.delete(plan)
+        db.commit()
+        return Response(status_code=status.HTTP_204_NO_CONTENT)
+    raise HTTPException(
+        status_code=status.HTTP_409_CONFLICT,
+        detail=f"El plan {plan.nombre} {motivo} y no se puede eliminar. Desactivalo para que no se pueda contratar más.",
+    )
 
 
 @router.post("/stripe/webhook")

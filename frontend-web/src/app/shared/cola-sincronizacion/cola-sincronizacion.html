@@ -1,0 +1,67 @@
+@if (sync.disponible() && (sync.operaciones().length || !sync.enLinea())) {
+  <div class="cola">
+    <button
+      type="button"
+      class="boton"
+      [class.con-pendientes]="porSincronizar()"
+      [attr.aria-expanded]="abierta()"
+      [title]="porSincronizar() ? porSincronizar() + ' operaciones por sincronizar' : 'Todo sincronizado'"
+      (click)="abierta.set(!abierta())"
+    >
+      ⇅
+      @if (porSincronizar()) {
+        <span class="cantidad">{{ porSincronizar() }}</span>
+      } @else {
+        <span class="ok">✓</span>
+      }
+    </button>
+
+    @if (abierta()) {
+      <div class="panel" role="dialog" aria-label="Operaciones de este dispositivo">
+        <div class="encabezado">
+          <div>
+            <strong>Operaciones de este dispositivo</strong>
+            <small>
+              {{ sync.enLinea() ? 'Se envían solas al servidor.' : 'Sin conexión: se enviarán solas cuando vuelva.' }}
+              @if (sync.info(); as info) {
+                Datos guardados del {{ info.generado_en | date: 'dd/MM HH:mm' }}{{ sync.desactualizado() ? ' (pueden estar desactualizados)' : '' }}.
+              }
+            </small>
+          </div>
+          <button
+            type="button"
+            class="btn btn-primary btn-sm"
+            [disabled]="!sync.enLinea() || sync.sincronizando() || !sync.pendientes()"
+            (click)="sync.sincronizar()"
+          >
+            {{ sync.sincronizando() ? 'Enviando…' : 'Sincronizar' }}
+          </button>
+        </div>
+        @if (sync.ultimoError(); as error) {
+          <div class="error">{{ error }}</div>
+        }
+        <ul>
+          @for (op of recientes(); track op.id) {
+            <li>
+              <div class="fila">
+                <span>{{ op.resumen }}</span>
+                <span [class]="'badge ' + clases[op.estado]">{{ etiquetas[op.estado] }}</span>
+              </div>
+              <small>
+                {{ op.registrada_en | date: 'dd/MM HH:mm' }}
+                @if (op.resultado?.referencia_id) {
+                  · {{ op.resultado?.referencia_tipo }} #{{ op.resultado?.referencia_id }}
+                }
+                @if (op.resultado?.mensaje) {
+                  · {{ op.resultado?.mensaje }}
+                }
+              </small>
+            </li>
+          } @empty {
+            <li class="vacio">Todavía no hay operaciones registradas sin conexión.</li>
+          }
+        </ul>
+      </div>
+    }
+  </div>
+}

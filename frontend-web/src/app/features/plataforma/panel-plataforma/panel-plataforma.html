@@ -81,7 +81,7 @@
             <div class="form-group">
               <label for="alta-plan">Plan</label>
               <select id="alta-plan" name="plan" [(ngModel)]="alta.plan_codigo">
-                @for (p of planes(); track p.codigo) {
+                @for (p of planesActivos(); track p.codigo) {
                   <option [value]="p.codigo">{{ p.nombre }}</option>
                 }
               </select>
@@ -125,7 +125,7 @@
                 </td>
                 <td>
                   <select [ngModel]="t.plan_codigo" (ngModelChange)="cambiarPlan(t, $event)" [disabled]="ocupado() === 'plan-' + t.id" [attr.aria-label]="'Plan de ' + t.nombre">
-                    @for (p of planes(); track p.codigo) {
+                    @for (p of planesPara(t); track p.codigo) {
                       <option [value]="p.codigo">{{ p.nombre }}</option>
                     }
                   </select>
@@ -167,12 +167,70 @@
     } @else {
       <p class="ayuda">
         Los valores iniciales son los del enunciado (Básico hasta 2 sucursales, Profesional hasta 10). Un límite vacío significa
-        "sin límite". Los cambios rigen en el acto para todas las empresas con ese plan.
+        "sin límite". Los cambios rigen en el acto para todas las empresas con ese plan. Un plan desactivado deja de ofrecerse,
+        pero las empresas que ya lo tienen lo conservan; solo se puede eliminar un plan que nunca se contrató.
       </p>
+      <div class="acciones">
+        <button class="btn btn-primary btn-sm" (click)="mostrarNuevoPlan = !mostrarNuevoPlan">
+          {{ mostrarNuevoPlan ? 'Cerrar' : '+ Nuevo plan' }}
+        </button>
+      </div>
+
+      @if (mostrarNuevoPlan) {
+        <form class="card alta" (ngSubmit)="crearPlan()" #formPlan="ngForm">
+          <h3>Nuevo plan</h3>
+          <div class="grid-3">
+            <div class="form-group">
+              <label for="np-nombre">Nombre</label>
+              <input id="np-nombre" name="nombre" [(ngModel)]="nuevoPlan.nombre" (ngModelChange)="alCambiarNombrePlan()" required minlength="2" maxlength="60" />
+            </div>
+            <div class="form-group">
+              <label for="np-codigo">Código</label>
+              <input id="np-codigo" name="codigo" [(ngModel)]="nuevoPlan.codigo" required maxlength="30" pattern="[a-z0-9-]+" />
+            </div>
+            <div class="form-group">
+              <label for="np-precio">Precio mensual (USD)</label>
+              <input id="np-precio" name="precio" type="number" min="0" step="0.01" [(ngModel)]="nuevoPlan.precio_mensual" required />
+            </div>
+            <div class="form-group">
+              <label for="np-suc">Máx. sucursales</label>
+              <input id="np-suc" name="max_sucursales" type="number" min="1" [(ngModel)]="nuevoPlan.max_sucursales" placeholder="Sin límite" />
+            </div>
+            <div class="form-group">
+              <label for="np-prendas">Máx. prendas</label>
+              <input id="np-prendas" name="max_prendas" type="number" min="1" [(ngModel)]="nuevoPlan.max_prendas" placeholder="Sin límite" />
+            </div>
+            <div class="form-group">
+              <label for="np-personal">Máx. empleados</label>
+              <input id="np-personal" name="max_personal" type="number" min="1" [(ngModel)]="nuevoPlan.max_personal" placeholder="Sin límite" />
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="np-desc">Descripción</label>
+            <input id="np-desc" name="descripcion" [(ngModel)]="nuevoPlan.descripcion" maxlength="200" />
+          </div>
+          <fieldset class="funciones">
+            <legend>Funciones incluidas</legend>
+            @for (f of funciones; track f.clave) {
+              <label><input type="checkbox" [name]="'np-' + f.clave" [(ngModel)]="nuevoPlan[f.clave]" /> {{ f.nombre }}</label>
+            }
+          </fieldset>
+          <button class="btn btn-primary btn-sm" type="submit" [disabled]="formPlan.invalid || ocupado() === 'nuevo-plan'">
+            {{ ocupado() === 'nuevo-plan' ? 'Creando...' : 'Crear plan' }}
+          </button>
+        </form>
+      }
+
       <div class="planes">
         @for (p of planes(); track p.codigo) {
-          <form class="card" (ngSubmit)="guardarPlan(p)">
-            <h3>{{ p.nombre }} <small>({{ p.codigo }})</small></h3>
+          <form class="card" [class.plan-inactivo]="!p.estado" (ngSubmit)="guardarPlan(p)">
+            <h3>
+              {{ p.nombre }} <small>({{ p.codigo }})</small>
+              @if (!p.estado) {
+                <span class="badge badge-warning">desactivado</span>
+              }
+            </h3>
+            <p class="secundario uso-plan">{{ p.empresas }} {{ p.empresas === 1 ? 'empresa lo tiene' : 'empresas lo tienen' }}</p>
             <div class="grid-2">
               <div class="form-group">
                 <label [for]="'precio-' + p.codigo">Precio mensual ({{ p.moneda }})</label>
@@ -201,9 +259,17 @@
                 <label><input type="checkbox" [name]="f.clave" [(ngModel)]="p[f.clave]" /> {{ f.nombre }}</label>
               }
             </fieldset>
-            <button class="btn btn-primary btn-sm" type="submit" [disabled]="ocupado() === 'plan-' + p.codigo">
-              {{ ocupado() === 'plan-' + p.codigo ? 'Guardando...' : 'Guardar plan' }}
-            </button>
+            <div class="botones">
+              <button class="btn btn-primary btn-sm" type="submit" [disabled]="ocupado() === 'plan-' + p.codigo">
+                {{ ocupado() === 'plan-' + p.codigo ? 'Guardando...' : 'Guardar plan' }}
+              </button>
+              <button class="btn btn-secondary btn-sm" type="button" [disabled]="ocupado() === 'plan-' + p.codigo" (click)="alternarPlan(p)">
+                {{ p.estado ? 'Desactivar' : 'Activar' }}
+              </button>
+              <button class="btn btn-danger btn-sm" type="button" [disabled]="ocupado() === 'plan-' + p.codigo" (click)="eliminarPlan(p)">
+                Eliminar
+              </button>
+            </div>
           </form>
         }
       </div>

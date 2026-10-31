@@ -34,6 +34,15 @@ export interface Plan extends FuncionesPlan {
   max_personal: number | null;
 }
 
+/** El plan visto por el superadmin: también los desactivados y cuántas empresas lo tienen. */
+export interface PlanAdmin extends Plan {
+  estado: boolean;
+  empresas: number;
+}
+
+/** Plan nuevo creado por el superadmin (CU-02). */
+export type NuevoPlan = Omit<Plan, 'moneda'>;
+
 export interface Suscripcion {
   estado: 'activa' | 'vencida' | 'cancelada';
   fecha_inicio: string;

@@ -1,10 +1,10 @@
 from datetime import datetime, time, timezone
-from typing import List
-from fastapi import APIRouter, Depends, HTTPException, status
+from typing import List, NoReturn
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_db, require_roles
+from app.api.deps import get_client_ip, get_db, registrar_bitacora, require_roles
 from app.models.inventario import InventarioSucursal
 from app.models.reserva import Reserva
 from app.models.seguridad import Usuario
@@ -144,17 +144,27 @@ def crear_sucursal(
     )
 
 
+def _sucursal_no_encontrada(db: Session, usuario: Usuario, request: Request, sucursal_id: int, accion: str) -> NoReturn:
+    """Una sucursal que no está en esta empresa (no existe, se eliminó o es de otra: la base no la
+    deja ver) no se toca, y el intento queda en la bitácora con quién lo hizo (CU-05)."""
+    registrar_bitacora(
+        db, usuario.id, f"Intento de {accion} la sucursal #{sucursal_id}, que no existe en esta empresa", get_client_ip(request),
+    )
+    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Sucursal no encontrada")
+
+
 @router.put("/{sucursal_id}", response_model=SucursalOut)
 def actualizar_sucursal(
     sucursal_id: int,
     datos: SucursalUpdate,
+    request: Request,
     db: Session = Depends(get_db),
-    _: Usuario = Depends(require_roles(["Administrador"])),
+    usuario: Usuario = Depends(require_roles(["Administrador"])),
 ):
     """CU-06: Editar información de una sucursal existente"""
     sucursal = db.get(Sucursal, sucursal_id)
     if not sucursal or sucursal.fecha_eliminacion is not None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Sucursal no encontrada")
+        _sucursal_no_encontrada(db, usuario, request, sucursal_id, "modificar")
 
     if datos.ciudad_id is not None:
         ciudad = db.get(Ciudad, datos.ciudad_id)
@@ -179,6 +189,8 @@ def actualizar_sucursal(
     if datos.hora_fin is not None:
         sucursal.hora_fin = parse_time(datos.hora_fin)
     if datos.estado is not None:
+        if datos.estado and not sucursal.estado:
+            exigir_cupo(db, "sucursales")  # reactivar ocupa un lugar del plan, igual que crear
         sucursal.estado = datos.estado
 
     db.commit()
@@ -201,13 +213,14 @@ def actualizar_sucursal(
 @router.delete("/{sucursal_id}")
 def eliminar_sucursal(
     sucursal_id: int,
+    request: Request,
     db: Session = Depends(get_db),
-    _: Usuario = Depends(require_roles(["Administrador"])),
+    usuario: Usuario = Depends(require_roles(["Administrador"])),
 ):
     """CU-06: Desactivar una sucursal con validación de reservas o inventario activo"""
     sucursal = db.get(Sucursal, sucursal_id)
     if not sucursal:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Sucursal no encontrada")
+        _sucursal_no_encontrada(db, usuario, request, sucursal_id, "eliminar")
 
     # Excepción CU-06: Advertir / validar si hay reservas pendientes o inventario activo
     reservas_activas = db.scalars(

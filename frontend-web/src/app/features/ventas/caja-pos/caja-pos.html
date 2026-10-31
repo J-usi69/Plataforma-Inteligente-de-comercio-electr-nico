@@ -10,6 +10,9 @@
       <p>Procesa compras de clientes que se probaron prendas en la sucursal o ventas directas de mostrador.</p>
     </div>
     <div style="display: flex; align-items: center; gap: 0.75rem;">
+      <button type="button" class="btn btn-secondary btn-sm" (click)="mostrarCambio.set(!mostrarCambio())">
+        {{ mostrarCambio() ? 'Volver a la venta' : '🔁 Cambio de prenda' }}
+      </button>
       <select
         [ngModel]="sucursalId()"
         (ngModelChange)="cambiarSucursal($event)"
@@ -22,7 +25,11 @@
     </div>
   </div>
 
-  <div class="pos-layout">
+  @if (mostrarCambio()) {
+    <app-cambio-prenda [sucursalId]="sucursalId()"></app-cambio-prenda>
+  }
+
+  <div class="pos-layout" [hidden]="mostrarCambio()">
     <!-- Left Column: Source selection & manual items -->
     <div>
       <!-- 1. Reservas Atendidas List -->
@@ -176,6 +183,8 @@
           class="btn btn-secondary"
           [style.background]="metodoPago === 'tarjeta' ? '#4f46e5' : '#ffffff'"
           [style.color]="metodoPago === 'tarjeta' ? '#ffffff' : '#0f172a'"
+          [disabled]="ventaSinConexion()"
+          [title]="ventaSinConexion() ? 'Sin conexión se cobra en efectivo' : ''"
           (click)="metodoPago = 'tarjeta'"
         >
           💳 Tarjeta POS
@@ -185,6 +194,8 @@
           class="btn btn-secondary"
           [style.background]="metodoPago === 'qr' ? '#4f46e5' : '#ffffff'"
           [style.color]="metodoPago === 'qr' ? '#ffffff' : '#0f172a'"
+          [disabled]="ventaSinConexion()"
+          [title]="ventaSinConexion() ? 'Sin conexión se cobra en efectivo' : ''"
           (click)="metodoPago = 'qr'"
         >
           📱 QR (Libélula)
@@ -248,6 +259,9 @@
         <div><strong>CLIENTE:</strong> {{ comprobanteEmitido()?.cliente_nombre }}</div>
         <div><strong>CAJERO:</strong> {{ comprobanteEmitido()?.cajero_nombre }}</div>
         <div><strong>PAGO:</strong> {{ comprobanteEmitido()?.metodo_pago }}</div>
+        <div *ngIf="comprobanteEmitido()?.estado_venta === 'PENDIENTE DE SINCRONIZAR'" style="margin-top: 0.35rem; font-weight: 700;">
+          PENDIENTE DE SINCRONIZAR: se confirma al volver la conexión
+        </div>
       </div>
 
       <div style="border-top: 1px dashed #94a3b8; border-bottom: 1px dashed #94a3b8; padding: 0.5rem 0; margin-bottom: 0.75rem;">

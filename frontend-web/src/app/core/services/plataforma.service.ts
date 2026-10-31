@@ -2,7 +2,7 @@ import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { Observable, firstValueFrom, tap } from 'rxjs';
 import { Usuario } from '../models/user.model';
-import { Plan, RegistroTienda, TiendaAdmin } from '../models/tienda.model';
+import { NuevoPlan, Plan, PlanAdmin, RegistroTienda, TiendaAdmin } from '../models/tienda.model';
 import { claveDeEmpresa } from './tienda.service';
 
 const CLAVE_TOKEN = 'fs_plataforma_token';
@@ -81,7 +81,21 @@ export class PlataformaService {
     return this.http.post<TiendaAdmin>(`${this.base}/tiendas/${id}/renovar`, { meses });
   }
 
-  configurarPlan(codigo: string, cambios: Partial<Plan>): Observable<Plan> {
-    return this.http.put<Plan>(`${this.base}/planes/${codigo}`, cambios);
+  /** Todos los planes, también los desactivados, con cuántas empresas tiene cada uno. */
+  planesAdmin(): Observable<PlanAdmin[]> {
+    return this.http.get<PlanAdmin[]>(`${this.base}/planes/todos`);
+  }
+
+  crearPlan(datos: NuevoPlan): Observable<PlanAdmin> {
+    return this.http.post<PlanAdmin>(`${this.base}/planes`, datos);
+  }
+
+  configurarPlan(codigo: string, cambios: Partial<PlanAdmin>): Observable<PlanAdmin> {
+    return this.http.put<PlanAdmin>(`${this.base}/planes/${codigo}`, cambios);
+  }
+
+  /** Solo se elimina un plan que nunca se contrató; si no, 409 y se ofrece desactivarlo. */
+  eliminarPlan(codigo: string): Observable<void> {
+    return this.http.delete<void>(`${this.base}/planes/${codigo}`);
   }
 }

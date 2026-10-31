@@ -303,6 +303,78 @@ def test_el_superadmin_registra_empresas_y_configura_los_planes(superadmin, borr
     assert client.put("/api/v1/plataforma/planes/basico", json={"max_sucursales": 9}, headers=tienda_nueva["headers"]).status_code == 401
 
 
+@pytest.fixture
+def plan_temporal():
+    """Código para planes de prueba; al final borra los que empiezan así. Pedirlo antes que
+    tienda_nueva: se desarma después, cuando ya no queda la tienda que lo contrató."""
+    codigo = f"plan-{int(time.time() * 1000)}"
+    yield codigo
+    with engine.begin() as conn:
+        conn.execute(text("DELETE FROM plan WHERE codigo LIKE :c"), {"c": f"{codigo}%"})
+
+
+def test_el_superadmin_crea_desactiva_y_elimina_planes(plan_temporal, superadmin, tienda_nueva):
+    codigo = plan_temporal
+    res = client.post("/api/v1/plataforma/planes", json={
+        "codigo": codigo, "nombre": "Plan Temporada", "precio_mensual": 35, "max_sucursales": 5, "reportes_ia": True,
+    }, headers=superadmin)
+    assert res.status_code == 201, res.text
+    assert (res.json()["estado"], res.json()["empresas"], res.json()["max_personal"]) == (True, 0, None)
+    assert codigo in [p["codigo"] for p in client.get("/api/v1/plataforma/planes").json()]  # ya se ofrece en el alta
+    assert client.post("/api/v1/plataforma/planes", json={"codigo": codigo, "nombre": "Otro"}, headers=superadmin).status_code == 409
+    sin_sucursales = {"codigo": f"{codigo}-x", "nombre": "Sin sucursales", "max_sucursales": 0}
+    assert client.post("/api/v1/plataforma/planes", json=sin_sucursales, headers=superadmin).status_code == 422
+
+    # Con una empresa suscrita no se elimina: se ofrece desactivarlo
+    client.patch(f"/api/v1/plataforma/tiendas/{tienda_nueva['id']}", json={"plan_codigo": codigo}, headers=superadmin)
+    res = client.delete(f"/api/v1/plataforma/planes/{codigo}", headers=superadmin)
+    assert res.status_code == 409
+    assert "tiene 1 empresa suscrita" in res.json()["detail"] and "Desactivalo" in res.json()["detail"]
+
+    res = client.put(f"/api/v1/plataforma/planes/{codigo}", json={"estado": False}, headers=superadmin)
+    assert (res.json()["estado"], res.json()["empresas"]) == (False, 1)
+    assert codigo not in [p["codigo"] for p in client.get("/api/v1/plataforma/planes").json()]  # ya no se ofrece
+    assert codigo in [p["codigo"] for p in client.get("/api/v1/plataforma/planes/todos", headers=superadmin).json()]
+    assert client.get("/api/v1/tienda/plan", headers=tienda_nueva["headers"]).json()["plan"]["codigo"] == codigo  # la conserva
+
+    # Uno que nunca se contrató sí se elimina
+    sin_uso = f"{codigo}-b"
+    assert client.post("/api/v1/plataforma/planes", json={"codigo": sin_uso, "nombre": "Plan sin uso"}, headers=superadmin).status_code == 201
+    assert client.delete(f"/api/v1/plataforma/planes/{sin_uso}", headers=superadmin).status_code == 204
+    assert client.delete(f"/api/v1/plataforma/planes/{sin_uso}", headers=superadmin).status_code == 404
+    assert client.delete("/api/v1/plataforma/planes/basico", headers=tienda_nueva["headers"]).status_code == 401
+
+
+def test_reactivar_una_sucursal_respeta_el_limite_del_plan(tienda_nueva):
+    headers = tienda_nueva["headers"]
+    primera = client.post("/api/v1/sucursales", json=_sucursal(1), headers=headers).json()
+    assert client.post("/api/v1/sucursales", json=_sucursal(2), headers=headers).status_code == 201
+    assert client.put(f"/api/v1/sucursales/{primera['id']}", json={"estado": False}, headers=headers).status_code == 200
+    assert client.post("/api/v1/sucursales", json=_sucursal(3), headers=headers).status_code == 201  # ocupa el lugar libre
+
+    res = client.put(f"/api/v1/sucursales/{primera['id']}", json={"estado": True}, headers=headers)
+    assert res.status_code == 402
+    assert "Básico" in res.json()["detail"]
+
+
+def test_una_empresa_no_toca_sucursales_ni_asigna_personal_de_otra(tienda_nueva):
+    headers = tienda_nueva["headers"]
+    # La sucursal 1 es de FashionStore: para esta empresa no existe, y el intento queda en su bitácora
+    assert client.put("/api/v1/sucursales/1", json={"nombre": "Tomada"}, headers=headers).status_code == 404
+    assert client.delete("/api/v1/sucursales/1", headers=headers).status_code == 404
+    with engine.connect() as conn:
+        acciones = conn.execute(text("SELECT accion FROM bitacora WHERE tienda_id = :t"), {"t": tienda_nueva["id"]}).scalars().all()
+    assert "Intento de modificar la sucursal #1, que no existe en esta empresa" in acciones
+    assert "Intento de eliminar la sucursal #1, que no existe en esta empresa" in acciones
+    assert client.get("/api/v1/sucursales/1").json()["nombre"] != "Tomada"
+
+    ts = int(time.time() * 1000)
+    res = client.post("/api/v1/personal", json={
+        "nombres": "Ana", "apellidos": "Ajena", "cargo": "Cajero", "sucursal_id": 1, "correo": f"ana{ts}@boutique.com", "password": PASSWORD,
+    }, headers=headers)
+    assert res.status_code == 400
+
+
 # --- Reglas de fechas ----------------------------------------------------------------------
 
 @pytest.mark.parametrize("desde, meses, esperado", [
