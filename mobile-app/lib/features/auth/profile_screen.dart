@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import '../../core/offline/sincronizacion_service.dart';
 import '../../core/services/api_service.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -33,6 +34,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _handleLogout() async {
+    // Lo registrado sin conexión se envía con la sesión de quien lo registró: se avisa antes
+    final pendientes = SincronizacionService().pendientes;
+    if (pendientes > 0) {
+      final salir = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Hay operaciones sin enviar'),
+          content: Text(
+            'Tenés $pendientes ${pendientes == 1 ? 'operación registrada' : 'operaciones registradas'} en este '
+            'teléfono que todavía no llegaron al servidor. Quedan guardadas y se envían cuando vuelvas a iniciar '
+            'sesión con este usuario.',
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Quedarme')),
+            TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Cerrar sesión')),
+          ],
+        ),
+      );
+      if (salir != true) return;
+    }
     await _apiService.logout();
     if (!mounted) return;
     context.go('/login');
@@ -93,6 +114,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                     const SizedBox(height: 24),
                     const Divider(),
+                    ListTile(
+                      leading: const Icon(Icons.storefront_outlined),
+                      title: const Text('Empresa'),
+                      subtitle: Text('${_apiService.tiendaNombre} (${_apiService.tienda})'),
+                    ),
                     ListTile(
                       leading: const Icon(Icons.email_outlined),
                       title: const Text('Correo Electrónico'),

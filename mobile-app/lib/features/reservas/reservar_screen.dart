@@ -26,6 +26,8 @@ class _ReservarScreenState extends State<ReservarScreen> {
   bool _enviando = false;
   String? _error;
   bool _exito = false;
+  // Sin conexión la reserva queda guardada en el teléfono hasta sincronizarse (CU-10)
+  bool _guardadaEnTelefono = false;
 
   @override
   void initState() {
@@ -78,7 +80,7 @@ class _ReservarScreenState extends State<ReservarScreen> {
     });
 
     try {
-      await _apiService.crearReserva(
+      final reserva = await _apiService.crearReserva(
         sucursalId: _sucursalSeleccionada!['sucursal_id'] as int,
         varianteId: _varianteSeleccionada!['id'] as int,
         cantidad: _cantidad,
@@ -87,6 +89,7 @@ class _ReservarScreenState extends State<ReservarScreen> {
       setState(() {
         _enviando = false;
         _exito = true;
+        _guardadaEnTelefono = reserva['sincronizacion'] != null;
       });
     } catch (e) {
       if (!mounted) return;
@@ -112,22 +115,30 @@ class _ReservarScreenState extends State<ReservarScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.check_circle, size: 96, color: Colors.green),
+            Icon(
+              _guardadaEnTelefono ? Icons.cloud_upload_outlined : Icons.check_circle,
+              size: 96,
+              color: _guardadaEnTelefono ? Colors.amber.shade700 : Colors.green,
+            ),
             const SizedBox(height: 16),
-            const Text(
-              '¡Reserva creada!',
-              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+            Text(
+              _guardadaEnTelefono ? 'Reserva guardada en el teléfono' : '¡Reserva creada!',
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
-            const Text(
-              'Preséntate en la sucursal seleccionada para probarte la prenda.',
+            Text(
+              _guardadaEnTelefono
+                  ? 'No hay conexión: la reserva se enviará sola cuando vuelva. El servidor la confirma '
+                      'si todavía hay stock; podés seguir su estado en "Operaciones pendientes".'
+                  : 'Preséntate en la sucursal seleccionada para probarte la prenda.',
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 24),
             ElevatedButton(
-              onPressed: () => context.push('/reservas'),
+              onPressed: () => context.push(_guardadaEnTelefono ? '/pendientes' : '/reservas'),
               style: ElevatedButton.styleFrom(backgroundColor: Colors.indigo, foregroundColor: Colors.white),
-              child: const Text('Ver mis reservas'),
+              child: Text(_guardadaEnTelefono ? 'Ver operaciones pendientes' : 'Ver mis reservas'),
             ),
           ],
         ),

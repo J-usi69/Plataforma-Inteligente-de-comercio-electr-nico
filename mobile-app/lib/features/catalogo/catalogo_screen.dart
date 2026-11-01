@@ -71,7 +71,7 @@ class _CatalogoScreenState extends State<CatalogoScreen> with RouteAware {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Error al cargar catálogo: $e'),
+          content: Text('Error al cargar catálogo: ${e.toString().replaceAll('Exception: ', '')}'),
           backgroundColor: Colors.red,
         ),
       );
@@ -97,7 +97,7 @@ class _CatalogoScreenState extends State<CatalogoScreen> with RouteAware {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Catálogo FashionStore'),
+        title: Text('Catálogo ${_apiService.tiendaNombre}'),
         centerTitle: false,
         actions: [
           Stack(
@@ -141,6 +141,10 @@ class _CatalogoScreenState extends State<CatalogoScreen> with RouteAware {
                   context.push('/reservas');
                 case 'perfil':
                   context.push('/perfil');
+                case 'caja':
+                  context.push('/caja');
+                case 'pendientes':
+                  context.push('/pendientes');
                 case 'login':
                   // El login se apila arriba del catálogo (no lo reemplaza), así que
                   // al volver hay que refrescar a mano: nadie avisa que ya hay sesión.
@@ -173,6 +177,24 @@ class _CatalogoScreenState extends State<CatalogoScreen> with RouteAware {
                   child: ListTile(
                     leading: Icon(Icons.event_note_outlined),
                     title: Text('Mis Reservas'),
+                  ),
+                ),
+              // CU-11: venta de contado (con o sin conexión), para quienes cobran en caja
+              if (_apiService.puedeCobrarEnCaja)
+                const PopupMenuItem(
+                  value: 'caja',
+                  child: ListTile(
+                    leading: Icon(Icons.point_of_sale),
+                    title: Text('Venta de contado'),
+                  ),
+                ),
+              // CU-12: lo registrado en este teléfono y su estado de sincronización
+              if (_apiService.isLoggedIn)
+                const PopupMenuItem(
+                  value: 'pendientes',
+                  child: ListTile(
+                    leading: Icon(Icons.sync),
+                    title: Text('Operaciones pendientes'),
                   ),
                 ),
               if (_apiService.isLoggedIn)

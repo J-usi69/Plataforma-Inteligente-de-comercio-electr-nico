@@ -6,6 +6,9 @@ class Env {
     defaultValue: 'http://10.0.2.2:8000',
   );
 
+  // Empresa (tenant del SaaS) con la que arranca la app; se cambia al iniciar sesión.
+  static const String tienda = String.fromEnvironment('TIENDA', defaultValue: 'fashionstore');
+
   // Web de la tienda: el vestidor AR en vivo (MediaPipe) se abre desde ahí dentro de un WebView.
   static const String webUrl = String.fromEnvironment(
     'WEB_URL',

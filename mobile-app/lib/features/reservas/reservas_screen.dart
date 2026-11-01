@@ -98,6 +98,8 @@ class _ReservasScreenState extends State<ReservasScreen> {
                       final r = _reservas[index];
                       final estado = r['estado'] as String;
                       final detalles = (r['detalles'] as List<dynamic>? ?? []);
+                      // Hecha sin conexión y todavía no confirmada por el servidor
+                      final sincronizacion = r['sincronizacion'] as String?;
 
                       return Card(
                         margin: const EdgeInsets.only(bottom: 14),
@@ -109,16 +111,29 @@ class _ReservasScreenState extends State<ReservasScreen> {
                               Row(
                                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 children: [
-                                  Text('Reserva #${r['id']}', style: const TextStyle(fontWeight: FontWeight.bold)),
+                                  Text(
+                                    sincronizacion != null ? 'Reserva sin confirmar' : 'Reserva #${r['id']}',
+                                    style: const TextStyle(fontWeight: FontWeight.bold),
+                                  ),
                                   Chip(
-                                    label: Text(estado, style: const TextStyle(color: Colors.white, fontSize: 12)),
-                                    backgroundColor: _colorEstado(estado),
+                                    label: Text(
+                                      sincronizacion != null ? 'por sincronizar' : estado,
+                                      style: const TextStyle(color: Colors.white, fontSize: 12),
+                                    ),
+                                    backgroundColor: sincronizacion != null ? Colors.amber.shade800 : _colorEstado(estado),
                                     padding: EdgeInsets.zero,
                                   ),
                                 ],
                               ),
                               const SizedBox(height: 6),
                               Text(r['sucursal_nombre'] ?? '', style: const TextStyle(fontWeight: FontWeight.w600)),
+                              if (sincronizacion != null)
+                                Text(
+                                  sincronizacion == 'conflicto'
+                                      ? 'En conflicto: la revisa el administrador.'
+                                      : 'Guardada en el teléfono: se enviará cuando haya conexión.',
+                                  style: TextStyle(color: Colors.amber.shade900, fontSize: 12.5),
+                                ),
                               if (r['horario_atencion'] != null) Text('Horario: ${r['horario_atencion']}'),
                               const Divider(),
                               ...detalles.map(
@@ -127,7 +142,7 @@ class _ReservasScreenState extends State<ReservasScreen> {
                                   style: const TextStyle(fontSize: 13),
                                 ),
                               ),
-                              if (estado == 'pendiente') ...[
+                              if (estado == 'pendiente' && sincronizacion == null) ...[
                                 const SizedBox(height: 10),
                                 Align(
                                   alignment: Alignment.centerRight,
