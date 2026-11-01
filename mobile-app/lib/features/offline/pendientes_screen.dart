@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/offline/modelos.dart';
 import '../../core/offline/reglas.dart';
 import '../../core/offline/sincronizacion_service.dart';
+import '../../core/theme/tema.dart';
 
 const _etiquetas = {
   'registrada': 'Registrada (por enviar)',
@@ -187,7 +188,7 @@ class _PendientesScreenState extends State<PendientesScreen> {
       margin: const EdgeInsets.only(bottom: 10),
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-        leading: Icon(op.tipo == 'venta' ? Icons.point_of_sale : Icons.event_available, color: const Color(0xFF4F46E5)),
+        leading: Icon(op.tipo == 'venta' ? Icons.point_of_sale : Icons.event_available, color: context.marca),
         title: Text(op.resumen, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
         subtitle: Text('${fechaCorta(op.registradaEn)} · ${_sucursal(op.sucursalId)}\n${codigoProvisional(op.id)}'),
         isThreeLine: true,

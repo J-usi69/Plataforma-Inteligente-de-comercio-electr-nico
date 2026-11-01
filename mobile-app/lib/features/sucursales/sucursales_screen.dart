@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../core/services/api_service.dart';
+import '../../core/theme/tema.dart';
 
 class SucursalesScreen extends StatefulWidget {
   const SucursalesScreen({super.key});
@@ -111,7 +112,7 @@ class _SucursalesScreenState extends State<SucursalesScreen> {
                                 children: [
                                   Row(
                                     children: [
-                                      const Icon(Icons.storefront, color: Colors.indigo),
+                                      Icon(Icons.storefront, color: context.marca),
                                       const SizedBox(width: 8),
                                       Expanded(
                                         child: Text(
@@ -125,15 +126,15 @@ class _SucursalesScreenState extends State<SucursalesScreen> {
                                       Container(
                                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                         decoration: BoxDecoration(
-                                          color: Colors.indigo.shade50,
+                                          color: context.marcaSuave,
                                           borderRadius: BorderRadius.circular(12),
                                         ),
                                         child: Text(
                                           s['ciudad_nombre'] ?? 'Sucursal',
-                                          style: const TextStyle(
+                                          style: TextStyle(
                                             fontSize: 11,
                                             fontWeight: FontWeight.bold,
-                                            color: Colors.indigo,
+                                            color: context.marca,
                                           ),
                                         ),
                                       ),

@@ -2,9 +2,12 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import '../../core/offline/reglas.dart';
 import '../../core/router.dart';
 import '../../core/services/api_service.dart';
 import '../../core/services/cart_service.dart';
+import '../../core/theme/logo_empresa.dart';
+import '../../core/theme/tema.dart';
 
 class CatalogoScreen extends StatefulWidget {
   const CatalogoScreen({super.key});
@@ -93,11 +96,37 @@ class _CatalogoScreenState extends State<CatalogoScreen> with RouteAware {
     } catch (_) {}
   }
 
+  String _precio(Map<String, dynamic> prenda) {
+    final monto = num.tryParse('${prenda['precio_base']}');
+    return monto == null ? 'Bs. ${prenda['precio_base']}' : formatoBs(monto);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Catálogo ${_apiService.tiendaNombre}'),
+        titleSpacing: 16,
+        title: Row(
+          children: [
+            const LogoEmpresa(tamano: 38),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(_apiService.tiendaNombre, overflow: TextOverflow.ellipsis),
+                  Text(
+                    'Catálogo',
+                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
         centerTitle: false,
         actions: [
           Stack(
@@ -114,14 +143,18 @@ class _CatalogoScreenState extends State<CatalogoScreen> with RouteAware {
                   top: 8,
                   child: Container(
                     padding: const EdgeInsets.all(4),
-                    decoration: const BoxDecoration(
-                      color: Color(0xFF4F46E5),
+                    decoration: BoxDecoration(
+                      color: context.acento,
                       shape: BoxShape.circle,
                     ),
                     constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
                     child: Text(
                       '${_cartService.totalCount}',
-                      style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onTertiary,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                      ),
                       textAlign: TextAlign.center,
                     ),
                   ),
@@ -220,9 +253,8 @@ class _CatalogoScreenState extends State<CatalogoScreen> with RouteAware {
       // CU-29: el chat funciona también sin sesión iniciada.
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => context.push('/asistente'),
-        backgroundColor: const Color(0xFF4F46E5),
-        icon: const Icon(Icons.chat_bubble_outline, color: Colors.white),
-        label: const Text('Asistente', style: TextStyle(color: Colors.white)),
+        icon: const Icon(Icons.chat_bubble_outline),
+        label: const Text('Asistente'),
       ),
       body: RefreshIndicator(
         onRefresh: () async {
@@ -273,9 +305,9 @@ class _CatalogoScreenState extends State<CatalogoScreen> with RouteAware {
                                     ? Image.network(
                                         p['imagen_url'],
                                         fit: BoxFit.cover,
-                                        errorBuilder: (_, __, ___) => const Icon(Icons.checkroom, color: Color(0xFF4F46E5), size: 26),
+                                        errorBuilder: (_, __, ___) => Icon(Icons.checkroom, color: context.marca, size: 26),
                                       )
-                                    : const Icon(Icons.checkroom, color: Color(0xFF4F46E5), size: 26),
+                                    : Icon(Icons.checkroom, color: context.marca, size: 26),
                               ),
                             ),
                             const SizedBox(height: 6),
@@ -287,8 +319,8 @@ class _CatalogoScreenState extends State<CatalogoScreen> with RouteAware {
                             ),
                             const Spacer(),
                             Text(
-                              'Bs. ${p['precio_base']}',
-                              style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF4F46E5), fontSize: 12.5),
+                              _precio(p),
+                              style: TextStyle(fontWeight: FontWeight.bold, color: context.marca, fontSize: 12.5),
                             ),
                           ],
                         ),
@@ -382,7 +414,7 @@ class _CatalogoScreenState extends State<CatalogoScreen> with RouteAware {
                                 child: Container(
                                   height: 150,
                                   width: double.infinity,
-                                  color: Colors.indigo.shade50,
+                                  color: context.marcaSuave,
                                   child: Stack(
                                     children: [
                                       if (tieneImagen)
@@ -392,11 +424,11 @@ class _CatalogoScreenState extends State<CatalogoScreen> with RouteAware {
                                             fit: BoxFit.cover,
                                             errorBuilder:
                                                 (context, error, stackTrace) =>
-                                                    const Center(
+                                                    Center(
                                                       child: Icon(
                                                         Icons.checkroom,
                                                         size: 64,
-                                                        color: Colors.indigo,
+                                                        color: context.marca,
                                                       ),
                                                     ),
                                             loadingBuilder:
@@ -413,11 +445,11 @@ class _CatalogoScreenState extends State<CatalogoScreen> with RouteAware {
                                           ),
                                         )
                                       else
-                                        const Center(
+                                        Center(
                                           child: Icon(
                                             Icons.checkroom,
                                             size: 64,
-                                            color: Colors.indigo,
+                                            color: context.marca,
                                           ),
                                         ),
                                       if (has3D)
@@ -468,7 +500,7 @@ class _CatalogoScreenState extends State<CatalogoScreen> with RouteAware {
                                       p['categoria_nombre'] ?? 'Prenda',
                                       style: TextStyle(
                                         fontSize: 12,
-                                        color: Colors.indigo.shade600,
+                                        color: context.marca,
                                         fontWeight: FontWeight.bold,
                                       ),
                                     ),
@@ -492,65 +524,70 @@ class _CatalogoScreenState extends State<CatalogoScreen> with RouteAware {
                                         ),
                                       ),
                                     ],
-                                    const SizedBox(height: 12),
-                                    Text(
-                                      'Bs. ${p['precio_base']}',
-                                      style: const TextStyle(
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.w800,
-                                        color: Colors.indigo,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 10),
-                                    Wrap(
-                                      alignment: WrapAlignment.end,
-                                      spacing: 8,
-                                      runSpacing: 8,
+                                    const SizedBox(height: 14),
+                                    // Precio y la acción principal juntos; las otras dos debajo
+                                    Row(
                                       children: [
-                                        OutlinedButton.icon(
-                                          onPressed: () => context.push(
-                                            '/vestidor-ar',
-                                            extra: {'prenda': p},
+                                        Expanded(
+                                          child: Text(
+                                            _precio(p),
+                                            style: TextStyle(
+                                              fontSize: 20,
+                                              fontWeight: FontWeight.w800,
+                                              color: context.marca,
+                                            ),
                                           ),
-                                          icon: const Icon(
-                                            Icons.view_in_ar,
-                                            size: 16,
-                                          ),
-                                          label: const Text('3D RA'),
-                                        ),
-                                        OutlinedButton.icon(
-                                          onPressed: () {
-                                            if (_apiService.isLoggedIn) {
-                                              context.push(
-                                                '/reservar',
-                                                extra: p,
-                                              );
-                                            } else {
-                                              // Igual que en el menú: el login se apila
-                                              // arriba, así que al volver refrescamos a mano.
-                                              context.push('/login').then((_) {
-                                                if (!mounted) return;
-                                                setState(() {});
-                                                _cargarRecomendaciones();
-                                              });
-                                            }
-                                          },
-                                          icon: const Icon(
-                                            Icons.event_available,
-                                            size: 16,
-                                          ),
-                                          label: const Text('Reservar'),
                                         ),
                                         ElevatedButton.icon(
                                           onPressed: () => _mostrarModalAgregarBolsa(p),
                                           icon: const Icon(
                                             Icons.shopping_bag_outlined,
-                                            size: 16,
+                                            size: 18,
                                           ),
                                           label: const Text('Comprar'),
-                                          style: ElevatedButton.styleFrom(
-                                            backgroundColor: const Color(0xFF4F46E5),
-                                            foregroundColor: Colors.white,
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 10),
+                                    Row(
+                                      children: [
+                                        Expanded(
+                                          child: OutlinedButton.icon(
+                                            onPressed: () => context.push(
+                                              '/vestidor-ar',
+                                              extra: {'prenda': p},
+                                            ),
+                                            icon: const Icon(
+                                              Icons.view_in_ar,
+                                              size: 18,
+                                            ),
+                                            label: const Text('3D RA'),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 10),
+                                        Expanded(
+                                          child: OutlinedButton.icon(
+                                            onPressed: () {
+                                              if (_apiService.isLoggedIn) {
+                                                context.push(
+                                                  '/reservar',
+                                                  extra: p,
+                                                );
+                                              } else {
+                                                // Igual que en el menú: el login se apila
+                                                // arriba, así que al volver refrescamos a mano.
+                                                context.push('/login').then((_) {
+                                                  if (!mounted) return;
+                                                  setState(() {});
+                                                  _cargarRecomendaciones();
+                                                });
+                                              }
+                                            },
+                                            icon: const Icon(
+                                              Icons.event_available,
+                                              size: 18,
+                                            ),
+                                            label: const Text('Reservar'),
                                           ),
                                         ),
                                       ],
@@ -716,9 +753,9 @@ class _ModalSeleccionarVarianteState extends State<_ModalSeleccionarVariante> {
                       ? Image.network(
                           widget.prenda['imagen_url'],
                           fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => const Icon(Icons.checkroom, color: Color(0xFF4F46E5)),
+                          errorBuilder: (_, __, ___) => Icon(Icons.checkroom, color: context.marca),
                         )
-                      : const Icon(Icons.checkroom, color: Color(0xFF4F46E5)),
+                      : Icon(Icons.checkroom, color: context.marca),
                 ),
               ),
               const SizedBox(width: 14),
@@ -729,7 +766,7 @@ class _ModalSeleccionarVarianteState extends State<_ModalSeleccionarVariante> {
                     if (widget.prenda['categoria_nombre'] != null)
                       Text(
                         widget.prenda['categoria_nombre'],
-                        style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: Colors.indigo.shade600),
+                        style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: context.marca),
                       ),
                     const SizedBox(height: 2),
                     Text(
@@ -739,7 +776,7 @@ class _ModalSeleccionarVarianteState extends State<_ModalSeleccionarVariante> {
                     const SizedBox(height: 4),
                     Text(
                       'Precio: Bs. ${precio.toStringAsFixed(2)}',
-                      style: const TextStyle(color: Color(0xFF4F46E5), fontWeight: FontWeight.bold),
+                      style: TextStyle(color: context.marca, fontWeight: FontWeight.bold),
                     ),
                   ],
                 ),
@@ -866,8 +903,8 @@ class _ModalSeleccionarVarianteState extends State<_ModalSeleccionarVariante> {
               icon: const Icon(Icons.shopping_bag_outlined),
               label: Text('AÑADIR A LA BOLSA (Bs. ${subtotal.toStringAsFixed(2)})'),
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF4F46E5),
-                foregroundColor: Colors.white,
+                backgroundColor: context.marca,
+                foregroundColor: context.sobreMarca,
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),

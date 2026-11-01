@@ -5,9 +5,9 @@
     <!-- Vestidor AR en vivo (MediaPipe dentro de un WebView) necesita la cámara en tiempo real -->
     <uses-permission android:name="android.permission.CAMERA"/>
     <application
-        android:label="fashionstore"
+        android:label="FashionStore"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher"
+        android:icon="@mipmap/launcher_icon"
         android:usesCleartextTraffic="true">
         <activity
             android:name=".MainActivity"

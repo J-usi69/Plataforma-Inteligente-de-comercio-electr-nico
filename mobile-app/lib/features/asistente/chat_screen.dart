@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../core/services/api_service.dart';
+import '../../core/theme/tema.dart';
 
 class _MensajeChat {
   final String texto;
@@ -97,13 +98,13 @@ class _ChatScreenState extends State<ChatScreen> {
                     margin: const EdgeInsets.only(bottom: 10),
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                     decoration: BoxDecoration(
-                      color: m.esUsuario ? const Color(0xFF4F46E5) : const Color(0xFFF1F5F9),
+                      color: m.esUsuario ? context.marca : const Color(0xFFF1F5F9),
                       borderRadius: BorderRadius.circular(14),
                     ),
                     child: Text(
                       m.texto,
                       style: TextStyle(
-                        color: m.esUsuario ? Colors.white : const Color(0xFF0F172A),
+                        color: m.esUsuario ? context.sobreMarca : const Color(0xFF0F172A),
                       ),
                     ),
                   ),
@@ -141,7 +142,7 @@ class _ChatScreenState extends State<ChatScreen> {
                   IconButton.filled(
                     onPressed: _enviando ? null : _enviar,
                     icon: const Icon(Icons.send),
-                    style: IconButton.styleFrom(backgroundColor: const Color(0xFF4F46E5)),
+                    style: IconButton.styleFrom(backgroundColor: context.marca, foregroundColor: context.sobreMarca),
                   ),
                 ],
               ),

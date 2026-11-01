@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../core/services/api_service.dart';
 import 'probador_ar_webview.dart';
+import '../../core/theme/tema.dart';
 
 class VestidorArScreen extends StatefulWidget {
   final Map<String, dynamic>? prenda;
@@ -247,8 +248,8 @@ class _VestidorArScreenState extends State<VestidorArScreen> {
                     ),
                     style: ElevatedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 14),
-                      backgroundColor: Colors.indigo,
-                      foregroundColor: Colors.white,
+                      backgroundColor: context.marca,
+                      foregroundColor: context.sobreMarca,
                     ),
                   ),
               ],
@@ -311,7 +312,7 @@ class _VestidorArScreenState extends State<VestidorArScreen> {
         return Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.view_in_ar, size: 96, color: Colors.indigo),
+            Icon(Icons.view_in_ar, size: 96, color: context.marca),
             const SizedBox(height: 12),
             Text(_textoInstruccion, textAlign: TextAlign.center),
           ],

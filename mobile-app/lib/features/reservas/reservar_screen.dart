@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/services/api_service.dart';
+import '../../core/theme/tema.dart';
 
 class ReservarScreen extends StatefulWidget {
   final Map<String, dynamic> prenda;
@@ -137,7 +138,7 @@ class _ReservarScreenState extends State<ReservarScreen> {
             const SizedBox(height: 24),
             ElevatedButton(
               onPressed: () => context.push(_guardadaEnTelefono ? '/pendientes' : '/reservas'),
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.indigo, foregroundColor: Colors.white),
+              style: ElevatedButton.styleFrom(backgroundColor: context.marca, foregroundColor: context.sobreMarca),
               child: Text(_guardadaEnTelefono ? 'Ver operaciones pendientes' : 'Ver mis reservas'),
             ),
           ],
@@ -200,7 +201,7 @@ class _ReservarScreenState extends State<ReservarScreen> {
                 children: _disponibilidad.map((d) {
                   final seleccionada = _sucursalSeleccionada?['sucursal_id'] == d['sucursal_id'];
                   return Card(
-                    color: seleccionada ? Colors.indigo.shade50 : null,
+                    color: seleccionada ? context.marcaSuave : null,
                     child: RadioListTile<int>(
                       value: d['sucursal_id'] as int,
                       groupValue: _sucursalSeleccionada?['sucursal_id'] as int?,
@@ -242,8 +243,8 @@ class _ReservarScreenState extends State<ReservarScreen> {
                 onPressed: _enviando ? null : _confirmarReserva,
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 14),
-                  backgroundColor: Colors.indigo,
-                  foregroundColor: Colors.white,
+                  backgroundColor: context.marca,
+                  foregroundColor: context.sobreMarca,
                 ),
                 child: Text(_enviando ? 'Enviando...' : 'Confirmar reserva'),
               ),

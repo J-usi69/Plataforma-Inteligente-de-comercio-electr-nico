@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/services/api_service.dart';
 import 'pago_qr_libelula.dart';
+import '../../core/theme/tema.dart';
 
 class MisComprasScreen extends StatefulWidget {
   const MisComprasScreen({super.key});
@@ -92,7 +93,7 @@ class _MisComprasScreenState extends State<MisComprasScreen> {
                 const SizedBox(height: 4),
                 Text(
                   'Total a cancelar: Bs. ${total.toStringAsFixed(2)}',
-                  style: const TextStyle(color: Color(0xFF4F46E5), fontWeight: FontWeight.w700, fontSize: 16),
+                  style: TextStyle(color: context.marca, fontWeight: FontWeight.w700, fontSize: 16),
                 ),
                 const SizedBox(height: 20),
                 PagoQrLibelula(
@@ -149,13 +150,13 @@ class _MisComprasScreenState extends State<MisComprasScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text(
+                    Text(
                       'COMPROBANTE OFICIAL',
                       style: TextStyle(
                         fontWeight: FontWeight.w800,
                         fontSize: 14,
                         letterSpacing: 0.5,
-                        color: Color(0xFF4F46E5),
+                        color: context.marca,
                       ),
                     ),
                     IconButton(
@@ -220,10 +221,10 @@ class _MisComprasScreenState extends State<MisComprasScreen> {
                     const Text('TOTAL CANCELADO', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
                     Text(
                       'Bs. ${(comprobante['total'] as num).toStringAsFixed(2)}',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontWeight: FontWeight.w800,
                         fontSize: 18,
-                        color: Color(0xFF4F46E5),
+                        color: context.marca,
                       ),
                     ),
                   ],
@@ -247,8 +248,8 @@ class _MisComprasScreenState extends State<MisComprasScreen> {
                 ElevatedButton(
                   onPressed: () => Navigator.of(ctx).pop(),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF4F46E5),
-                    foregroundColor: Colors.white,
+                    backgroundColor: context.marca,
+                    foregroundColor: context.sobreMarca,
                   ),
                   child: const Text('Cerrar'),
                 ),
@@ -319,8 +320,8 @@ class _MisComprasScreenState extends State<MisComprasScreen> {
                             icon: const Icon(Icons.shopping_bag_outlined),
                             label: const Text('Explorar Tienda'),
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF4F46E5),
-                              foregroundColor: Colors.white,
+                              backgroundColor: context.marca,
+                              foregroundColor: context.sobreMarca,
                             ),
                           ),
                         ],
@@ -450,10 +451,10 @@ class _MisComprasScreenState extends State<MisComprasScreen> {
                                       ),
                                       Text(
                                         'Bs. ${total.toStringAsFixed(2)}',
-                                        style: const TextStyle(
+                                        style: TextStyle(
                                           fontWeight: FontWeight.w800,
                                           fontSize: 18,
-                                          color: Color(0xFF4F46E5),
+                                          color: context.marca,
                                         ),
                                       ),
                                     ],
@@ -476,8 +477,8 @@ class _MisComprasScreenState extends State<MisComprasScreen> {
                                       icon: const Icon(Icons.qr_code_2, size: 16),
                                       label: const Text('Pagar con QR'),
                                       style: ElevatedButton.styleFrom(
-                                        backgroundColor: const Color(0xFF4F46E5),
-                                        foregroundColor: Colors.white,
+                                        backgroundColor: context.marca,
+                                        foregroundColor: context.sobreMarca,
                                         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                                       ),
                                     ),

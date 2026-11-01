@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 
@@ -53,8 +54,11 @@ class ApiService {
   /// Empresa (tenant) con la que trabaja la app: viaja en la cabecera X-Tienda.
   String tienda = Env.tienda;
 
-  /// Marca y funciones del plan de la empresa (GET /api/v1/tienda).
-  Map<String, dynamic>? tiendaInfo;
+  /// Marca y funciones del plan de la empresa (GET /api/v1/tienda). La app toma sus colores y su
+  /// logo: el tema escucha este valor.
+  final marca = ValueNotifier<Map<String, dynamic>?>(null);
+  Map<String, dynamic>? get tiendaInfo => marca.value;
+  set tiendaInfo(Map<String, dynamic>? info) => marca.value = info;
 
   void setToken(String? newToken) {
     token = newToken;

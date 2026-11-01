@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
 import '../../core/services/api_service.dart';
+import '../../core/theme/tema.dart';
 
 // Pago con QR a través de Libélula: genera el QR de la venta, lo muestra y consulta cada pocos
 // segundos si ya se pagó (el backend además recibe el aviso de Libélula).
@@ -174,14 +175,14 @@ class _PagoQrLibelulaState extends State<PagoQrLibelula> {
           style: const TextStyle(fontSize: 12.5, color: Color(0xFF475569)),
         ),
         const SizedBox(height: 10),
-        const Row(
+        Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2)),
-            SizedBox(width: 8),
+            const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2)),
+            const SizedBox(width: 8),
             Text(
               'Esperando la confirmación del pago...',
-              style: TextStyle(fontSize: 12.5, color: Color(0xFF4F46E5), fontWeight: FontWeight.w600),
+              style: TextStyle(fontSize: 12.5, color: context.marca, fontWeight: FontWeight.w600),
             ),
           ],
         ),
@@ -202,8 +203,8 @@ class _PagoQrLibelulaState extends State<PagoQrLibelula> {
               icon: const Icon(Icons.check),
               label: Text(_simulando ? 'Confirmando...' : 'Simular pago (modo de prueba)'),
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF4F46E5),
-                foregroundColor: Colors.white,
+                backgroundColor: context.marca,
+                foregroundColor: context.sobreMarca,
                 padding: const EdgeInsets.symmetric(vertical: 14),
               ),
             ),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/offline/sincronizacion_service.dart';
 import '../../core/services/api_service.dart';
+import '../../core/theme/tema.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -96,8 +97,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     Center(
                       child: CircleAvatar(
                         radius: 44,
-                        backgroundColor: Colors.indigo.shade100,
-                        child: const Icon(Icons.person, size: 48, color: Colors.indigo),
+                        backgroundColor: context.marcaSuave,
+                        child: Icon(Icons.person, size: 48, color: context.marca),
                       ),
                     ),
                     const SizedBox(height: 16),
@@ -110,7 +111,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     Text(
                       'Roles: ${(user['roles'] as List?)?.join(', ') ?? 'Cliente'}',
                       textAlign: TextAlign.center,
-                      style: const TextStyle(color: Colors.indigo, fontWeight: FontWeight.w600),
+                      style: TextStyle(color: context.marca, fontWeight: FontWeight.w600),
                     ),
                     const SizedBox(height: 24),
                     const Divider(),
@@ -137,21 +138,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                     const Divider(height: 32),
                     ListTile(
-                      leading: const Icon(Icons.receipt_long_outlined, color: Color(0xFF4F46E5)),
+                      leading: Icon(Icons.receipt_long_outlined, color: context.marca),
                       title: const Text('Mis Compras Realizadas', style: TextStyle(fontWeight: FontWeight.w600)),
                       subtitle: const Text('Ver comprobantes, tickets y facturas digitales'),
                       trailing: const Icon(Icons.chevron_right),
                       onTap: () => context.push('/mis-compras'),
                     ),
                     ListTile(
-                      leading: const Icon(Icons.event_note_outlined, color: Color(0xFF4F46E5)),
+                      leading: Icon(Icons.event_note_outlined, color: context.marca),
                       title: const Text('Mis Reservas en Tienda', style: TextStyle(fontWeight: FontWeight.w600)),
                       subtitle: const Text('Consultar prendas apartadas en sucursales'),
                       trailing: const Icon(Icons.chevron_right),
                       onTap: () => context.push('/reservas'),
                     ),
                     ListTile(
-                      leading: const Icon(Icons.shopping_bag_outlined, color: Color(0xFF4F46E5)),
+                      leading: Icon(Icons.shopping_bag_outlined, color: context.marca),
                       title: const Text('Bolsa de Compras', style: TextStyle(fontWeight: FontWeight.w600)),
                       subtitle: const Text('Ver artículos pendientes de compra'),
                       trailing: const Icon(Icons.chevron_right),

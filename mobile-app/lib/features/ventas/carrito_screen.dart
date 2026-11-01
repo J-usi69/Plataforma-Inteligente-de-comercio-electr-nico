@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/services/api_service.dart';
 import '../../core/services/cart_service.dart';
 import 'pago_qr_libelula.dart';
+import '../../core/theme/tema.dart';
 
 class CarritoScreen extends StatefulWidget {
   const CarritoScreen({super.key});
@@ -159,7 +160,7 @@ class _CarritoScreenState extends State<CarritoScreen> {
               const SizedBox(height: 6),
               Text(
                 'Comprobante N° ${comprobante['numero_comprobante']}',
-                style: const TextStyle(fontWeight: FontWeight.w700, color: Color(0xFF4F46E5), fontSize: 15),
+                style: TextStyle(fontWeight: FontWeight.w700, color: context.marca, fontSize: 15),
               ),
               const SizedBox(height: 16),
               Container(
@@ -205,8 +206,8 @@ class _CarritoScreenState extends State<CarritoScreen> {
                         context.push('/mis-compras');
                       },
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF4F46E5),
-                        foregroundColor: Colors.white,
+                        backgroundColor: context.marca,
+                        foregroundColor: context.sobreMarca,
                       ),
                       child: const Text('Mis Compras'),
                     ),
@@ -291,8 +292,8 @@ class _CarritoScreenState extends State<CarritoScreen> {
                       icon: const Icon(Icons.arrow_back),
                       label: const Text('Explorar Catálogo'),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF4F46E5),
-                        foregroundColor: Colors.white,
+                        backgroundColor: context.marca,
+                        foregroundColor: context.sobreMarca,
                         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                       ),
                     ),
@@ -326,9 +327,9 @@ class _CarritoScreenState extends State<CarritoScreen> {
                                 ? Image.network(
                                     item.imagenUrl!,
                                     fit: BoxFit.cover,
-                                    errorBuilder: (_, __, ___) => const Icon(Icons.checkroom, color: Color(0xFF4F46E5)),
+                                    errorBuilder: (_, __, ___) => Icon(Icons.checkroom, color: context.marca),
                                   )
-                                : const Icon(Icons.checkroom, color: Color(0xFF4F46E5), size: 32),
+                                : Icon(Icons.checkroom, color: context.marca, size: 32),
                           ),
                         ),
                         const SizedBox(width: 14),
@@ -350,9 +351,9 @@ class _CarritoScreenState extends State<CarritoScreen> {
                               const SizedBox(height: 6),
                               Text(
                                 'Bs. ${(item.precio * item.cantidad).toStringAsFixed(2)}',
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontWeight: FontWeight.w800,
-                                  color: Color(0xFF4F46E5),
+                                  color: context.marca,
                                   fontSize: 14,
                                 ),
                               ),
@@ -374,7 +375,7 @@ class _CarritoScreenState extends State<CarritoScreen> {
                             IconButton(
                               icon: const Icon(Icons.add_circle_outline, size: 20),
                               onPressed: () => _cartService.updateQuantity(item.varianteId, item.cantidad + 1),
-                              color: const Color(0xFF4F46E5),
+                              color: context.marca,
                             ),
                           ],
                         ),
@@ -473,8 +474,8 @@ class _CarritoScreenState extends State<CarritoScreen> {
                 ElevatedButton(
                   onPressed: _isProcessingSale || !_sucursalValida ? null : _iniciarCheckout,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF4F46E5),
-                    foregroundColor: Colors.white,
+                    backgroundColor: context.marca,
+                    foregroundColor: context.sobreMarca,
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     elevation: 2,
@@ -597,8 +598,8 @@ class _ModalPagoDigitalState extends State<_ModalPagoDigital> {
             child: ElevatedButton(
               onPressed: _isPaying ? null : _procesarPagoTarjeta,
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF4F46E5),
-                foregroundColor: Colors.white,
+                backgroundColor: context.marca,
+                foregroundColor: context.sobreMarca,
                 padding: const EdgeInsets.symmetric(vertical: 14),
               ),
               child: _isPaying
@@ -654,7 +655,7 @@ class _ModalPagoDigitalState extends State<_ModalPagoDigital> {
             const SizedBox(height: 4),
             Text(
               'Total a cancelar: Bs. ${widget.total.toStringAsFixed(2)}',
-              style: const TextStyle(color: Color(0xFF4F46E5), fontWeight: FontWeight.w700, fontSize: 16),
+              style: TextStyle(color: context.marca, fontWeight: FontWeight.w700, fontSize: 16),
             ),
             const SizedBox(height: 16),
             SegmentedButton<_MetodoPago>(

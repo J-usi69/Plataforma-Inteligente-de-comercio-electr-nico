@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/offline/reglas.dart';
 import '../../core/offline/sincronizacion_service.dart';
 import '../../core/services/api_service.dart';
+import '../../core/theme/tema.dart';
 
 class _Linea {
   final int varianteId;
@@ -250,7 +251,7 @@ class _VentaContadoScreenState extends State<VentaContadoScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.download_for_offline_outlined, size: 56, color: Color(0xFF4F46E5)),
+            Icon(Icons.download_for_offline_outlined, size: 56, color: context.marca),
             const SizedBox(height: 12),
             const Text(
               'La caja usa el catálogo guardado en el teléfono, y todavía no está descargado.',
@@ -316,7 +317,7 @@ class _VentaContadoScreenState extends State<VentaContadoScreen> {
                           subtitle: Text(
                             '${r['talla_nombre'] ?? '-'} · ${r['color_nombre'] ?? '-'} · stock ${r['stock']} · ${formatoBs(r['precio_base'] as num)}',
                           ),
-                          trailing: const Icon(Icons.add_circle, color: Color(0xFF4F46E5)),
+                          trailing: Icon(Icons.add_circle, color: context.marca),
                           onTap: () => _agregar(r),
                         ),
                     ],

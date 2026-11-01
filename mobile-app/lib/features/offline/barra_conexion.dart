@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../../core/offline/reglas.dart';
 import '../../core/offline/sincronizacion_service.dart';
 import '../../core/router.dart';
+import '../../core/theme/tema.dart';
 
 /// Barra al pie de todas las pantallas: sin conexión avisa con qué datos se trabaja y, con o sin
 /// red, cuántas operaciones faltan sincronizar. No hay un "modo sin conexión" aparte: las
@@ -79,7 +80,8 @@ class _Barra extends StatelessWidget {
     } else {
       texto = '${sync.enConflicto} en conflicto: las revisa el administrador';
     }
-    final fondo = sinConexion ? const Color(0xFF334155) : const Color(0xFF4F46E5);
+    final fondo = sinConexion ? const Color(0xFF334155) : context.marca;
+    final tinta = sinConexion ? Colors.white : context.sobreMarca;
 
     return Material(
       color: fondo,
@@ -93,10 +95,10 @@ class _Barra extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               child: Row(
                 children: [
-                  Icon(sinConexion ? Icons.cloud_off : Icons.sync, color: Colors.white, size: 20),
+                  Icon(sinConexion ? Icons.cloud_off : Icons.sync, color: tinta, size: 20),
                   const SizedBox(width: 10),
                   Expanded(
-                    child: Text(texto, style: const TextStyle(color: Colors.white, fontSize: 13)),
+                    child: Text(texto, style: TextStyle(color: tinta, fontSize: 13)),
                   ),
                   if (sinConexion && sync.pendientes > 0)
                     Container(
@@ -107,7 +109,7 @@ class _Barra extends StatelessWidget {
                         style: const TextStyle(color: Colors.black87, fontSize: 12, fontWeight: FontWeight.w700),
                       ),
                     ),
-                  const Icon(Icons.chevron_right, color: Colors.white70),
+                  Icon(Icons.chevron_right, color: tinta.withValues(alpha: 0.7)),
                 ],
               ),
             ),
