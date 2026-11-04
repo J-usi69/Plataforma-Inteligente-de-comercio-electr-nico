@@ -28,7 +28,7 @@ _MENSAJE_REPORTE_AMBIGUO = (
     "No se pudo interpretar la solicitud. Reformulala con más detalle (por ejemplo, "
     "'ventas de la sucursal Equipetrol del último mes') o usá los reportes predefinidos."
 )
-_TIPOS_REPORTE_VALIDOS = {"ventas", "prendas_vendidas", "inventario"}
+_TIPOS_REPORTE_VALIDOS = {"ventas", "prendas_vendidas", "inventario", "rendimiento_categorias"}
 
 
 def _prenda_a_out(db: Session, prenda: Prenda) -> PrendaOut:
@@ -189,14 +189,14 @@ def chat_asistente(
 def generar_reporte_ia(
     datos: ReporteIARequest,
     db: Session = Depends(get_db),
-    current_user: Usuario = Depends(require_roles(["Administrador"])),
+    current_user: Usuario = Depends(require_roles(["Administrador", "Encargado"])),
 ):
     """CU-30: interpreta una solicitud de reporte en lenguaje natural y devuelve
     el mismo tipo de datos que los reportes predefinidos (CU-31)."""
     system_prompt = (
         "Traducís pedidos de reportes de negocio en lenguaje natural a un JSON estricto. "
         'Respondé ÚNICAMENTE con un objeto JSON de la forma '
-        '{"tipo": "ventas"|"prendas_vendidas"|"inventario", "desde": "YYYY-MM-DD"|null, '
+        '{"tipo": "ventas"|"prendas_vendidas"|"inventario"|"rendimiento_categorias", "desde": "YYYY-MM-DD"|null, '
         '"hasta": "YYYY-MM-DD"|null, "sucursal_id": entero|null}. Sin texto adicional.'
     )
     try:
@@ -213,10 +213,33 @@ def generar_reporte_ia(
 
     if tipo == "ventas":
         resultado = reportes_service.ventas_por_sucursal(db, desde=desde, hasta=hasta)
+        tipo_grafico = "barras"
+        tot_monto = sum(r["total_ventas"] for r in resultado)
+        tot_operaciones = sum(r["cantidad_ventas"] for r in resultado)
+        top = resultado[0]["sucursal_nombre"] if resultado else "N/A"
+        narrativa = f"Se registraron Bs. {tot_monto:,.2f} en {tot_operaciones} ventas en {len(resultado)} sucursales. La sucursal con mayor volumen fue '{top}'."
     elif tipo == "prendas_vendidas":
         resultado = reportes_service.prendas_mas_vendidas(db, desde=desde, hasta=hasta, limit=10)
+        tipo_grafico = "barras"
+        top = resultado[0]["prenda_nombre"] if resultado else "N/A"
+        cant_top = resultado[0]["cantidad_vendida"] if resultado else 0
+        narrativa = f"El ranking comercial está liderado por '{top}' con {cant_top} unidades comercializadas en el periodo seleccionado."
+    elif tipo == "rendimiento_categorias":
+        resultado = reportes_service.rendimiento_categorias(db, desde=desde, hasta=hasta)
+        tipo_grafico = "pastel"
+        top = resultado[0]["categoria_nombre"] if resultado else "N/A"
+        pct = resultado[0]["porcentaje_ventas"] if resultado else 0
+        narrativa = f"La categoría con mejor desempeño comercial es '{top}', aportando el {pct}% de los ingresos del periodo evaluado."
     else:
         resultado = reportes_service.quiebres_stock(db, sucursal_id=sucursal_id)
+        tipo_grafico = "tabla"
+        narrativa = f"Se detectaron {len(resultado)} variantes críticas por debajo del stock mínimo de seguridad que requieren reposición inmediata."
 
     _registrar_interaccion(db, current_user.id, "reporte", datos.prompt[:2000], respuesta=json.dumps(parametros))
-    return ReporteIAResponse(tipo=tipo, parametros=parametros, datos=resultado)
+    return ReporteIAResponse(
+        tipo=tipo,
+        parametros=parametros,
+        datos=resultado,
+        narrativa_ia=narrativa,
+        tipo_grafico=tipo_grafico,
+    )

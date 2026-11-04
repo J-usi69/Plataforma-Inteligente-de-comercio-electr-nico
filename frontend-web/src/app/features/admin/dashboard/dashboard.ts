@@ -21,6 +21,9 @@ import {
   Temporada,
   VariantePrenda,
   VentaPorSucursal,
+  DashboardAnaliticaML,
+  OperacionSyncAdmin,
+  RendimientoCategoria,
 } from '../../../core/models/user.model';
 import { AuthService } from '../../../core/services/auth.service';
 import { BusinessService } from '../../../core/services/business.service';
@@ -171,7 +174,7 @@ export class Dashboard implements OnInit {
   readonly authService = inject(AuthService);
   readonly tienda = inject(TiendaService);
 
-  activeTab = signal<'roles' | 'personal' | 'sucursales' | 'proveedores' | 'temporadas' | 'prendas' | 'catalogo-maestro' | 'reportes' | 'bitacora'>('roles');
+  activeTab = signal<'roles' | 'personal' | 'sucursales' | 'proveedores' | 'temporadas' | 'prendas' | 'catalogo-maestro' | 'reportes' | 'conflictos' | 'analitica-ml' | 'bitacora'>('roles');
   isLoading = signal(false);
   filtroTexto = signal('');
   alertMessage = signal<{ type: 'success' | 'danger'; text: string } | null>(null);
@@ -202,6 +205,22 @@ export class Dashboard implements OnInit {
   reporteIACargando = signal(false);
   reporteIAResultado = signal<{ tipo: string; datos: any } | null>(null);
   reporteIAError = signal<string | null>(null);
+  dictandoVoz = signal(false);
+  exportandoReporte = signal(false);
+  reporteRendimientoCategorias = signal<RendimientoCategoria[]>([]);
+
+  // CU-14: Conflictos de sincronización
+  conflictos = signal<OperacionSyncAdmin[]>([]);
+  conflictoSeleccionado = signal<OperacionSyncAdmin | null>(null);
+  notaResolucion = '';
+  accionResolucion: 'aceptar' | 'rechazar' | 'anular' | 'reasignar' = 'aceptar';
+  nuevaSucursalId: number | null = null;
+  resolviendoConflicto = signal(false);
+
+  // CU-18: Analítica con Machine Learning
+  dashboardML = signal<DashboardAnaliticaML | null>(null);
+  mlCargando = signal(false);
+  mlError = signal<string | null>(null);
 
   // CU-27: inventario global (todas las sucursales, filtrable por ciudad/categoría)
   inventarioGlobal = signal<InventarioGlobalItem[]>([]);
@@ -363,7 +382,7 @@ export class Dashboard implements OnInit {
     this.cambiarTab(this.activeTab());
   }
 
-  cambiarTab(tab: 'roles' | 'personal' | 'sucursales' | 'proveedores' | 'temporadas' | 'prendas' | 'catalogo-maestro' | 'reportes' | 'bitacora'): void {
+  cambiarTab(tab: 'roles' | 'personal' | 'sucursales' | 'proveedores' | 'temporadas' | 'prendas' | 'catalogo-maestro' | 'reportes' | 'conflictos' | 'analitica-ml' | 'bitacora'): void {
     this.activeTab.set(tab);
     this.alertMessage.set(null);
     this.filtroTexto.set('');
@@ -523,6 +542,141 @@ export class Dashboard implements OnInit {
         i.sucursal_nombre, i.ciudad_nombre, i.stock_disponible, i.stock_minimo, i.es_quiebre ? 'Sí' : 'No',
       ]),
     );
+  }
+
+  // Dictado por voz para Reportes IA (Web Speech API)
+  iniciarDictadoVoz(): void {
+    const SpeechRec = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRec) {
+      this.mostrarAlerta('danger', 'El reconocimiento de voz no está soportado en este navegador.');
+      return;
+    }
+    const recognition = new SpeechRec();
+    recognition.lang = 'es-BO';
+    recognition.continuous = false;
+    recognition.interimResults = false;
+    this.dictandoVoz.set(true);
+
+    recognition.onresult = (event: any) => {
+      const transcript = event.results[0][0].transcript;
+      this.reporteIAPrompt = transcript;
+      this.dictandoVoz.set(false);
+      this.generarReporteConIA();
+    };
+
+    recognition.onerror = () => {
+      this.dictandoVoz.set(false);
+      this.mostrarAlerta('danger', 'Error al capturar la voz. Intente nuevamente.');
+    };
+
+    recognition.onend = () => {
+      this.dictandoVoz.set(false);
+    };
+
+    recognition.start();
+  }
+
+  // CU-17: Exportar reporte a Excel o PDF
+  exportarReporte(formato: 'excel' | 'pdf'): void {
+    const res = this.reporteIAResultado();
+    const tipo = res?.tipo || 'ventas';
+    this.exportandoReporte.set(true);
+
+    const payload = {
+      tipo,
+      formato,
+      titulo: `Reporte de ${tipo.replace('_', ' ').toUpperCase()}`,
+      desde: this.reporteFiltros.desde || undefined,
+      hasta: this.reporteFiltros.hasta || undefined,
+    };
+
+    const peticion = formato === 'excel'
+      ? this.business.exportarReporteExcel(payload)
+      : this.business.exportarReportePdf(payload);
+
+    peticion.subscribe({
+      next: (blob) => {
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `reporte_${tipo}_${new Date().toISOString().slice(0, 10)}.${formato === 'excel' ? 'xlsx' : 'pdf'}`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+        this.exportandoReporte.set(false);
+        this.mostrarAlerta('success', `Reporte descargado exitosamente en ${formato.toUpperCase()}`);
+      },
+      error: () => {
+        this.exportandoReporte.set(false);
+        this.mostrarAlerta('danger', `Error al exportar el reporte a ${formato.toUpperCase()}`);
+      }
+    });
+  }
+
+  // CU-14: Gestión y resolución de conflictos de sincronización
+  cargarConflictos(): void {
+    this.isLoading.set(true);
+    this.business.getOperacionesSync('conflicto').subscribe({
+      next: (data) => {
+        this.conflictos.set(data);
+        this.isLoading.set(false);
+      },
+      error: () => {
+        this.isLoading.set(false);
+        this.mostrarAlerta('danger', 'No se pudieron cargar los conflictos de sincronización');
+      }
+    });
+  }
+
+  abrirModalConflicto(op: OperacionSyncAdmin): void {
+    this.conflictoSeleccionado.set(op);
+    this.accionResolucion = 'aceptar';
+    this.notaResolucion = '';
+    this.nuevaSucursalId = null;
+    this.showModal.set('resolver-conflicto');
+  }
+
+  aplicarResolucionConflicto(): void {
+    const op = this.conflictoSeleccionado();
+    if (!op) return;
+    this.resolviendoConflicto.set(true);
+
+    this.business.resolverConflictoSync(
+      op.id,
+      this.accionResolucion,
+      this.notaResolucion || undefined,
+      this.nuevaSucursalId || undefined
+    ).subscribe({
+      next: () => {
+        this.resolviendoConflicto.set(false);
+        this.cerrarModal();
+        this.mostrarAlerta('success', `Conflicto resuelto exitosamente con acción: ${this.accionResolucion}`);
+        this.cargarConflictos();
+      },
+      error: (err) => {
+        this.resolviendoConflicto.set(false);
+        this.mostrarAlerta('danger', err.error?.detail || 'Error al resolver el conflicto');
+      }
+    });
+  }
+
+  // CU-18: Cargar Dashboard Analítica con Machine Learning
+  cargarAnaliticaML(): void {
+    this.mlCargando.set(true);
+    this.mlError.set(null);
+    this.business.getDashboardAnaliticaML().subscribe({
+      next: (data) => {
+        this.dashboardML.set(data);
+        this.mlCargando.set(false);
+        this.isLoading.set(false);
+      },
+      error: (err) => {
+        this.mlCargando.set(false);
+        this.isLoading.set(false);
+        this.mlError.set(err.error?.detail || 'Tu plan actual no incluye Analítica con Machine Learning');
+      }
+    });
   }
 
   // --- CU-30: Generar reporte mediante IA (prompt) ---

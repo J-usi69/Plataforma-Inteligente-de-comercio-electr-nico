@@ -376,3 +376,74 @@ export interface ComprobanteVenta {
   total: number;
   items: ComprobanteItem[];
 }
+
+
+// =====================================================================
+// MODELOS SEGUNDO PARCIAL (CU-14, CU-16, CU-17, CU-18)
+// =====================================================================
+
+export interface OperacionSyncAdmin {
+  id: string;
+  uuid?: string;
+  tipo: string;
+  sucursal_id?: number | null;
+  sucursal_nombre?: string | null;
+  usuario_correo?: string | null;
+  dispositivo?: string | null;
+  registrada_en: string;
+  recibida_en: string;
+  estado: 'confirmada' | 'rechazada' | 'conflicto' | 'error';
+  codigo?: string | null;
+  mensaje?: string | null;
+  datos?: any;
+  resuelta_por?: number | null;
+  resuelta_en?: string | null;
+  nota_resolucion?: string | null;
+}
+
+export interface RendimientoCategoria {
+  categoria_id: number;
+  categoria_nombre: string;
+  cantidad_prendas_vendidas: number;
+  total_ingresos: number;
+  porcentaje_ventas: number;
+}
+
+export interface PrediccionDemandaItem {
+  periodo: string;
+  fecha: string;
+  ventas_proyectadas: number;
+  unidades_estimadas: number;
+  limite_inferior: number;
+  limite_superior: number;
+}
+
+export interface ClusterClienteItem {
+  cluster_id: number;
+  nombre_segmento: string;
+  descripcion: string;
+  cantidad_clientes: number;
+  porcentaje: number;
+  ticket_promedio: number;
+  frecuencia_visitas: number;
+  estrategia_recomendada: string;
+}
+
+export interface MetricasModeloML {
+  modelo_supervisado_nombre: string;
+  r2_score: number;
+  mae: number;
+  rmse: number;
+  modelo_no_supervisado_nombre: string;
+  silhouette_score: number;
+  total_observaciones: number;
+  fecha_entrenamiento: string;
+  es_datos_sinteticos: boolean;
+}
+
+export interface DashboardAnaliticaML {
+  metricas: MetricasModeloML;
+  predicciones_demanda: PrediccionDemandaItem[];
+  segmentacion_clientes: ClusterClienteItem[];
+  resumen_ejecutivo: string;
+}

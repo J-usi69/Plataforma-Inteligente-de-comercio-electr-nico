@@ -158,6 +158,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       trailing: const Icon(Icons.chevron_right),
                       onTap: () => context.push('/carrito'),
                     ),
+                    ListTile(
+                      leading: Icon(Icons.auto_awesome, color: context.marca),
+                      title: const Text('Reportes e Inteligencia de Negocio', style: TextStyle(fontWeight: FontWeight.w600)),
+                      subtitle: const Text('Consultas con IA y analítica con Machine Learning'),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () => context.push('/reportes-ia'),
+                    ),
                     const SizedBox(height: 24),
                     ElevatedButton.icon(
                       onPressed: _handleLogout,

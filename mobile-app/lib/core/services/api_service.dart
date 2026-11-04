@@ -510,4 +510,30 @@ class ApiService {
     });
     return Map<String, dynamic>.from(res)['respuesta'] as String;
   }
+  // CU-14: Resolver conflictos de sincronización
+  Future<Map<String, dynamic>> resolverConflicto(
+    String operacionId,
+    String accion, {
+    String? nota,
+    int? nuevaSucursalId,
+  }) async {
+    final res = await post('/api/v1/sync/operaciones/$operacionId/resolver', {
+      'accion': accion,
+      if (nota != null) 'nota': nota,
+      if (nuevaSucursalId != null) 'nueva_sucursal_id': nuevaSucursalId,
+    });
+    return Map<String, dynamic>.from(res);
+  }
+
+  // CU-16: Generar reporte con IA
+  Future<Map<String, dynamic>> generarReporteIA(String prompt) async {
+    final res = await post('/api/v1/ia/reportes', {'prompt': prompt});
+    return Map<String, dynamic>.from(res);
+  }
+
+  // CU-18: Dashboard de Analítica con Machine Learning
+  Future<Map<String, dynamic>> getDashboardAnaliticaML() async {
+    final res = await get('/api/v1/reportes/analitica-ml');
+    return Map<String, dynamic>.from(res);
+  }
 }

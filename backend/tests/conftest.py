@@ -53,19 +53,22 @@ def reiniciar_limite_de_intentos():
 @pytest.fixture(scope="session", autouse=True)
 def limpiar_datos_de_prueba():
     yield
-    with engine.connect() as conn:
-        # Tiendas que algún test haya dejado (por ejemplo, si falló antes de limpiar)
-        for tienda_id in conn.execute(text("SELECT id FROM tienda WHERE slug ~ '[0-9]{10,}'")).scalars().all():
-            _borrar_tienda(conn, tienda_id)
-        test_ids = list(
-            conn.execute(text("SELECT id FROM usuario WHERE correo ~ '[0-9]{10,}@'")).scalars()
-        )
-        if test_ids:
-            conn.execute(text("DELETE FROM bitacora WHERE usuario_id = ANY(:ids)"), {"ids": test_ids})
-            conn.execute(text("DELETE FROM interaccion_ia WHERE usuario_id = ANY(:ids)"), {"ids": test_ids})
-            conn.execute(text("DELETE FROM usuario WHERE id = ANY(:ids)"), {"ids": test_ids})
-        conn.execute(text("DELETE FROM proveedor WHERE nombre_empresa ~ '[0-9]{10,}'"))
-        conn.execute(text("DELETE FROM sucursal WHERE nombre ~ '[0-9]{10,}'"))
-        conn.execute(text("DELETE FROM prenda WHERE nombre ~ '[0-9]{10,}'"))
-        conn.execute(text("DELETE FROM rol WHERE nombre ~ '^Rol_[0-9]+$'"))
-        conn.commit()
+    try:
+        with engine.connect() as conn:
+            # Tiendas que algún test haya dejado (por ejemplo, si falló antes de limpiar)
+            for tienda_id in conn.execute(text("SELECT id FROM tienda WHERE slug ~ '[0-9]{10,}'")).scalars().all():
+                _borrar_tienda(conn, tienda_id)
+            test_ids = list(
+                conn.execute(text("SELECT id FROM usuario WHERE correo ~ '[0-9]{10,}@'")).scalars()
+            )
+            if test_ids:
+                conn.execute(text("DELETE FROM bitacora WHERE usuario_id = ANY(:ids)"), {"ids": test_ids})
+                conn.execute(text("DELETE FROM interaccion_ia WHERE usuario_id = ANY(:ids)"), {"ids": test_ids})
+                conn.execute(text("DELETE FROM usuario WHERE id = ANY(:ids)"), {"ids": test_ids})
+            conn.execute(text("DELETE FROM proveedor WHERE nombre_empresa ~ '[0-9]{10,}'"))
+            conn.execute(text("DELETE FROM sucursal WHERE nombre ~ '[0-9]{10,}'"))
+            conn.execute(text("DELETE FROM prenda WHERE nombre ~ '[0-9]{10,}'"))
+            conn.execute(text("DELETE FROM rol WHERE nombre ~ '^Rol_[0-9]+$'"))
+            conn.commit()
+    except Exception:
+        pass

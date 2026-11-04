@@ -33,3 +33,5 @@ class ReporteIAResponse(BaseModel):
     tipo: str
     parametros: dict
     datos: Any
+    narrativa_ia: Optional[str] = None
+    tipo_grafico: Optional[str] = "barras"

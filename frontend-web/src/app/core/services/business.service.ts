@@ -32,6 +32,9 @@ import {
   VentaPorSucursal,
   VestidorCapabilities,
   VestidorJob,
+  DashboardAnaliticaML,
+  OperacionSyncAdmin,
+  RendimientoCategoria,
 } from '../models/user.model';
 
 @Injectable({ providedIn: 'root' })
@@ -513,8 +516,56 @@ export class BusinessService {
     return this.http.post<{ respuesta: string }>(`${this.apiBase}/ia/chat`, { mensaje, historial });
   }
 
-  generarReporteIA(prompt: string): Observable<{ tipo: string; parametros: any; datos: any }> {
-    return this.http.post<{ tipo: string; parametros: any; datos: any }>(`${this.apiBase}/ia/reportes`, { prompt });
+  // --- CU-14: Operaciones y Resolución de Conflictos de Sincronización ---
+  getOperacionesSync(estado?: string, sucursalId?: number, limite: number = 100): Observable<OperacionSyncAdmin[]> {
+    const params: any = { limite };
+    if (estado) params.estado = estado;
+    if (sucursalId) params.sucursal_id = sucursalId;
+    return this.http.get<OperacionSyncAdmin[]>(`${this.apiBase}/sync/operaciones`, { params });
+  }
+
+  resolverConflictoSync(
+    operacionId: string,
+    accion: 'aceptar' | 'rechazar' | 'anular' | 'reasignar',
+    nota?: string,
+    nuevaSucursalId?: number
+  ): Observable<OperacionSyncAdmin> {
+    return this.http.post<OperacionSyncAdmin>(`${this.apiBase}/sync/operaciones/${operacionId}/resolver`, {
+      accion,
+      nota,
+      nueva_sucursal_id: nuevaSucursalId,
+    });
+  }
+
+  // --- CU-16: Reportes Generativos con IA y 4to tipo ---
+  getRendimientoCategorias(desde?: string, hasta?: string): Observable<RendimientoCategoria[]> {
+    const params: any = {};
+    if (desde) params.desde = desde;
+    if (hasta) params.hasta = hasta;
+    return this.http.get<RendimientoCategoria[]>(`${this.apiBase}/reportes/rendimiento-categorias`, { params });
+  }
+
+  generarReporteIA(prompt: string): Observable<{ tipo: string; parametros: any; datos: any; narrativa_ia?: string; tipo_grafico?: string }> {
+    return this.http.post<{ tipo: string; parametros: any; datos: any; narrativa_ia?: string; tipo_grafico?: string }>(
+      `${this.apiBase}/ia/reportes`,
+      { prompt }
+    );
+  }
+
+  // --- CU-17: Exportación de Reportes a Excel y PDF ---
+  exportarReporteExcel(payload: { tipo: string; formato?: string; titulo?: string; desde?: string; hasta?: string; sucursal_id?: number }): Observable<Blob> {
+    return this.http.post(`${this.apiBase}/reportes/exportar/excel`, payload, { responseType: 'blob' });
+  }
+
+  exportarReportePdf(payload: { tipo: string; formato?: string; titulo?: string; desde?: string; hasta?: string; sucursal_id?: number }): Observable<Blob> {
+    return this.http.post(`${this.apiBase}/reportes/exportar/pdf`, payload, { responseType: 'blob' });
+  }
+
+  // --- CU-18: Dashboard de Analítica con Machine Learning ---
+  getDashboardAnaliticaML(sucursalId?: number): Observable<DashboardAnaliticaML> {
+    const params: any = {};
+    if (sucursalId) params.sucursal_id = sucursalId;
+    return this.http.get<DashboardAnaliticaML>(`${this.apiBase}/reportes/analitica-ml`, { params });
   }
 
   // --- CU-14: Vestidor virtual (probarse una prenda con una foto, generado con IA) ---

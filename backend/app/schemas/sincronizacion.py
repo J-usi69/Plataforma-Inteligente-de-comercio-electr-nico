@@ -111,7 +111,8 @@ class OperacionAdminOut(ResultadoOperacionOut):
 
 
 class ResolverConflictoIn(BaseModel):
-    accion: Literal["aceptar", "rechazar"]
+    accion: Literal["aceptar", "rechazar", "anular", "reasignar"]
+    nueva_sucursal_id: Optional[int] = None
     nota: Optional[str] = Field(None, max_length=300)
 
 

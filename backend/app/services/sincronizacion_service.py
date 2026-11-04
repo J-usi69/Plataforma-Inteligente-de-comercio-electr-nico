@@ -702,16 +702,20 @@ def bloquear_para_resolver(db: Session, operacion_id: UUID) -> Optional[Operacio
 
 
 def resolver_conflicto(
-    db: Session, registro: OperacionSync, autor: Optional[Actor], resolutor_id: int, accion: str, nota: Optional[str]
+    db: Session, registro: OperacionSync, autor: Optional[Actor], resolutor_id: int, accion: str, nota: Optional[str], nueva_sucursal_id: Optional[int] = None
 ) -> OperacionSync:
     """aceptar: se aplica como la registró su autor, aunque el stock no alcance (el faltante queda
-    en el kardex). rechazar: no se aplica (la tienda devuelve el dinero o recupera la prenda)."""
+    en el kardex). reasignar: se asigna a otra sucursal autorizada. anular/rechazar: no se aplica."""
     ahora = _ahora()
-    if accion == "aceptar":
+    if accion in ("aceptar", "reasignar"):
         if autor is None:
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="El usuario que registró la operación ya no existe: solo se puede rechazar")
+        datos = dict(registro.datos)
+        if accion == "reasignar" and nueva_sucursal_id:
+            datos["sucursal_id"] = nueva_sucursal_id
+            registro.sucursal_id = nueva_sucursal_id
         try:
-            efecto = _aplicar(db, autor, OperacionIn.model_validate(registro.datos), ahora, forzar=True)
+            efecto = _aplicar(db, autor, OperacionIn.model_validate(datos), ahora, forzar=True)
         except OperacionNoAplicable as motivo:
             db.rollback()
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=f"Todavía no se puede aceptar: {motivo.mensaje}")

@@ -161,6 +161,28 @@
       </svg>
       Bitácora de Auditoría
     </button>
+    <button
+      class="nav-pill-btn"
+      [class.active]="activeTab() === 'conflictos'"
+      (click)="cambiarTab('conflictos')"
+    >
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+        <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+      </svg>
+      Resolución de Conflictos
+      <span *ngIf="conflictos().length > 0" class="badge" style="background: #ef4444; color: white; margin-left: 0.35rem; font-size: 0.7rem; padding: 2px 6px; border-radius: 10px;">{{ conflictos().length }}</span>
+    </button>
+    <button
+      class="nav-pill-btn"
+      [class.active]="activeTab() === 'analitica-ml'"
+      (click)="cambiarTab('analitica-ml')"
+    >
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/>
+      </svg>
+      Analítica Machine Learning
+    </button>
   </div>
 
   <!-- Feedback Alert -->
@@ -819,21 +841,56 @@
         <p style="font-size: 0.8rem; color: #64748b; margin-bottom: 0.75rem;">
           Describí el reporte que necesitás en lenguaje natural, por ejemplo: "ventas del último mes" o "prendas más vendidas".
         </p>
-        <div style="display: flex; gap: 0.5rem;">
+        <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
           <input
             type="text"
             [(ngModel)]="reporteIAPrompt"
-            placeholder="ej. ventas de este mes"
-            style="flex: 1; padding: 0.55rem 0.85rem; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 0.85rem;"
+            placeholder="ej. ventas de este mes por sucursal, top prendas o rendimiento por categoría"
+            style="flex: 1; min-width: 250px; padding: 0.55rem 0.85rem; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 0.85rem;"
             (keyup.enter)="generarReporteConIA()"
           />
+          <button type="button" class="btn btn-secondary btn-sm" [disabled]="reporteIACargando()" (click)="iniciarDictadoVoz()" [title]="dictandoVoz() ? 'Escuchando...' : 'Dictar por voz'">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" [attr.stroke]="dictandoVoz() ? '#ef4444' : 'currentColor'" stroke-width="2">
+              <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+              <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+              <line x1="12" y1="19" x2="12" y2="23"/>
+              <line x1="8" y1="23" x2="16" y2="23"/>
+            </svg>
+            {{ dictandoVoz() ? 'Escuchando...' : 'Dictar Voz' }}
+          </button>
           <button class="btn btn-primary btn-sm" [disabled]="reporteIACargando()" (click)="generarReporteConIA()">
             {{ reporteIACargando() ? 'Generando...' : 'Generar' }}
           </button>
         </div>
+        <div style="display: flex; gap: 0.4rem; flex-wrap: wrap; margin-top: 0.65rem;">
+          <button type="button" style="background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 6px; padding: 3px 8px; font-size: 0.75rem; cursor: pointer;" (click)="reporteIAPrompt = 'ventas por sucursal de este mes'; generarReporteConIA()">💡 Ventas por Sucursal</button>
+          <button type="button" style="background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 6px; padding: 3px 8px; font-size: 0.75rem; cursor: pointer;" (click)="reporteIAPrompt = 'top prendas más vendidas del periodo'; generarReporteConIA()">🏆 Top Prendas</button>
+          <button type="button" style="background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 6px; padding: 3px 8px; font-size: 0.75rem; cursor: pointer;" (click)="reporteIAPrompt = 'rendimiento de ventas por categoría textil'; generarReporteConIA()">📊 Por Categoría</button>
+          <button type="button" style="background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 6px; padding: 3px 8px; font-size: 0.75rem; cursor: pointer;" (click)="reporteIAPrompt = 'quiebres de stock críticos en tiendas'; generarReporteConIA()">⚠️ Quiebres de Stock</button>
+        </div>
         <div *ngIf="reporteIAError()" class="alert alert-danger" style="margin-top: 0.75rem;">{{ reporteIAError() }}</div>
-        <div *ngIf="reporteIAResultado() as resultado" style="margin-top: 1rem;">
-          <p style="font-size: 0.8rem; font-weight: 700; margin-bottom: 0.5rem;">Tipo de reporte: {{ resultado.tipo }}</p>
+        <div *ngIf="reporteIAResultado() as resultado" style="margin-top: 1.25rem;">
+          <div *ngIf="resultado.narrativa_ia" style="background: #eff6ff; border-left: 4px solid #3b82f6; padding: 0.85rem 1rem; border-radius: 8px; margin-bottom: 1rem;">
+            <div style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.8rem; font-weight: 700; color: #1e40af; margin-bottom: 0.25rem;">
+              <span>⚡ Análisis Ejecutivo Generado por IA</span>
+              <span class="badge" style="background: #dbeafe; color: #1d4ed8; font-size: 0.7rem;">Plan Profesional</span>
+            </div>
+            <p style="font-size: 0.85rem; color: #1e3a8a; margin: 0; line-height: 1.4;">{{ resultado.narrativa_ia }}</p>
+          </div>
+
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+            <p style="font-size: 0.85rem; font-weight: 700; margin: 0;">Tipo de reporte: <span style="text-transform: capitalize; color: #4f46e5;">{{ resultado.tipo.replace('_', ' ') }}</span></p>
+            <div style="display: flex; gap: 0.5rem;">
+              <button class="btn btn-secondary btn-sm" [disabled]="exportandoReporte()" (click)="exportarReporte('excel')" title="Exportar a Excel XLSX (CU-17)">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/></svg>
+                Exportar Excel
+              </button>
+              <button class="btn btn-secondary btn-sm" [disabled]="exportandoReporte()" (click)="exportarReporte('pdf')" title="Exportar a PDF Corporativo (CU-17)">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                Exportar PDF
+              </button>
+            </div>
+          </div>
           <div class="table-responsive" *ngIf="resultado.tipo === 'ventas'">
             <table class="table">
               <thead><tr><th>Sucursal</th><th>Ventas</th><th>Total</th></tr></thead>
@@ -860,6 +917,19 @@
               <tbody>
                 <tr *ngFor="let q of resultado.datos">
                   <td>{{ q.prenda_nombre }}</td><td>{{ q.sucursal_nombre }}</td><td>{{ q.stock_disponible }}</td><td>{{ q.stock_minimo }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="table-responsive" *ngIf="resultado.tipo === 'rendimiento_categorias'">
+            <table class="table">
+              <thead><tr><th>Categoría Textil</th><th>Prendas Vendidas</th><th>Total Facturado</th><th>Participación (%)</th></tr></thead>
+              <tbody>
+                <tr *ngFor="let cat of resultado.datos">
+                  <td><strong>{{ cat.categoria_nombre }}</strong></td>
+                  <td>{{ cat.cantidad_prendas_vendidas }} unidades</td>
+                  <td>Bs. {{ cat.total_ingresos | number:'1.2-2' }}</td>
+                  <td><span class="badge" style="background: #e0e7ff; color: #4338ca; font-weight: 700;">{{ cat.porcentaje_ventas }}%</span></td>
                 </tr>
               </tbody>
             </table>
@@ -1094,6 +1164,202 @@
         ></app-paginador>
       </div>
     </section>
+
+    <!-- ================================================================= -->
+    <!-- CU-14: RESOLUCIÓN DE CONFLICTOS DE SINCRONIZACIÓN (Wireframe 3.60) -->
+    <!-- ================================================================= -->
+    <section *ngIf="activeTab() === 'conflictos'">
+      <div class="action-header">
+        <div class="header-title-box">
+          <h3>Resolución de Conflictos de Sincronización</h3>
+          <p style="font-size: 0.85rem;">Operaciones offline que requieren decisión administrativa por inconsistencia de stock central</p>
+        </div>
+        <button class="btn btn-secondary btn-sm" (click)="cargarConflictos()">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+          Actualizar Lista
+        </button>
+      </div>
+
+      <div *ngIf="conflictos().length === 0" class="card" style="text-align: center; padding: 3rem 1rem; color: #64748b;">
+        <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">🎉</div>
+        <h4 style="font-size: 1.1rem; color: #0f172a; margin-bottom: 0.25rem;">Sin conflictos pendientes</h4>
+        <p style="font-size: 0.85rem;">Todas las ventas y reservas sincronizadas se procesaron y confirmaron limpiamente.</p>
+      </div>
+
+      <div *ngIf="conflictos().length > 0" class="card" style="margin-bottom: 1.5rem; border-left: 4px solid #f97316; background: #fffaf0;">
+        <h4 style="color: #c2410c; margin-bottom: 0.25rem; font-size: 0.95rem;">⚠️ Conflicto detectado: stock central insuficiente</h4>
+        <p style="font-size: 0.82rem; color: #7c2d12; margin: 0;">
+          Las siguientes operaciones se cobraron o registraron en sucursal sin conexión, pero al sincronizar el inventario central no alcanzaba.
+          Como Administrador podés aceptar la operación con ajuste de kardex, reasignarla a otra sucursal o anularla.
+        </p>
+      </div>
+
+      <div class="table-responsive" *ngIf="conflictos().length > 0">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>ID Operación (UUID)</th>
+              <th>Tipo</th>
+              <th>Sucursal</th>
+              <th>Fecha Registro</th>
+              <th>Motivo Detectado</th>
+              <th>Detalle de Operación</th>
+              <th>Acción</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let c of conflictos()">
+              <td><code style="font-size: 0.75rem;">{{ c.id.slice(0, 13) }}...</code></td>
+              <td><span class="badge" style="background: #fef3c7; color: #92400e; font-weight: 600; text-transform: uppercase;">{{ c.tipo }}</span></td>
+              <td>{{ c.sucursal_nombre || 'Sucursal ' + c.sucursal_id }}</td>
+              <td>{{ c.registrada_en | date:'dd/MM/yyyy HH:mm' }}</td>
+              <td><span style="color: #dc2626; font-weight: 600;">{{ c.codigo === 'sin_stock' ? 'Stock central insuficiente' : (c.mensaje || c.codigo) }}</span></td>
+              <td style="font-size: 0.8rem;">
+                <span *ngIf="c.datos?.total">Total: Bs. {{ c.datos?.total }} | </span>
+                <span *ngIf="c.datos?.lineas?.length">{{ c.datos.lineas.length }} línea(s)</span>
+              </td>
+              <td>
+                <button class="btn btn-primary btn-sm" (click)="abrirModalConflicto(c)">
+                  Resolver
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ================================================================= -->
+    <!-- CU-18: DASHBOARD DE ANALÍTICA CON MACHINE LEARNING (Wireframe 3.61) -->
+    <!-- ================================================================= -->
+    <section *ngIf="activeTab() === 'analitica-ml'">
+      <div class="action-header">
+        <div class="header-title-box">
+          <h3>Dashboard de Analítica con Machine Learning</h3>
+          <p style="font-size: 0.85rem;">Modelos predictivos supervisados de demanda y clustering no supervisado de segmentación (Plan Profesional)</p>
+        </div>
+        <button class="btn btn-secondary btn-sm" (click)="cargarAnaliticaML()">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+          Reentrenar / Actualizar
+        </button>
+      </div>
+
+      @if (!tienda.tiene('reportes_ia')) {
+      <div class="card reporte-ia-bloqueado" style="padding: 2.5rem; text-align: center;">
+        <h4>🔒 Analítica con Machine Learning Bloqueada</h4>
+        <p style="max-width: 600px; margin: 0.5rem auto 1.5rem;">
+          La proyección de demanda con regresión supervisada y la segmentación de clientes con K-Means requieren el
+          <strong>Plan Profesional</strong>. Tu plan actual es <strong>{{ tienda.tienda()?.plan_nombre }}</strong>.
+        </p>
+        <a routerLink="/admin/plan" class="btn btn-primary btn-sm">Actualizar a Plan Profesional</a>
+      </div>
+      } @else {
+
+      <div *ngIf="mlError()" class="alert alert-danger">{{ mlError() }}</div>
+
+      <div *ngIf="dashboardML() as ml">
+        <!-- Hero de Resumen Ejecutivo de IA y ML -->
+        <div class="card" style="background: linear-gradient(135deg, #f8fafc 0%, #edf2f7 100%); border-left: 4px solid #6366f1; margin-bottom: 1.5rem;">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.5rem;">
+            <span class="badge" style="background: #e0e7ff; color: #4338ca; font-weight: 700;">INSIGHT EJECUTIVO ML</span>
+            <span style="font-size: 0.75rem; color: #64748b;">Actualizado: {{ ml.metricas.fecha_entrenamiento }}</span>
+          </div>
+          <p style="font-size: 0.9rem; color: #1e293b; line-height: 1.5; margin: 0;">{{ ml.resumen_ejecutivo }}</p>
+        </div>
+
+        <!-- Tarjetas de Métricas de Evaluación de Modelos (MetricaEvaluacion) -->
+        <div class="stats-grid" style="margin-bottom: 1.5rem;">
+          <div class="stat-card">
+            <div class="stat-icon-wrapper" style="background: #eef2ff; color: #4f46e5;">📈</div>
+            <div class="stat-data">
+              <span class="stat-value">{{ ml.metricas.r2_score | number:'1.3-3' }}</span>
+              <span class="stat-label">Bondad de Ajuste R² (Supervisado)</span>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon-wrapper" style="background: #ecfdf5; color: #059669;">🎯</div>
+            <div class="stat-data">
+              <span class="stat-value">Bs. {{ ml.metricas.mae | number:'1.2-2' }}</span>
+              <span class="stat-label">Error Absoluto Medio (MAE)</span>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon-wrapper" style="background: #fdf2f8; color: #db2777;">✨</div>
+            <div class="stat-data">
+              <span class="stat-value">{{ ml.metricas.silhouette_score | number:'1.3-3' }}</span>
+              <span class="stat-label">Coeficiente de Silueta (Clustering)</span>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon-wrapper" style="background: #fffbeb; color: #d97706;">📦</div>
+            <div class="stat-data">
+              <span class="stat-value">{{ ml.metricas.total_observaciones }}</span>
+              <span class="stat-label">Observaciones Procesadas</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Modelo Supervisado: Predicciones de Demanda a Futuro -->
+        <div class="card" style="margin-bottom: 1.5rem;">
+          <h4 style="font-size: 1rem; margin-bottom: 0.35rem; display: flex; align-items: center; gap: 0.5rem;">
+            <span>Proyección de Demanda Semanal (Modelo Supervisado Ridge)</span>
+          </h4>
+          <p style="font-size: 0.8rem; color: #64748b; margin-bottom: 1rem;">
+            Estimación de ingresos brutos y prendas estimadas a vender con intervalos de confianza calculados a partir de la varianza del modelo.
+          </p>
+          <div class="table-responsive">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Periodo Proyectado</th>
+                  <th>Fecha Estimada</th>
+                  <th>Ventas Proyectadas (Bs.)</th>
+                  <th>Unidades Estimadas</th>
+                  <th>Rango de Confianza (±1.2 MAE)</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let p of ml.predicciones_demanda">
+                  <td><strong>{{ p.periodo }}</strong></td>
+                  <td>{{ p.fecha }}</td>
+                  <td><span style="font-weight: 700; color: #059669;">Bs. {{ p.ventas_proyectadas | number:'1.2-2' }}</span></td>
+                  <td>{{ p.unidades_estimadas }} prendas</td>
+                  <td style="font-size: 0.82rem; color: #64748b;">Bs. {{ p.limite_inferior | number:'1.2-2' }} - Bs. {{ p.limite_superior | number:'1.2-2' }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Modelo No Supervisado: Segmentación de Clientes por K-Means (RFM) -->
+        <div class="card">
+          <h4 style="font-size: 1rem; margin-bottom: 0.35rem;">Segmentación de Clientes por Clustering K-Means (No Supervisado)</h4>
+          <p style="font-size: 0.8rem; color: #64748b; margin-bottom: 1rem;">
+            Agrupamiento automático basado en Recencia, Frecuencia y Monto de Compra (RFM) con estrategias comerciales asignadas por la IA.
+          </p>
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem;">
+            <div *ngFor="let c of ml.segmentacion_clientes" style="border: 1px solid #e2e8f0; border-radius: 12px; padding: 1.15rem; background: #ffffff; box-shadow: 0 1px 3px rgba(0,0,0,0.03);">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                <h5 style="margin: 0; font-size: 0.95rem; font-weight: 700; color: #1e293b;">{{ c.nombre_segmento }}</h5>
+                <span class="badge" style="background: #e0e7ff; color: #3730a3; font-weight: 700;">{{ c.porcentaje }}%</span>
+              </div>
+              <p style="font-size: 0.8rem; color: #64748b; margin-bottom: 0.75rem; line-height: 1.4;">{{ c.descripcion }}</p>
+              <div style="display: flex; gap: 1rem; margin-bottom: 0.75rem; font-size: 0.8rem;">
+                <div><span style="color: #94a3b8;">Clientes:</span> <strong>{{ c.cantidad_clientes }}</strong></div>
+                <div><span style="color: #94a3b8;">Ticket Prom.:</span> <strong>Bs. {{ c.ticket_promedio }}</strong></div>
+                <div><span style="color: #94a3b8;">Visitas:</span> <strong>{{ c.frecuencia_visitas }}</strong></div>
+              </div>
+              <div style="background: #f8fafc; border-radius: 8px; padding: 0.6rem 0.75rem; font-size: 0.78rem; color: #334155;">
+                <strong style="color: #4f46e5;">Estrategia recomendada:</strong> {{ c.estrategia_recomendada }}
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+      }
+    </section>
+
   </div>
 </div>
 
@@ -1500,4 +1766,65 @@
       <button type="button" class="btn btn-secondary" (click)="cerrarModal()">Cerrar</button>
     </div>
   </div>
+
+  <!-- Modal Resolver Conflicto de Sincronización (CU-14) -->
+  <div class="modal-backdrop" *ngIf="showModal() === 'resolver-conflicto'">
+    <div class="modal-content" style="max-width: 520px;" *ngIf="conflictoSeleccionado() as op">
+      <div class="modal-header">
+        <h4>Resolver Conflicto de Sincronización</h4>
+        <button class="close-btn" (click)="cerrarModal()">×</button>
+      </div>
+      <div class="modal-body">
+        <div style="background: #fff7ed; border-left: 3px solid #f97316; padding: 0.75rem 1rem; border-radius: 6px; margin-bottom: 1rem;">
+          <div style="font-weight: 700; color: #9a3412; font-size: 0.85rem;">Conflicto detectado: {{ op.codigo === 'sin_stock' ? 'Stock central insuficiente' : op.mensaje }}</div>
+          <div style="font-size: 0.8rem; color: #c2410c;">Operación UUID: {{ op.id }}</div>
+        </div>
+
+        <div style="margin-bottom: 1rem; font-size: 0.85rem; background: #f8fafc; padding: 0.75rem; border-radius: 8px;">
+          <div><strong>Tipo de operación:</strong> {{ op.tipo }}</div>
+          <div><strong>Sucursal original:</strong> {{ op.sucursal_nombre || op.sucursal_id }}</div>
+          <div><strong>Fecha registrada:</strong> {{ op.registrada_en | date:'dd/MM/yyyy HH:mm' }}</div>
+          <div *ngIf="op.datos?.total"><strong>Importe cobrado:</strong> Bs. {{ op.datos.total }}</div>
+        </div>
+
+        <div class="form-group" style="margin-bottom: 1rem;">
+          <label style="font-weight: 600; font-size: 0.85rem; margin-bottom: 0.35rem; display: block;">Resolución permitida por reglas:</label>
+          <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+            <label style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.85rem; cursor: pointer;">
+              <input type="radio" name="accionRes" value="aceptar" [(ngModel)]="accionResolucion" />
+              <span><strong>Aceptar con ajuste:</strong> confirma la venta y descuenta el inventario (faltante registrado en kardex)</span>
+            </label>
+            <label style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.85rem; cursor: pointer;">
+              <input type="radio" name="accionRes" value="reasignar" [(ngModel)]="accionResolucion" />
+              <span><strong>Reasignar:</strong> transferir el pedido a otra sucursal de la empresa con stock</span>
+            </label>
+            <label style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.85rem; cursor: pointer;">
+              <input type="radio" name="accionRes" value="anular" [(ngModel)]="accionResolucion" />
+              <span><strong>Anular:</strong> rechazar la operación definitivamente sin descontar inventario</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="form-group" *ngIf="accionResolucion === 'reasignar'" style="margin-bottom: 1rem;">
+          <label style="font-weight: 600; font-size: 0.85rem; margin-bottom: 0.35rem; display: block;">Seleccionar sucursal de destino:</label>
+          <select [(ngModel)]="nuevaSucursalId" style="width: 100%; padding: 0.5rem; border: 1px solid #cbd5e1; border-radius: 6px;">
+            <option [ngValue]="null">-- Elegir sucursal --</option>
+            <option *ngFor="let s of sucursales()" [ngValue]="s.id">{{ s.nombre }}</option>
+          </select>
+        </div>
+
+        <div class="form-group" style="margin-bottom: 1rem;">
+          <label style="font-weight: 600; font-size: 0.85rem; margin-bottom: 0.35rem; display: block;">Nota / Justificación (queda en bitácora):</label>
+          <textarea [(ngModel)]="notaResolucion" rows="2" placeholder="Motivo o autorización de la decisión tomada..." style="width: 100%; padding: 0.5rem; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.85rem;"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: 0.5rem;">
+        <button class="btn btn-secondary btn-sm" (click)="cerrarModal()">Dejar pendiente</button>
+        <button class="btn btn-primary btn-sm" [disabled]="resolviendoConflicto()" (click)="aplicarResolucionConflicto()">
+          {{ resolviendoConflicto() ? 'Aplicando...' : 'Aplicar resolución' }}
+        </button>
+      </div>
+    </div>
+  </div>
+
 </div>

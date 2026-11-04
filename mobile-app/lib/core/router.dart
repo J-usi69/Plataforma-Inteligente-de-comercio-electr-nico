@@ -8,6 +8,7 @@ import '../features/auth/register_screen.dart';
 import '../features/caja/venta_contado_screen.dart';
 import '../features/catalogo/catalogo_screen.dart';
 import '../features/offline/pendientes_screen.dart';
+import '../features/reportes/reportes_ia_screen.dart';
 import '../features/reservas/reservar_screen.dart';
 import '../features/reservas/reservas_screen.dart';
 import '../features/sucursales/sucursales_screen.dart';
@@ -68,5 +69,6 @@ final GoRouter appRouter = GoRouter(
     // Parcial 2: operación sin conexión (CU-11 venta de contado, CU-12/13 cola y sincronización)
     GoRoute(path: '/caja', builder: (context, state) => const VentaContadoScreen()),
     GoRoute(path: '/pendientes', builder: (context, state) => const PendientesScreen()),
+    GoRoute(path: '/reportes-ia', builder: (context, state) => const ReportesIaScreen()),
   ],
 );

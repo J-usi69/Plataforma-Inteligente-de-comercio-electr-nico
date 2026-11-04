@@ -112,7 +112,7 @@ def resolver_conflicto(
         )
     autor = db.get(Usuario, registro.usuario_id) if registro.usuario_id else None
     registro = sync.resolver_conflicto(
-        db, registro, _actor(db, autor) if autor else None, current_user.id, datos.accion, datos.nota
+        db, registro, _actor(db, autor) if autor else None, current_user.id, datos.accion, datos.nota, datos.nueva_sucursal_id
     )
     resultado = "aceptada" if datos.accion == "aceptar" else "rechazada"
     registrar_bitacora(db, current_user.id, f"Sincronización: operación {registro.uuid} {resultado}", get_client_ip(request))

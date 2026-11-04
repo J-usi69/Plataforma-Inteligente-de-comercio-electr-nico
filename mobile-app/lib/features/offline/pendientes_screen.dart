@@ -1,3 +1,4 @@
+import '../../core/services/api_service.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/offline/modelos.dart';
@@ -62,6 +63,34 @@ class _PendientesScreenState extends State<PendientesScreen> {
       messenger.showSnackBar(SnackBar(content: Text(_sync.ultimoError!), backgroundColor: Colors.red.shade700));
     } else if (_sync.pendientes == 0) {
       messenger.showSnackBar(const SnackBar(content: Text('No quedan operaciones por enviar.')));
+    }
+  }
+
+  Future<void> _resolverConflicto(String opId, String accion) async {
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await ApiService().resolverConflicto(
+        opId,
+        accion,
+        nota: 'Resuelto desde la aplicación móvil',
+      );
+      if (mounted) {
+        Navigator.of(context).pop();
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text('Operación ${accion == "aceptar" ? "aceptada con ajuste" : "anulada"} exitosamente.'),
+            backgroundColor: accion == "aceptar" ? const Color(0xFF15803D) : const Color(0xFFDC2626),
+          ),
+        );
+        setState(() {});
+        await _sincronizarAhora();
+      }
+    } catch (e) {
+      if (mounted) {
+        messenger.showSnackBar(
+          SnackBar(content: Text('Error al resolver: $e'), backgroundColor: Colors.red.shade700),
+        );
+      }
     }
   }
 
@@ -286,12 +315,67 @@ class _PendientesScreenState extends State<PendientesScreen> {
                   _dato('Registro', '${resultado['referencia_tipo'] ?? op.tipo} #${resultado['referencia_id']}'),
                 if (resultado['procesada_en'] != null) _dato('Procesada', fechaCorta('${resultado['procesada_en']}')),
               ],
-              if (op.estado == 'rechazada' || op.estado == 'conflicto')
+              if (op.estado == 'rechazada')
                 Container(
                   margin: const EdgeInsets.only(top: 12),
                   padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(color: const Color(0xFFFFF7ED), borderRadius: BorderRadius.circular(10)),
-                  child: const Text('La revisa el Administrador de Empresa desde el panel de sincronización.'),
+                  decoration: BoxDecoration(color: const Color(0xFFFEF2F2), borderRadius: BorderRadius.circular(10)),
+                  child: const Text('Operación rechazada definitivamente por reglas del servidor.', style: TextStyle(color: Color(0xFF991B1B))),
+                ),
+              if (op.estado == 'conflicto')
+                Container(
+                  margin: const EdgeInsets.only(top: 12),
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFF7ED),
+                    border: Border.all(color: const Color(0xFFFDBA74)),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Row(
+                        children: [
+                          Icon(Icons.warning_amber_rounded, color: Color(0xFFC2410C), size: 18),
+                          SizedBox(width: 6),
+                          Text('Conflicto: stock central insuficiente', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFFC2410C))),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      const Text(
+                        'Podés resolver este conflicto aplicando un ajuste de inventario o anulando la operación:',
+                        style: TextStyle(fontSize: 12, color: Color(0xFF9A3412)),
+                      ),
+                      const SizedBox(height: 10),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF15803D),
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(vertical: 8),
+                              ),
+                              onPressed: () => _resolverConflicto(op.id, 'aceptar'),
+                              child: const Text('Aceptar Ajuste', style: TextStyle(fontSize: 12)),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: OutlinedButton(
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: const Color(0xFFDC2626),
+                                side: const BorderSide(color: Color(0xFFDC2626)),
+                                padding: const EdgeInsets.symmetric(vertical: 8),
+                              ),
+                              onPressed: () => _resolverConflicto(op.id, 'anular'),
+                              child: const Text('Anular', style: TextStyle(fontSize: 12)),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
             ],
           ),
