@@ -86,7 +86,7 @@ def generar_dashboard_analitica_ml(db: Session, sucursal_id: Optional[int] = Non
             func.sum(Venta.total).label('total_semana'),
             func.count(Venta.id).label('cantidad_ventas'),
         )
-        .where(Venta.estado == EstadoVenta.CONFIRMADA)
+        .where(Venta.estado == EstadoVenta.pagada)
     )
     if sucursal_id:
         query = query.where(Venta.sucursal_id == sucursal_id)

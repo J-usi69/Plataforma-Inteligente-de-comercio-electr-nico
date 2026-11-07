@@ -5,7 +5,7 @@ from datetime import datetime, time
 from typing import Literal, Optional
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 EstadoOperacion = Literal["confirmada", "rechazada", "conflicto", "error"]
 
@@ -112,8 +112,14 @@ class OperacionAdminOut(ResultadoOperacionOut):
 
 class ResolverConflictoIn(BaseModel):
     accion: Literal["aceptar", "rechazar", "anular", "reasignar"]
-    nueva_sucursal_id: Optional[int] = None
+    nueva_sucursal_id: Optional[int] = Field(None, gt=0)
     nota: Optional[str] = Field(None, max_length=300)
+
+    @model_validator(mode="after")
+    def _reasignar_necesita_sucursal(self):
+        if self.accion == "reasignar" and self.nueva_sucursal_id is None:
+            raise ValueError("Para reasignar la operación indicá la sucursal de destino")
+        return self
 
 
 # ------------------------------------------------------------------------------

@@ -5,8 +5,11 @@ terminar, usando el mismo criterio (10+ digitos consecutivos = timestamp en ms, 
 ningun dato real de la plataforma usa) que backend/limpiar_datos_prueba.py.
 """
 
+import warnings
+
 import pytest
 from sqlalchemy import text
+from sqlalchemy.exc import OperationalError
 
 from app.api.v1.endpoints import auth, plataforma
 from app.db.session import engine
@@ -54,21 +57,25 @@ def reiniciar_limite_de_intentos():
 def limpiar_datos_de_prueba():
     yield
     try:
-        with engine.connect() as conn:
-            # Tiendas que algún test haya dejado (por ejemplo, si falló antes de limpiar)
-            for tienda_id in conn.execute(text("SELECT id FROM tienda WHERE slug ~ '[0-9]{10,}'")).scalars().all():
-                _borrar_tienda(conn, tienda_id)
-            test_ids = list(
-                conn.execute(text("SELECT id FROM usuario WHERE correo ~ '[0-9]{10,}@'")).scalars()
-            )
-            if test_ids:
-                conn.execute(text("DELETE FROM bitacora WHERE usuario_id = ANY(:ids)"), {"ids": test_ids})
-                conn.execute(text("DELETE FROM interaccion_ia WHERE usuario_id = ANY(:ids)"), {"ids": test_ids})
-                conn.execute(text("DELETE FROM usuario WHERE id = ANY(:ids)"), {"ids": test_ids})
-            conn.execute(text("DELETE FROM proveedor WHERE nombre_empresa ~ '[0-9]{10,}'"))
-            conn.execute(text("DELETE FROM sucursal WHERE nombre ~ '[0-9]{10,}'"))
-            conn.execute(text("DELETE FROM prenda WHERE nombre ~ '[0-9]{10,}'"))
-            conn.execute(text("DELETE FROM rol WHERE nombre ~ '^Rol_[0-9]+$'"))
-            conn.commit()
-    except Exception:
-        pass
+        conexion = engine.connect()
+    except OperationalError:
+        # Sin base (por ejemplo, corriendo solo los tests unitarios) ningún test pudo dejar datos.
+        # Si la base está y algún DELETE falla, el error sí se ve: no queda basura sin aviso.
+        warnings.warn("No hay base de datos de pruebas: no hay datos de prueba que limpiar")
+        return
+    with conexion as conn:
+        # Tiendas que algún test haya dejado (por ejemplo, si falló antes de limpiar)
+        for tienda_id in conn.execute(text("SELECT id FROM tienda WHERE slug ~ '[0-9]{10,}'")).scalars().all():
+            _borrar_tienda(conn, tienda_id)
+        test_ids = list(
+            conn.execute(text("SELECT id FROM usuario WHERE correo ~ '[0-9]{10,}@'")).scalars()
+        )
+        if test_ids:
+            conn.execute(text("DELETE FROM bitacora WHERE usuario_id = ANY(:ids)"), {"ids": test_ids})
+            conn.execute(text("DELETE FROM interaccion_ia WHERE usuario_id = ANY(:ids)"), {"ids": test_ids})
+            conn.execute(text("DELETE FROM usuario WHERE id = ANY(:ids)"), {"ids": test_ids})
+        conn.execute(text("DELETE FROM proveedor WHERE nombre_empresa ~ '[0-9]{10,}'"))
+        conn.execute(text("DELETE FROM sucursal WHERE nombre ~ '[0-9]{10,}'"))
+        conn.execute(text("DELETE FROM prenda WHERE nombre ~ '[0-9]{10,}'"))
+        conn.execute(text("DELETE FROM rol WHERE nombre ~ '^Rol_[0-9]+$'"))
+        conn.commit()

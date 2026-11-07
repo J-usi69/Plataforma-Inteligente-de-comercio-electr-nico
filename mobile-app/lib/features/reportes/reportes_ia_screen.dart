@@ -418,7 +418,7 @@ class _ReportesIaScreenState extends State<ReportesIaScreen> with SingleTickerPr
                   const SizedBox(height: 4),
                   Text(c['descripcion'] ?? '', style: const TextStyle(fontSize: 12, color: Colors.black54)),
                   const SizedBox(height: 8),
-                  Text('Estrategia: ${c['estrategia_recomendada']}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF4F46E5))),
+                  Text('Estrategia: ${c['estrategia_recomendada']}', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: context.marca)),
                 ],
               ),
             ),

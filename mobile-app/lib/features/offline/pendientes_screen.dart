@@ -342,6 +342,13 @@ class _PendientesScreenState extends State<PendientesScreen> {
                         ],
                       ),
                       const SizedBox(height: 6),
+                      // Solo el encargado o el administrador deciden (el servidor se lo niega al resto)
+                      if (!ApiService().puedeResolverConflictos)
+                        const Text(
+                          'Un encargado o el administrador decide si se acepta con ajuste de inventario o se anula.',
+                          style: TextStyle(fontSize: 12, color: Color(0xFF9A3412)),
+                        )
+                      else ...[
                       const Text(
                         'Podés resolver este conflicto aplicando un ajuste de inventario o anulando la operación:',
                         style: TextStyle(fontSize: 12, color: Color(0xFF9A3412)),
@@ -374,6 +381,7 @@ class _PendientesScreenState extends State<PendientesScreen> {
                           ),
                         ],
                       ),
+                      ],
                     ],
                   ),
                 ),

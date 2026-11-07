@@ -1215,8 +1215,8 @@
               <td>{{ c.registrada_en | date:'dd/MM/yyyy HH:mm' }}</td>
               <td><span style="color: #dc2626; font-weight: 600;">{{ c.codigo === 'sin_stock' ? 'Stock central insuficiente' : (c.mensaje || c.codigo) }}</span></td>
               <td style="font-size: 0.8rem;">
-                <span *ngIf="c.datos?.total">Total: Bs. {{ c.datos?.total }} | </span>
-                <span *ngIf="c.datos?.lineas?.length">{{ c.datos.lineas.length }} línea(s)</span>
+                <span *ngIf="c.datos?.datos?.total">Total: Bs. {{ c.datos?.datos?.total }} | </span>
+                <span *ngIf="c.datos?.datos?.detalles?.length">{{ c.datos.datos.detalles.length }} línea(s)</span>
               </td>
               <td>
                 <button class="btn btn-primary btn-sm" (click)="abrirModalConflicto(c)">
@@ -1784,7 +1784,7 @@
           <div><strong>Tipo de operación:</strong> {{ op.tipo }}</div>
           <div><strong>Sucursal original:</strong> {{ op.sucursal_nombre || op.sucursal_id }}</div>
           <div><strong>Fecha registrada:</strong> {{ op.registrada_en | date:'dd/MM/yyyy HH:mm' }}</div>
-          <div *ngIf="op.datos?.total"><strong>Importe cobrado:</strong> Bs. {{ op.datos.total }}</div>
+          <div *ngIf="op.datos?.datos?.total"><strong>Importe cobrado:</strong> Bs. {{ op.datos.datos.total }}</div>
         </div>
 
         <div class="form-group" style="margin-bottom: 1rem;">
@@ -1820,7 +1820,7 @@
       </div>
       <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: 0.5rem;">
         <button class="btn btn-secondary btn-sm" (click)="cerrarModal()">Dejar pendiente</button>
-        <button class="btn btn-primary btn-sm" [disabled]="resolviendoConflicto()" (click)="aplicarResolucionConflicto()">
+        <button class="btn btn-primary btn-sm" [disabled]="resolviendoConflicto() || (accionResolucion === 'reasignar' && !nuevaSucursalId)" (click)="aplicarResolucionConflicto()">
           {{ resolviendoConflicto() ? 'Aplicando...' : 'Aplicar resolución' }}
         </button>
       </div>

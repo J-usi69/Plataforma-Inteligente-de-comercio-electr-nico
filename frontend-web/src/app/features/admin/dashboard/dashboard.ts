@@ -203,7 +203,7 @@ export class Dashboard implements OnInit {
   reporteFiltros = { desde: '', hasta: '' };
   reporteIAPrompt = '';
   reporteIACargando = signal(false);
-  reporteIAResultado = signal<{ tipo: string; datos: any } | null>(null);
+  reporteIAResultado = signal<{ tipo: string; datos: any; narrativa_ia?: string; tipo_grafico?: string } | null>(null);
   reporteIAError = signal<string | null>(null);
   dictandoVoz = signal(false);
   exportandoReporte = signal(false);

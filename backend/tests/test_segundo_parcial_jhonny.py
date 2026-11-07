@@ -1,13 +1,18 @@
-"""Pruebas automatizadas del Segundo Examen Parcial (Grupo 7 - Jhonny Durán Marín)
-Cubre los casos de uso:
+"""Pruebas automatizadas del Segundo Examen Parcial (Grupo 7 - Jhonny Durán Marín).
+
 - CU-14: Resolver conflictos de sincronización (CP-10, CP-11)
 - CU-16: Generar reporte mediante lenguaje natural (CP-12, CP-14)
 - CU-17: Exportar reporte a Excel y PDF (CP-13)
-- CU-18: Generar dashboard de analítica con Machine Learning (CP-15, CP-16)
+- CU-18: Dashboard de analítica con Machine Learning (CP-15, CP-16)
+
+Se crean dos empresas desechables: A con plan Profesional (dos sucursales, cajero y encargado en la
+Central) y B con plan Básico (una sucursal). Al terminar se borran con todo lo suyo.
 """
-from datetime import datetime, timezone
 import time
+from datetime import datetime, timedelta, timezone
+from unittest.mock import patch
 from uuid import uuid4
+
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import select
@@ -19,14 +24,12 @@ from app.main import app
 from app.models.catalogo import Categoria, Color, Prenda, Talla, VariantePrenda
 from app.models.inventario import InventarioSucursal
 from app.models.seguridad import Bitacora, Rol, Usuario, UsuarioRol
-from app.models.sincronizacion import OperacionSync
 from app.models.sucursal import Ciudad, Personal, Sucursal
-from app.models.tienda import Tienda, Plan
-from app.services.sincronizacion_service import CONFLICTO, RECHAZADA
 from app.services.tiendas_service import crear_tienda
 
 client = TestClient(app)
 PASSWORD = "ClaveSegura123*"
+PRECIO = 250.0
 
 
 def _token(correo: str, slug: str) -> str:
@@ -36,374 +39,291 @@ def _token(correo: str, slug: str) -> str:
 
 
 @pytest.fixture(scope="module")
-def entorno_pruebas(borrar_tienda):
-    """Crea dos tiendas independientes (Empresa A con plan Profesional, Empresa B con plan Básico)
-    para verificar multitenancy (RN02) y restricciones por plan (RN03, RF05)."""
+def entorno(borrar_tienda):
     marca = int(time.time() * 1000)
-
-    # 1. Crear Empresa A (Plan Profesional con reportes_ia y analítica ML)
-    slug_a = f"empresa-a-{marca}"
-    admin_a = f"admin_a_{marca}@moda.com"
-    encargado_a = f"encargado_a_{marca}@moda.com"
-
+    e = {"slug_a": f"empresa-a-{marca}", "slug_b": f"empresa-b-{marca}"}
+    admin_a, admin_b = f"admin_a_{marca}@moda.com", f"admin_b_{marca}@moda.com"
     with SessionLocal() as db:
-        tienda_a = crear_tienda(db, slug=slug_a, nombre="Boutique Elegance", correo_admin=admin_a, password_admin=PASSWORD)
-        plan_pro = db.scalars(select(Plan).where(Plan.nombre == "Profesional")).first()
-        if plan_pro:
-            tienda_a.plan_id = plan_pro.id
-        db.commit()
-        id_a = tienda_a.id
-
-    # 2. Crear Empresa B (Plan Básico, sin reportes_ia)
-    slug_b = f"empresa-b-{marca}"
-    admin_b = f"admin_b_{marca}@tienda.com"
-
+        e["id_a"] = crear_tienda(
+            db, slug=e["slug_a"], nombre="Boutique Elegance", correo_admin=admin_a, password_admin=PASSWORD,
+            plan_codigo="profesional",
+        ).id
     with SessionLocal() as db:
-        tienda_b = crear_tienda(db, slug=slug_b, nombre="Ropa Casual Express", correo_admin=admin_b, password_admin=PASSWORD)
-        plan_basico = db.scalars(select(Plan).where(Plan.nombre == "Básico")).first()
-        if plan_basico:
-            tienda_b.plan_id = plan_basico.id
-        db.commit()
-        id_b = tienda_b.id
+        e["id_b"] = crear_tienda(
+            db, slug=e["slug_b"], nombre="Ropa Casual Express", correo_admin=admin_b, password_admin=PASSWORD
+        ).id
 
-    # Datos iniciales para Empresa A
     ahora = datetime.now(timezone.utc)
-    with SessionLocal(info={CLAVE_TIENDA: id_a}) as db:
+    with SessionLocal(info={CLAVE_TIENDA: e["id_a"]}) as db:
         ciudad = db.scalars(select(Ciudad).order_by(Ciudad.id)).first()
-        suc_1 = Sucursal(nombre=f"Sucursal Central {marca}", ciudad_id=ciudad.id, direccion="Av. San Martín 100", estado=True)
-        suc_2 = Sucursal(nombre=f"Sucursal Norte {marca}", ciudad_id=ciudad.id, direccion="Av. Banzer 200", estado=True)
-        db.add_all([suc_1, suc_2])
+        central = Sucursal(nombre=f"Central {marca}", ciudad_id=ciudad.id, direccion="Av. San Martín 100", estado=True)
+        norte = Sucursal(nombre=f"Norte {marca}", ciudad_id=ciudad.id, direccion="Av. Banzer 200", estado=True)
+        db.add_all([central, norte])
         db.flush()
+        roles = {r.nombre: r for r in db.scalars(select(Rol))}
+        for clave, rol in (("cajero", "Cajero"), ("encargado", "Encargado")):
+            usuario = Usuario(correo=f"{clave}_a_{marca}@moda.com", password_hash=get_password_hash(PASSWORD), estado=True, creado_en=ahora)
+            db.add(usuario)
+            db.flush()
+            db.add(UsuarioRol(usuario_id=usuario.id, rol_id=roles[rol].id))
+            db.add(Personal(usuario_id=usuario.id, sucursal_id=central.id, nombres=clave.title(), apellidos="Prueba", cargo=rol, estado=True))
+            e[clave] = usuario.correo
 
-        cat = Categoria(nombre=f"Vestidos {marca}", estado=True)
-        talla = Talla(nombre=f"M-{marca}")
-        color = Color(nombre=f"Azul-{marca}", codigo_hex="#0000FF")
-        db.add_all([cat, talla, color])
+        categoria, talla, color = Categoria(nombre="Vestidos", estado=True), Talla(nombre="M"), Color(nombre="Azul", hex="#0000FF")
+        db.add_all([categoria, talla, color])
         db.flush()
-
-        prenda = Prenda(nombre=f"Vestido de Fiesta {marca}", precio_base=250.0, categoria_id=cat.id, estado=True)
+        prenda = Prenda(nombre="Vestido de fiesta", categoria_id=categoria.id, precio_base=PRECIO, estado=True)
         db.add(prenda)
         db.flush()
-
-        variante = VariantePrenda(prenda_id=prenda.id, talla_id=talla.id, color_id=color.id, sku=f"SKU-{marca}", precio=250.0)
+        variante = VariantePrenda(prenda_id=prenda.id, talla_id=talla.id, color_id=color.id, codigo_barras=f"J{marca}", estado=True)
         db.add(variante)
         db.flush()
-
-        # Inventario limitado en sucursal 1 (stock = 1)
-        inv = InventarioSucursal(sucursal_id=suc_1.id, variante_id=variante.id, stock_disponible=1, stock_minimo=2)
-        db.add(inv)
-
-        # Usuario Encargado
-        rol_encargado = db.scalars(select(Rol).where(Rol.nombre == "Encargado")).first()
-        u_enc = Usuario(correo=encargado_a, password_hash=get_password_hash(PASSWORD), estado=True, creado_en=ahora)
-        db.add(u_enc)
-        db.flush()
-        db.add(UsuarioRol(usuario_id=u_enc.id, rol_id=rol_encargado.id))
-        db.add(Personal(usuario_id=u_enc.id, sucursal_id=suc_1.id, nombres="Carlos", apellidos="Encargado", cargo="Encargado", estado=True))
+        e.update(central=central.id, norte=norte.id, variante=variante.id)
         db.commit()
 
-        variante_id = variante.id
-        sucursal_1_id = suc_1.id
-        sucursal_2_id = suc_2.id
+    with SessionLocal(info={CLAVE_TIENDA: e["id_b"]}) as db:
+        ciudad = db.scalars(select(Ciudad).order_by(Ciudad.id)).first()
+        unica = Sucursal(nombre=f"Única {marca}", ciudad_id=ciudad.id, direccion="Calle 3", estado=True)
+        db.add(unica)
+        db.flush()
+        e["sucursal_b"] = unica.id
+        db.commit()
 
-    yield {
-        "id_a": id_a,
-        "slug_a": slug_a,
-        "token_admin_a": _token(admin_a, slug_a),
-        "token_encargado_a": _token(encargado_a, slug_a),
-        "id_b": id_b,
-        "slug_b": slug_b,
-        "token_admin_b": _token(admin_b, slug_b),
-        "variante_id": variante_id,
-        "sucursal_1_id": sucursal_1_id,
-        "sucursal_2_id": sucursal_2_id,
+    e["tokens"] = {
+        "admin": _token(admin_a, e["slug_a"]),
+        "cajero": _token(e["cajero"], e["slug_a"]),
+        "encargado": _token(e["encargado"], e["slug_a"]),
+        "admin_b": _token(admin_b, e["slug_b"]),
     }
+    yield e
+    borrar_tienda(e["id_a"])
+    borrar_tienda(e["id_b"])
+
+
+def _en(e: dict, rol: str) -> dict:
+    return {"Authorization": f"Bearer {e['tokens'][rol]}", "X-Tienda": e["slug_b"] if rol == "admin_b" else e["slug_a"]}
+
+
+def _poner_stock(e: dict, sucursal: int, cantidad: int) -> None:
+    with SessionLocal(info={CLAVE_TIENDA: e["id_a"]}) as db:
+        fila = db.scalars(
+            select(InventarioSucursal).where(InventarioSucursal.variante_id == e["variante"], InventarioSucursal.sucursal_id == sucursal)
+        ).first()
+        if fila is None:
+            fila = InventarioSucursal(variante_id=e["variante"], sucursal_id=sucursal, stock_minimo=0)
+            db.add(fila)
+        fila.stock_disponible, fila.stock_reservado = cantidad, 0
+        db.commit()
+
+
+def _stock(e: dict, sucursal: int) -> int:
+    with SessionLocal(info={CLAVE_TIENDA: e["id_a"]}) as db:
+        fila = db.scalars(
+            select(InventarioSucursal).where(InventarioSucursal.variante_id == e["variante"], InventarioSucursal.sucursal_id == sucursal)
+        ).first()
+        return fila.stock_disponible if fila else 0
+
+
+def _vender_sin_conexion(e: dict, cantidad: int) -> dict:
+    """Venta de contado que el cajero de la Central registró sin conexión y sube al volver."""
+    op = {
+        "id": str(uuid4()),
+        "tipo": "venta",
+        "tienda": e["slug_a"],
+        "sucursal_id": e["central"],
+        "registrada_en": (datetime.now(timezone.utc) - timedelta(minutes=10)).isoformat(),
+        "dispositivo": "pytest",
+        "datos": {
+            "detalles": [{"variante_id": e["variante"], "cantidad": cantidad, "precio_unitario": PRECIO}],
+            "total": PRECIO * cantidad,
+        },
+    }
+    res = client.post("/api/v1/sync/operaciones", json={"operaciones": [op]}, headers=_en(e, "cajero"))
+    assert res.status_code == 200, res.text
+    return res.json()["resultados"][0]
+
+
+def _venta_en_conflicto(e: dict, cantidad: int = 3) -> str:
+    """El cajero vendió más de lo que el sistema tiene en la Central (1 unidad)."""
+    _poner_stock(e, e["central"], 1)
+    resultado = _vender_sin_conexion(e, cantidad)
+    assert (resultado["estado"], resultado["codigo"]) == ("conflicto", "sin_stock"), resultado
+    return resultado["id"]
+
+
+def _resolver(e: dict, op_id: str, rol: str = "admin", **cuerpo):
+    return client.post(f"/api/v1/sync/operaciones/{op_id}/resolver", json=cuerpo, headers=_en(e, rol))
+
+
+def _bitacora(e: dict, op_id: str) -> list[str]:
+    with SessionLocal(info={CLAVE_TIENDA: e["id_a"]}) as db:
+        return list(db.scalars(select(Bitacora.accion).where(Bitacora.accion.like(f"%{op_id}%"))))
 
 
 # ==============================================================================
 # CU-14: RESOLVER CONFLICTOS DE SINCRONIZACIÓN (CP-10, CP-11)
 # ==============================================================================
+def test_cp10_venta_offline_sin_stock_queda_en_conflicto(entorno):
+    """CP-10: si el stock del sistema no alcanza, la venta no se confirma: espera la decisión."""
+    op_id = _venta_en_conflicto(entorno)
+    conflictos = client.get("/api/v1/sync/operaciones", params={"estado": "conflicto"}, headers=_en(entorno, "admin")).json()
+    assert op_id in [c["id"] for c in conflictos]
+    assert _stock(entorno, entorno["central"]) == 1  # mientras espera no se toca el inventario
 
-def test_cp10_sincronizar_venta_sin_stock_genera_conflicto(entorno_pruebas):
-    """CP-10: Sincronizar una venta offline cuando el stock central no alcanza
-    debe dejar la operación en estado 'conflicto' en lugar de confirmarla."""
-    token = entorno_pruebas["token_encargado_a"]
-    slug = entorno_pruebas["slug_a"]
-    op_uuid = str(uuid4())
 
-    payload = {
-        "operaciones": [
-            {
-                "id": op_uuid,
-                "tipo": "venta",
-                "datos": {
-                    "sucursal_id": entorno_pruebas["sucursal_1_id"],
-                    "lineas": [
-                        {"variante_id": entorno_pruebas["variante_id"], "cantidad": 5, "precio": 250.0}
-                    ],
-                    "total": 1250.0,
-                    "forma_pago": "efectivo",
-                    "registrada_en": datetime.now(timezone.utc).isoformat(),
-                },
-            }
-        ]
-    }
-
-    res = client.post(
-        "/api/v1/sync/operaciones",
-        json=payload,
-        headers={"Authorization": f"Bearer {token}", "X-Tienda": slug},
-    )
+def test_cp11_el_administrador_acepta_el_conflicto_con_ajuste(entorno):
+    """CP-11 (aceptar): se registra la venta y el faltante queda en el kardex; queda en bitácora."""
+    op_id = _venta_en_conflicto(entorno)
+    res = _resolver(entorno, op_id, accion="aceptar", nota="Aprobado con ajuste de kardex")
     assert res.status_code == 200, res.text
-    resultados = res.json()["resultados"]
-    assert len(resultados) == 1
-    assert resultados[0]["estado"] == "conflicto"
-    assert resultados[0]["codigo"] == "sin_stock"
+    body = res.json()
+    assert (body["estado"], body["sucursal_id"], body["referencia_tipo"]) == ("confirmada", entorno["central"], "venta")
+    assert body["nota_resolucion"] == "Aprobado con ajuste de kardex"
+    assert _bitacora(entorno, op_id) == [f"Sincronización: operación {op_id} aceptada"]
+    assert _resolver(entorno, op_id, accion="aceptar").status_code == 409  # ya resuelta
 
 
-def test_cp11_resolver_conflicto_como_administrador(entorno_pruebas):
-    """CP-11: El Administrador de Empresa lista los conflictos de su tenant,
-    selecciona uno y lo resuelve (aceptar con ajuste o anular), registrándose en bitácora."""
-    token_admin = entorno_pruebas["token_admin_a"]
-    slug = entorno_pruebas["slug_a"]
-
-    # 1. Listar operaciones en conflicto
-    res_list = client.get(
-        "/api/v1/sync/operaciones?estado=conflicto",
-        headers={"Authorization": f"Bearer {token_admin}", "X-Tienda": slug},
-    )
-    assert res_list.status_code == 200
-    conflictos = res_list.json()
-    assert len(conflictos) >= 1
-    conflicto = conflictos[0]
-    op_id = conflicto["id"]
-
-    # 2. Resolver conflicto con 'aceptar' (ajuste de stock con faltante en kardex)
-    res_resolve = client.post(
-        f"/api/v1/sync/operaciones/{op_id}/resolver",
-        json={"accion": "aceptar", "nota": "Aprobado por el Administrador con ajuste de kardex"},
-        headers={"Authorization": f"Bearer {token_admin}", "X-Tienda": slug},
-    )
-    assert res_resolve.status_code == 200
-    resultado = res_resolve.json()
-    assert resultado["estado"] == "confirmada"
-    assert resultado["nota_resolucion"] == "Aprobado por el Administrador con ajuste de kardex"
-
-    # 3. Verificar que quedó registrado en la bitácora
-    with SessionLocal(info={CLAVE_TIENDA: entorno_pruebas["id_a"]}) as db:
-        bit = db.scalars(
-            select(Bitacora).where(Bitacora.accion.like(f"%{op_id}%")).order_by(Bitacora.id.desc())
-        ).first()
-        assert bit is not None
-        assert "aceptada" in bit.accion
+def test_cp11_el_administrador_anula_el_conflicto(entorno):
+    """CP-11 (anular): no se registra la venta ni se toca el inventario."""
+    op_id = _venta_en_conflicto(entorno)
+    res = _resolver(entorno, op_id, accion="anular", nota="Inconsistencia de inventario")
+    assert res.status_code == 200, res.text
+    assert (res.json()["estado"], res.json()["referencia_id"]) == ("rechazada", None)
+    assert _stock(entorno, entorno["central"]) == 1
+    assert _bitacora(entorno, op_id) == [f"Sincronización: operación {op_id} anulada"]
 
 
-def test_cp11_anular_conflicto(entorno_pruebas):
-    """CP-11 (variante anular): Resolver un conflicto rechazándolo / anulándolo."""
-    token_enc = entorno_pruebas["token_encargado_a"]
-    token_admin = entorno_pruebas["token_admin_a"]
-    slug = entorno_pruebas["slug_a"]
-    op_uuid = str(uuid4())
+def test_cp11_reasignar_descuenta_de_la_sucursal_elegida(entorno):
+    """CP-11 (reasignar): la vendió un cajero de la Central, pero la prenda salió del Norte."""
+    _poner_stock(entorno, entorno["norte"], 5)
+    op_id = _venta_en_conflicto(entorno, cantidad=3)
+    res = _resolver(entorno, op_id, accion="reasignar", nueva_sucursal_id=entorno["norte"], nota="Se entregó desde el Norte")
+    assert res.status_code == 200, res.text
+    body = res.json()
+    assert (body["estado"], body["sucursal_id"], body["referencia_tipo"]) == ("confirmada", entorno["norte"], "venta")
+    assert body["datos"]["sucursal_id"] == entorno["central"]  # lo que subió el dispositivo queda como llegó
+    assert (_stock(entorno, entorno["norte"]), _stock(entorno, entorno["central"])) == (2, 1)
+    assert _bitacora(entorno, op_id) == [f"Sincronización: operación {op_id} reasignada a sucursal #{entorno['norte']}"]
 
-    # Crear otro conflicto
-    client.post(
-        "/api/v1/sync/operaciones",
-        json={
-            "operaciones": [
-                {
-                    "id": op_uuid,
-                    "tipo": "venta",
-                    "datos": {
-                        "sucursal_id": entorno_pruebas["sucursal_1_id"],
-                        "lineas": [{"variante_id": entorno_pruebas["variante_id"], "cantidad": 10, "precio": 250.0}],
-                        "total": 2500.0,
-                        "forma_pago": "efectivo",
-                        "registrada_en": datetime.now(timezone.utc).isoformat(),
-                    },
-                }
-            ]
-        },
-        headers={"Authorization": f"Bearer {token_enc}", "X-Tienda": slug},
-    )
 
-    # Anular como admin
-    res_anular = client.post(
-        f"/api/v1/sync/operaciones/{op_uuid}/resolver",
-        json={"accion": "anular", "nota": "Anulación por inconsistencia total de inventario"},
-        headers={"Authorization": f"Bearer {token_admin}", "X-Tienda": slug},
-    )
-    assert res_anular.status_code == 200
-    assert res_anular.json()["estado"] == "rechazada"
+def test_cp11_reasignar_exige_sucursal_propia_y_solo_lo_hace_el_administrador(entorno):
+    op_id = _venta_en_conflicto(entorno)
+    assert _resolver(entorno, op_id, accion="reasignar").status_code == 422  # falta la sucursal de destino
+    assert _resolver(entorno, op_id, rol="encargado", accion="reasignar", nueva_sucursal_id=entorno["norte"]).status_code == 403
+    # Una sucursal de otra empresa no existe para esta
+    ajena = _resolver(entorno, op_id, accion="reasignar", nueva_sucursal_id=entorno["sucursal_b"])
+    assert ajena.status_code == 409, ajena.text
+    assert "no existe en esta empresa" in ajena.json()["detail"]
+    # Nada de lo anterior la resolvió: sigue esperando la decisión
+    assert _resolver(entorno, op_id, accion="rechazar").json()["estado"] == "rechazada"
 
 
 # ==============================================================================
 # CU-16: REPORTES MEDIANTE LENGUAJE NATURAL (CP-12, CP-14)
 # ==============================================================================
+def _reporte_ia(e: dict, rol: str, interpretacion: str, prompt: str):
+    # La IA solo traduce el pedido a un JSON; se simula para no depender del proveedor externo
+    with patch("app.api.v1.endpoints.ia.llamar_mistral", return_value=interpretacion):
+        return client.post("/api/v1/ia/reportes", json={"prompt": prompt}, headers=_en(e, rol))
 
-def test_cp12_generar_reporte_ia_lenguaje_natural(entorno_pruebas, monkeypatch):
-    """CP-12: El Administrador o Encargado solicita un reporte en lenguaje natural,
-    el sistema interpreta la solicitud, ejecuta la query y devuelve datos + narrativa IA."""
-    token = entorno_pruebas["token_admin_a"]
-    slug = entorno_pruebas["slug_a"]
 
-    # Simular respuesta estructurada del LLM
-    from app.services import ia_service
-    monkeypatch.setattr(
-        ia_service,
-        "llamar_mistral",
-        lambda **kwargs: '{"tipo": "ventas", "desde": null, "hasta": null, "sucursal_id": null}',
-    )
+def test_cp12_reporte_en_lenguaje_natural_con_narrativa(entorno):
+    """CP-12: interpreta el pedido, consulta los datos y devuelve narrativa y tipo de gráfico."""
+    res = _reporte_ia(entorno, "admin", '{"tipo": "ventas", "desde": null, "hasta": null, "sucursal_id": null}', "Mostrame las ventas por sucursal")
+    assert res.status_code == 200, res.text
+    body = res.json()
+    assert (body["tipo"], body["tipo_grafico"]) == ("ventas", "barras")
+    assert isinstance(body["datos"], list)
+    assert body["narrativa_ia"].startswith("Se registraron Bs.")
 
-    res = client.post(
-        "/api/v1/ia/reportes",
-        json={"prompt": "Mostrame las ventas consolidadas por sucursal"},
-        headers={"Authorization": f"Bearer {token}", "X-Tienda": slug},
+
+def test_cp12_el_encargado_pide_el_rendimiento_por_categoria(entorno):
+    """RF21: cuarto tipo de reporte (rendimiento por categoría), también para el encargado."""
+    res = _reporte_ia(
+        entorno, "encargado", '{"tipo": "rendimiento_categorias", "desde": null, "hasta": null, "sucursal_id": null}',
+        "¿Cuál es el rendimiento de ventas por categoría?",
     )
     assert res.status_code == 200, res.text
     body = res.json()
-    assert body["tipo"] == "ventas"
-    assert "narrativa_ia" in body and body["narrativa_ia"] is not None
-    assert body["tipo_grafico"] == "barras"
+    assert (body["tipo"], body["tipo_grafico"]) == ("rendimiento_categorias", "pastel")
     assert isinstance(body["datos"], list)
 
 
-def test_cp12_cuarto_tipo_reporte_rendimiento_categorias(entorno_pruebas, monkeypatch):
-    """RF21: Generar el cuarto tipo de reporte (rendimiento por categoría) con IA."""
-    token = entorno_pruebas["token_encargado_a"]
-    slug = entorno_pruebas["slug_a"]
+def test_cp14_cada_empresa_ve_solo_sus_reportes(entorno):
+    """CP-14 (RN02 / RN09): los reportes se limitan a la empresa autenticada."""
+    _poner_stock(entorno, entorno["central"], 5)
+    assert _vender_sin_conexion(entorno, 1)["estado"] == "confirmada"
 
-    from app.services import ia_service
-    monkeypatch.setattr(
-        ia_service,
-        "llamar_mistral",
-        lambda **kwargs: '{"tipo": "rendimiento_categorias", "desde": null, "hasta": null, "sucursal_id": null}',
-    )
+    ventas_a = client.get("/api/v1/reportes/ventas", headers=_en(entorno, "admin"))
+    assert ventas_a.status_code == 200, ventas_a.text
+    assert entorno["central"] in [v["sucursal_id"] for v in ventas_a.json()]
 
-    res = client.post(
-        "/api/v1/ia/reportes",
-        json={"prompt": "Cuál es el rendimiento de ventas por categoría textil?"},
-        headers={"Authorization": f"Bearer {token}", "X-Tienda": slug},
-    )
-    assert res.status_code == 200, res.text
-    body = res.json()
-    assert body["tipo"] == "rendimiento_categorias"
-    assert body["tipo_grafico"] == "pastel"
-    assert isinstance(body["datos"], list)
-
-
-def test_cp14_aislamiento_multitenant_en_reportes(entorno_pruebas):
-    """CP-14 (RN02 / RN09): La consulta de reportes se restringe estrictamente
-    al tenant autenticado y no expone datos de otra empresa."""
-    token_b = entorno_pruebas["token_admin_b"]
-    slug_b = entorno_pruebas["slug_b"]
-
-    # Empresa B intenta consultar las ventas: solo ve sus ventas (vacías), nunca las de Empresa A
-    res = client.get(
-        "/api/v1/reportes/ventas",
-        headers={"Authorization": f"Bearer {token_b}", "X-Tienda": slug_b},
-    )
-    assert res.status_code == 200
-    ventas_b = res.json()
-    sucursales_b_ids = [v["sucursal_id"] for v in ventas_b]
-    # No puede aparecer ninguna sucursal de Empresa A
-    assert entorno_pruebas["sucursal_1_id"] not in sucursales_b_ids
-    assert entorno_pruebas["sucursal_2_id"] not in sucursales_b_ids
+    ventas_b = client.get("/api/v1/reportes/ventas", headers=_en(entorno, "admin_b"))
+    assert ventas_b.status_code == 200, ventas_b.text
+    assert not {entorno["central"], entorno["norte"]} & {v["sucursal_id"] for v in ventas_b.json()}
 
 
 # ==============================================================================
 # CU-17: EXPORTAR REPORTE (CP-13)
 # ==============================================================================
-
-def test_cp13_exportar_reporte_excel(entorno_pruebas):
-    """CP-13: Exporta el reporte generado a un archivo Excel XLSX válido con encabezados corporativos."""
-    token = entorno_pruebas["token_admin_a"]
-    slug = entorno_pruebas["slug_a"]
-
+def test_cp13_exportar_reporte_excel(entorno):
+    """CP-13: archivo XLSX válido (un ZIP: empieza con PK) descargable."""
     res = client.post(
         "/api/v1/reportes/exportar/excel",
         json={"tipo": "ventas", "formato": "excel", "titulo": "Reporte de Ventas por Sucursal"},
-        headers={"Authorization": f"Bearer {token}", "X-Tienda": slug},
+        headers=_en(entorno, "admin"),
     )
-    assert res.status_code == 200
+    assert res.status_code == 200, res.text
     assert res.headers["content-type"] == "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     assert "attachment; filename=" in res.headers["content-disposition"]
-    # El archivo no debe estar vacío y debe ser un ZIP/XLSX válido (inicia con PK)
     assert len(res.content) > 1000
     assert res.content[:2] == b"PK"
 
 
-def test_cp13_exportar_reporte_pdf(entorno_pruebas):
-    """CP-13: Exporta el reporte generado a un archivo PDF corporativo con membrete."""
-    token = entorno_pruebas["token_admin_a"]
-    slug = entorno_pruebas["slug_a"]
-
+def test_cp13_exportar_reporte_pdf(entorno):
+    """CP-13: documento PDF válido descargable."""
     res = client.post(
         "/api/v1/reportes/exportar/pdf",
         json={"tipo": "rendimiento_categorias", "formato": "pdf", "titulo": "Rendimiento por Categoría"},
-        headers={"Authorization": f"Bearer {token}", "X-Tienda": slug},
+        headers=_en(entorno, "admin"),
     )
-    assert res.status_code == 200
+    assert res.status_code == 200, res.text
     assert res.headers["content-type"] == "application/pdf"
     assert "attachment; filename=" in res.headers["content-disposition"]
-    # Cabecera estándar de PDF: %PDF
     assert res.content.startswith(b"%PDF")
 
 
 # ==============================================================================
 # CU-18: DASHBOARD DE ANALÍTICA CON MACHINE LEARNING (CP-15, CP-16)
 # ==============================================================================
-
-def test_cp15_consultar_dashboard_analitica_ml_plan_profesional(entorno_pruebas):
-    """CP-15 (RF24 / CU-18): Consultar el dashboard de analítica ML con plan Profesional
-    habilitado presenta predicciones de demanda, clusters y métricas formales R² y Silueta."""
-    token = entorno_pruebas["token_admin_a"]
-    slug = entorno_pruebas["slug_a"]
-
-    res = client.get(
-        "/api/v1/reportes/analitica-ml",
-        headers={"Authorization": f"Bearer {token}", "X-Tienda": slug},
-    )
+def test_cp15_dashboard_analitica_ml_con_plan_profesional(entorno):
+    """CP-15 (RF24): predicción de demanda (supervisado), segmentos de clientes (no supervisado)
+    y sus métricas (R², MAE, silueta)."""
+    res = client.get("/api/v1/reportes/analitica-ml", headers=_en(entorno, "admin"))
     assert res.status_code == 200, res.text
     data = res.json()
 
-    # Métricas del modelo
     metricas = data["metricas"]
-    assert metricas["r2_score"] >= 0.70, f"R² esperado >= 0.70, obtenido: {metricas['r2_score']}"
+    assert metricas["r2_score"] >= 0.70, metricas
     assert metricas["mae"] > 0
-    assert metricas["silhouette_score"] > 0.40, f"Silueta esperada > 0.40, obtenida: {metricas['silhouette_score']}"
+    assert metricas["silhouette_score"] > 0.40, metricas
 
-    # Predicciones supervisadas
     predicciones = data["predicciones_demanda"]
     assert len(predicciones) == 4
     for p in predicciones:
         assert p["ventas_proyectadas"] > 0
         assert p["limite_superior"] >= p["ventas_proyectadas"] >= p["limite_inferior"]
 
-    # Segmentación no supervisada (clusters)
     segmentos = data["segmentacion_clientes"]
     assert len(segmentos) == 4
-    total_pct = sum(s["porcentaje"] for s in segmentos)
-    assert 99.0 <= total_pct <= 101.0, f"Suma de porcentajes esperada ~100%, obtenida: {total_pct}"
+    assert 99.0 <= sum(s["porcentaje"] for s in segmentos) <= 101.0
+
+    # El dashboard de ML es del administrador
+    assert client.get("/api/v1/reportes/analitica-ml", headers=_en(entorno, "encargado")).status_code == 403
 
 
-def test_cp16_intentar_acceder_dashboard_ia_con_plan_basico(entorno_pruebas):
-    """CP-16 (RF05 / RN03 / CU-18): Intentar acceder al dashboard de analítica ML
-    o reportes IA desde una empresa con Plan Básico debe ser denegado por el backend."""
-    token_b = entorno_pruebas["token_admin_b"]
-    slug_b = entorno_pruebas["slug_b"]
-
-    # 1. Acceso a Analítica ML
-    res_ml = client.get(
-        "/api/v1/reportes/analitica-ml",
-        headers={"Authorization": f"Bearer {token_b}", "X-Tienda": slug_b},
-    )
-    # Debe ser denegado por falta de suscripción a la función reportes_ia (402 o 403)
-    assert res_ml.status_code in (402, 403), f"Se esperaba 402/403, obtenido: {res_ml.status_code}"
-
-    # 2. Acceso a Reportes IA
-    res_ia = client.post(
-        "/api/v1/ia/reportes",
-        json={"prompt": "Ventas del mes"},
-        headers={"Authorization": f"Bearer {token_b}", "X-Tienda": slug_b},
-    )
-    assert res_ia.status_code in (402, 403), f"Se esperaba 402/403, obtenido: {res_ia.status_code}"
+def test_cp16_plan_basico_no_accede_a_ml_ni_a_reportes_ia(entorno):
+    """CP-16 (RF05 / RN03): la función reportes_ia no está en el plan Básico."""
+    assert client.get("/api/v1/reportes/analitica-ml", headers=_en(entorno, "admin_b")).status_code == 402
+    res_ia = _reporte_ia(entorno, "admin_b", '{"tipo": "ventas"}', "Ventas del mes")
+    assert res_ia.status_code == 402

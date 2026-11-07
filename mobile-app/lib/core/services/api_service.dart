@@ -82,6 +82,7 @@ class ApiService {
   List<String> get roles => ((currentUser?['roles'] as List?) ?? const []).map((r) => '$r').toList();
   bool get esPersonal => roles.any(const {'Cajero', 'Encargado', 'Administrador'}.contains);
   bool get puedeCobrarEnCaja => roles.any(const {'Cajero', 'Administrador'}.contains);
+  bool get puedeResolverConflictos => roles.any(const {'Encargado', 'Administrador'}.contains);
 
   Map<String, String> get _headers {
     final map = <String, String>{

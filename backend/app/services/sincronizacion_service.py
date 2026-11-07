@@ -287,7 +287,7 @@ def resultado_de(registro: OperacionSync, duplicada: bool = False) -> ResultadoO
 # ==============================================================================
 # Validaciones comunes y aplicación de cada tipo
 # ==============================================================================
-def _aplicar(db: Session, actor: Actor, op: OperacionIn, ahora: datetime, forzar: bool) -> _Efecto:
+def _aplicar(db: Session, actor: Actor, op: OperacionIn, ahora: datetime, forzar: bool, reasignada: bool = False) -> _Efecto:
     tienda = _tienda(db)
     if op.tienda.strip().lower() != tienda.slug:
         raise _rechazo("otra_empresa", f"La operación se registró en la empresa '{op.tienda}', no en {tienda.nombre}")
@@ -300,7 +300,7 @@ def _aplicar(db: Session, actor: Actor, op: OperacionIn, ahora: datetime, forzar
     fecha = _con_zona(op.registrada_en)
     if fecha > ahora + TOLERANCIA_RELOJ:
         raise _rechazo("fecha_futura", "La fecha de registro es posterior a la hora del servidor: revisá el reloj del dispositivo")
-    sucursal = _sucursal_autorizada(db, actor, op.sucursal_id)
+    sucursal = _sucursal_autorizada(db, actor, op.sucursal_id, reasignada)
     modelo, aplicador = _APLICADORES[op.tipo]
     datos = _validar(modelo, op.datos)
     contexto = _Contexto(db, tienda, actor, sucursal, min(fecha, ahora), ahora, op.id, forzar)
@@ -315,12 +315,13 @@ def _validar(modelo: type[BaseModel], datos: dict) -> BaseModel:
         raise _rechazo("datos_invalidos", f"Datos incompletos o inválidos: {campos}")
 
 
-def _sucursal_autorizada(db: Session, actor: Actor, sucursal_id: int) -> Sucursal:
+def _sucursal_autorizada(db: Session, actor: Actor, sucursal_id: int, reasignada: bool = False) -> Sucursal:
     sucursal = db.get(Sucursal, sucursal_id)
     if not sucursal or not sucursal.estado or sucursal.fecha_eliminacion is not None:
         raise _rechazo("sucursal_invalida", f"La sucursal #{sucursal_id} no existe en esta empresa o está inactiva")
-    # El personal opera en su sucursal; el administrador en cualquiera; un cliente reserva donde quiera
-    if actor.es_personal and not actor.es_admin and actor.sucursal_id != sucursal.id:
+    # El personal opera en su sucursal; el administrador en cualquiera; un cliente reserva donde quiera.
+    # Si el administrador reasignó el conflicto, la sucursal la eligió él: el autor no tiene que trabajar ahí.
+    if not reasignada and actor.es_personal and not actor.es_admin and actor.sucursal_id != sucursal.id:
         raise _rechazo("sucursal_no_autorizada", f"Tu usuario trabaja en otra sucursal: no puede registrar operaciones en {sucursal.nombre}")
     return sucursal
 
@@ -705,17 +706,17 @@ def resolver_conflicto(
     db: Session, registro: OperacionSync, autor: Optional[Actor], resolutor_id: int, accion: str, nota: Optional[str], nueva_sucursal_id: Optional[int] = None
 ) -> OperacionSync:
     """aceptar: se aplica como la registró su autor, aunque el stock no alcance (el faltante queda
-    en el kardex). reasignar: se asigna a otra sucursal autorizada. anular/rechazar: no se aplica."""
+    en el kardex). reasignar: igual, pero descontando de la sucursal que elige el administrador (los
+    datos originales quedan como llegaron, para auditoría). anular/rechazar: no se aplica."""
     ahora = _ahora()
     if accion in ("aceptar", "reasignar"):
         if autor is None:
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="El usuario que registró la operación ya no existe: solo se puede rechazar")
         datos = dict(registro.datos)
-        if accion == "reasignar" and nueva_sucursal_id:
+        if accion == "reasignar":
             datos["sucursal_id"] = nueva_sucursal_id
-            registro.sucursal_id = nueva_sucursal_id
         try:
-            efecto = _aplicar(db, autor, OperacionIn.model_validate(datos), ahora, forzar=True)
+            efecto = _aplicar(db, autor, OperacionIn.model_validate(datos), ahora, forzar=True, reasignada=accion == "reasignar")
         except OperacionNoAplicable as motivo:
             db.rollback()
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=f"Todavía no se puede aceptar: {motivo.mensaje}")

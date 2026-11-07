@@ -100,8 +100,11 @@ def resolver_conflicto(
     current_user: Usuario = Depends(require_roles(_ROLES_SUPERVISION)),
 ):
     """Decide una operación en conflicto. aceptar: se registra como la hizo su autor y el faltante
-    de inventario queda en el kardex. rechazar: no se registra."""
+    de inventario queda en el kardex. reasignar (solo el administrador): igual, descontando de otra
+    sucursal. rechazar/anular: no se registra."""
     resolutor = _actor(db, current_user)
+    if datos.accion == "reasignar" and not resolutor.es_admin:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Solo el administrador puede reasignar una operación a otra sucursal")
     registro = sync.bloquear_para_resolver(db, operacion_id)
     if registro is None or (not resolutor.es_admin and registro.sucursal_id != resolutor.sucursal_id):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Operación no encontrada")
@@ -114,6 +117,11 @@ def resolver_conflicto(
     registro = sync.resolver_conflicto(
         db, registro, _actor(db, autor) if autor else None, current_user.id, datos.accion, datos.nota, datos.nueva_sucursal_id
     )
-    resultado = "aceptada" if datos.accion == "aceptar" else "rechazada"
+    resultado = {
+        "aceptar": "aceptada",
+        "reasignar": f"reasignada a sucursal #{datos.nueva_sucursal_id}",  # bitacora.accion admite 100 caracteres
+        "rechazar": "rechazada",
+        "anular": "anulada",
+    }[datos.accion]
     registrar_bitacora(db, current_user.id, f"Sincronización: operación {registro.uuid} {resultado}", get_client_ip(request))
     return sync.para_supervision(db, registro)
