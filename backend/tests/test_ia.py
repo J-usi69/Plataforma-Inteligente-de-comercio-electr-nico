@@ -2,6 +2,7 @@
 para no depender de una API key real ni de la red en cada corrida de tests."""
 import json
 import time
+from datetime import date
 from unittest.mock import patch
 
 from fastapi.testclient import TestClient
@@ -110,6 +111,33 @@ def test_cu30_reporte_ia_solicitud_ambigua():
 
     assert res.status_code == 422, res.text
     assert "reportes predefinidos" in res.json()["detail"]
+
+
+def test_cu30_reporte_ia_proveedor_caido_no_pide_reformular():
+    """Si el proveedor de IA falla (por ejemplo, la llave venció y responde 401), el problema no
+    es la redacción del pedido: se informa que la IA no está disponible, con un 503."""
+    token = _login_admin()
+    headers = {"Authorization": f"Bearer {token}"}
+
+    with patch("app.api.v1.endpoints.ia.llamar_mistral", side_effect=IAServiceError("401 Unauthorized")):
+        res = client.post("/api/v1/ia/reportes", headers=headers, json={"prompt": "ventas del mes por sucursal"})
+
+    assert res.status_code == 503, res.text
+    assert "no está disponible" in res.json()["detail"]
+    assert "Reformulala" not in res.json()["detail"]
+
+
+def test_cu30_reporte_ia_le_da_la_fecha_de_hoy_al_modelo():
+    """Para resolver "los últimos 30 días" el modelo necesita saber qué día es hoy."""
+    token = _login_admin()
+    headers = {"Authorization": f"Bearer {token}"}
+    respuesta_ia = json.dumps({"tipo": "ventas", "desde": None, "hasta": None, "sucursal_id": None})
+
+    with patch("app.api.v1.endpoints.ia.llamar_mistral", return_value=respuesta_ia) as modelo:
+        res = client.post("/api/v1/ia/reportes", headers=headers, json={"prompt": "ventas de los últimos 30 días"})
+
+    assert res.status_code == 200, res.text
+    assert date.today().isoformat() in modelo.call_args.kwargs["system_prompt"]
 
 
 def test_cu30_reporte_ia_requiere_rol_administrador():

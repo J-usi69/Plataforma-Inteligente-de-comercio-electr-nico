@@ -439,6 +439,12 @@ export class Dashboard implements OnInit {
       });
     } else if (tab === 'reportes') {
       this.cargarReportes();
+    } else if (tab === 'conflictos') {
+      this.cargarConflictos();
+    } else if (tab === 'analitica-ml') {
+      // Sin la función en el plan la pestaña muestra el aviso de bloqueo: no hay nada que pedir
+      if (this.tienda.tiene('reportes_ia')) this.cargarAnaliticaML();
+      else this.isLoading.set(false);
     } else if (tab === 'bitacora') {
       this.business.getBitacora().subscribe({
         next: (data) => { this.bitacora.set(data); this.isLoading.set(false); },

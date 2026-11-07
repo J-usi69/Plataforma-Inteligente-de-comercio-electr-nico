@@ -1766,9 +1766,11 @@
       <button type="button" class="btn btn-secondary" (click)="cerrarModal()">Cerrar</button>
     </div>
   </div>
+</div>
 
-  <!-- Modal Resolver Conflicto de Sincronización (CU-14) -->
-  <div class="modal-backdrop" *ngIf="showModal() === 'resolver-conflicto'">
+  <!-- Modal Resolver Conflicto de Sincronización (CU-14): al mismo nivel que los demás modales
+       (adentro del de variantes no se mostraba nunca) y con la clase que tiene estilos -->
+  <div class="modal-overlay" *ngIf="showModal() === 'resolver-conflicto'">
     <div class="modal-content" style="max-width: 520px;" *ngIf="conflictoSeleccionado() as op">
       <div class="modal-header">
         <h4>Resolver Conflicto de Sincronización</h4>
@@ -1826,5 +1828,3 @@
       </div>
     </div>
   </div>
-
-</div>

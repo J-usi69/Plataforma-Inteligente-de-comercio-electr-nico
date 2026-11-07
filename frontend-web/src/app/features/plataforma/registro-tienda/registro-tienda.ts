@@ -7,14 +7,15 @@ import { FUNCIONES_PLAN, Plan } from '../../../core/models/tienda.model';
 import { PlataformaService } from '../../../core/services/plataforma.service';
 
 /** Texto libre -> dirección válida para la URL (misma regla que el backend: a-z, 0-9 y guiones). */
-export function aDireccion(texto: string): string {
-  return texto
+export function aDireccion(texto: string, mientrasEscribe = false): string {
+  const limpio = texto
     .normalize('NFD')
     .replace(/[̀-ͯ]/g, '')
     .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 40);
+    .replace(/[^a-z0-9]+/g, '-');
+  // Mientras se escribe queda el guion del final: si se borrara en cada tecla no se podría
+  // escribir "moda-andina" a mano (quedaba "modaandina"). Al enviar se quita
+  return (mientrasEscribe ? limpio.replace(/^-+/, '') : limpio.replace(/^-+|-+$/g, '')).slice(0, 40);
 }
 
 /** Alta pública de una empresa en la plataforma: crea la tienda con su administrador y el plan
@@ -66,8 +67,8 @@ export class RegistroTienda implements OnInit {
 
   alCambiarSlug(): void {
     this.slugEditadoAMano = true;
-    this.slug = aDireccion(this.slug);
-    this.cambiosDeSlug.next(this.slug);
+    this.slug = aDireccion(this.slug, true);
+    this.cambiosDeSlug.next(aDireccion(this.slug));
   }
 
   async crear(): Promise<void> {
@@ -79,7 +80,7 @@ export class RegistroTienda implements OnInit {
     this.plataforma
       .registrar({
         nombre_tienda: this.nombre.trim(),
-        slug: this.slug,
+        slug: aDireccion(this.slug),
         correo: this.correo.trim(),
         password: this.password,
         plan_codigo: this.planCodigo,

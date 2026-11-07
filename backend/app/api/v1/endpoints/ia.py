@@ -28,6 +28,12 @@ _MENSAJE_REPORTE_AMBIGUO = (
     "No se pudo interpretar la solicitud. Reformulala con más detalle (por ejemplo, "
     "'ventas de la sucursal Equipetrol del último mes') o usá los reportes predefinidos."
 )
+# Que el proveedor de IA falle (sin llave, llave vencida, caído) no es culpa de cómo se escribió el
+# pedido: pedirle al usuario que lo reformule lo haría probar en vano
+_MENSAJE_IA_NO_DISPONIBLE = (
+    "El servicio de IA no está disponible en este momento. Probá de nuevo en unos minutos "
+    "o usá los reportes predefinidos."
+)
 _TIPOS_REPORTE_VALIDOS = {"ventas", "prendas_vendidas", "inventario", "rendimiento_categorias"}
 
 
@@ -193,7 +199,12 @@ def generar_reporte_ia(
 ):
     """CU-30: interpreta una solicitud de reporte en lenguaje natural y devuelve
     el mismo tipo de datos que los reportes predefinidos (CU-31)."""
+    # Sin la fecha de hoy el modelo no puede resolver "este mes" o "los últimos 30 días" y devuelve
+    # el período vacío (el reporte saldría con todo el historial)
+    hoy = date.today().isoformat()
     system_prompt = (
+        f"Hoy es {hoy}. Resolvé los períodos relativos (hoy, esta semana, este mes, los últimos N días) "
+        "a fechas concretas a partir de esa fecha. "
         "Traducís pedidos de reportes de negocio en lenguaje natural a un JSON estricto. "
         'Respondé ÚNICAMENTE con un objeto JSON de la forma '
         '{"tipo": "ventas"|"prendas_vendidas"|"inventario"|"rendimiento_categorias", "desde": "YYYY-MM-DD"|null, '
@@ -201,6 +212,9 @@ def generar_reporte_ia(
     )
     try:
         respuesta = llamar_mistral(system_prompt=system_prompt, user_prompt=datos.prompt, max_tokens=200)
+    except IAServiceError:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=_MENSAJE_IA_NO_DISPONIBLE)
+    try:
         parametros = json.loads(respuesta)
         tipo = parametros.get("tipo")
         if tipo not in _TIPOS_REPORTE_VALIDOS:
@@ -208,7 +222,7 @@ def generar_reporte_ia(
         desde = date.fromisoformat(parametros["desde"]) if parametros.get("desde") else None
         hasta = date.fromisoformat(parametros["hasta"]) if parametros.get("hasta") else None
         sucursal_id = parametros.get("sucursal_id")
-    except (IAServiceError, ValueError, TypeError, json.JSONDecodeError, KeyError):
+    except (ValueError, TypeError, json.JSONDecodeError, KeyError):
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=_MENSAJE_REPORTE_AMBIGUO)
 
     if tipo == "ventas":
