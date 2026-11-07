@@ -158,13 +158,28 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       trailing: const Icon(Icons.chevron_right),
                       onTap: () => context.push('/carrito'),
                     ),
-                    ListTile(
-                      leading: Icon(Icons.auto_awesome, color: context.marca),
-                      title: const Text('Reportes e Inteligencia de Negocio', style: TextStyle(fontWeight: FontWeight.w600)),
-                      subtitle: const Text('Consultas con IA y analítica con Machine Learning'),
-                      trailing: const Icon(Icons.chevron_right),
-                      onTap: () => context.push('/reportes-ia'),
-                    ),
+                    // CU-14: solo el encargado (su sucursal) y el administrador deciden los conflictos
+                    if (_apiService.puedeResolverConflictos)
+                      ListTile(
+                        leading: Icon(Icons.gavel, color: context.marca),
+                        title: const Text('Conflictos de sincronización', style: TextStyle(fontWeight: FontWeight.w600)),
+                        subtitle: const Text('Ventas sin conexión que no se pudieron registrar tal cual'),
+                        trailing: const Icon(Icons.chevron_right),
+                        onTap: () => context.push('/conflictos'),
+                      ),
+                    // Los mismos roles que el backend: un cliente o un cajero no ven reportes
+                    if (_apiService.puedeVerReportes)
+                      ListTile(
+                        leading: Icon(Icons.auto_awesome, color: context.marca),
+                        title: const Text('Reportes e Inteligencia de Negocio', style: TextStyle(fontWeight: FontWeight.w600)),
+                        subtitle: Text(!_apiService.tiene('reportes_ia')
+                            ? 'Incluido en el plan Profesional'
+                            : _apiService.esAdministrador
+                                ? 'Consultas con IA y analítica con Machine Learning'
+                                : 'Consultas con IA'),
+                        trailing: const Icon(Icons.chevron_right),
+                        onTap: () => context.push('/reportes-ia'),
+                      ),
                     const SizedBox(height: 24),
                     ElevatedButton.icon(
                       onPressed: _handleLogout,

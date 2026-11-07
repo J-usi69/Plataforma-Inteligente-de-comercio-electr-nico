@@ -178,6 +178,10 @@ class _CatalogoScreenState extends State<CatalogoScreen> with RouteAware {
                   context.push('/caja');
                 case 'pendientes':
                   context.push('/pendientes');
+                case 'conflictos':
+                  context.push('/conflictos');
+                case 'reportes':
+                  context.push('/reportes-ia');
                 case 'login':
                   // El login se apila arriba del catálogo (no lo reemplaza), así que
                   // al volver hay que refrescar a mano: nadie avisa que ya hay sesión.
@@ -228,6 +232,24 @@ class _CatalogoScreenState extends State<CatalogoScreen> with RouteAware {
                   child: ListTile(
                     leading: Icon(Icons.sync),
                     title: Text('Operaciones pendientes'),
+                  ),
+                ),
+              // CU-14: el encargado y el administrador deciden los conflictos de sincronización
+              if (_apiService.puedeResolverConflictos)
+                const PopupMenuItem(
+                  value: 'conflictos',
+                  child: ListTile(
+                    leading: Icon(Icons.gavel),
+                    title: Text('Conflictos de sincronización'),
+                  ),
+                ),
+              // CU-16 y CU-18: reportes con IA (encargado y administrador) y analítica ML (administrador)
+              if (_apiService.puedeVerReportes)
+                const PopupMenuItem(
+                  value: 'reportes',
+                  child: ListTile(
+                    leading: Icon(Icons.auto_awesome),
+                    title: Text('Reportes e IA'),
                   ),
                 ),
               if (_apiService.isLoggedIn)

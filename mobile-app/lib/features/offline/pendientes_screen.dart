@@ -1,9 +1,10 @@
-import '../../core/services/api_service.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../core/offline/modelos.dart';
 import '../../core/offline/reglas.dart';
 import '../../core/offline/sincronizacion_service.dart';
+import '../../core/services/api_service.dart';
 import '../../core/theme/tema.dart';
 
 const _etiquetas = {
@@ -63,34 +64,6 @@ class _PendientesScreenState extends State<PendientesScreen> {
       messenger.showSnackBar(SnackBar(content: Text(_sync.ultimoError!), backgroundColor: Colors.red.shade700));
     } else if (_sync.pendientes == 0) {
       messenger.showSnackBar(const SnackBar(content: Text('No quedan operaciones por enviar.')));
-    }
-  }
-
-  Future<void> _resolverConflicto(String opId, String accion) async {
-    final messenger = ScaffoldMessenger.of(context);
-    try {
-      await ApiService().resolverConflicto(
-        opId,
-        accion,
-        nota: 'Resuelto desde la aplicación móvil',
-      );
-      if (mounted) {
-        Navigator.of(context).pop();
-        messenger.showSnackBar(
-          SnackBar(
-            content: Text('Operación ${accion == "aceptar" ? "aceptada con ajuste" : "anulada"} exitosamente.'),
-            backgroundColor: accion == "aceptar" ? const Color(0xFF15803D) : const Color(0xFFDC2626),
-          ),
-        );
-        setState(() {});
-        await _sincronizarAhora();
-      }
-    } catch (e) {
-      if (mounted) {
-        messenger.showSnackBar(
-          SnackBar(content: Text('Error al resolver: $e'), backgroundColor: Colors.red.shade700),
-        );
-      }
     }
   }
 
@@ -349,38 +322,23 @@ class _PendientesScreenState extends State<PendientesScreen> {
                           style: TextStyle(fontSize: 12, color: Color(0xFF9A3412)),
                         )
                       else ...[
-                      const Text(
-                        'Podés resolver este conflicto aplicando un ajuste de inventario o anulando la operación:',
-                        style: TextStyle(fontSize: 12, color: Color(0xFF9A3412)),
-                      ),
-                      const SizedBox(height: 10),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: ElevatedButton(
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF15803D),
-                                foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(vertical: 8),
-                              ),
-                              onPressed: () => _resolverConflicto(op.id, 'aceptar'),
-                              child: const Text('Aceptar Ajuste', style: TextStyle(fontSize: 12)),
-                            ),
+                        const Text(
+                          'Revisá el detalle y decidí qué hacer: aceptar con ajuste de inventario, reasignar o anular.',
+                          style: TextStyle(fontSize: 12, color: Color(0xFF9A3412)),
+                        ),
+                        const SizedBox(height: 10),
+                        SizedBox(
+                          width: double.infinity,
+                          child: FilledButton.icon(
+                            // CU-14: la misma decisión que en el panel, con nota para la bitácora
+                            onPressed: () {
+                              Navigator.of(context).pop();
+                              this.context.push('/conflictos', extra: op.id);
+                            },
+                            icon: const Icon(Icons.gavel),
+                            label: const Text('Revisar y decidir'),
                           ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: OutlinedButton(
-                              style: OutlinedButton.styleFrom(
-                                foregroundColor: const Color(0xFFDC2626),
-                                side: const BorderSide(color: Color(0xFFDC2626)),
-                                padding: const EdgeInsets.symmetric(vertical: 8),
-                              ),
-                              onPressed: () => _resolverConflicto(op.id, 'anular'),
-                              child: const Text('Anular', style: TextStyle(fontSize: 12)),
-                            ),
-                          ),
-                        ],
-                      ),
+                        ),
                       ],
                     ],
                   ),

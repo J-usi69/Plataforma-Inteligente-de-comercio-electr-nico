@@ -24,11 +24,16 @@ class _ReportesIaScreenState extends State<ReportesIaScreen> with SingleTickerPr
   String? _errorMl;
   Map<String, dynamic>? _dashboardMl;
 
+  // Mismas reglas que el backend: el plan tiene que incluir los reportes con IA, y la analítica ML
+  // es solo del administrador (el encargado ve los reportes)
+  final bool _enElPlan = ApiService().tiene('reportes_ia');
+  final bool _conMl = ApiService().esAdministrador;
+
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
-    _cargarAnaliticaMl();
+    _tabController = TabController(length: _conMl ? 2 : 1, vsync: this);
+    if (_enElPlan && _conMl) _cargarAnaliticaMl();
   }
 
   @override
@@ -91,14 +96,15 @@ class _ReportesIaScreenState extends State<ReportesIaScreen> with SingleTickerPr
 
   @override
   Widget build(BuildContext context) {
+    if (!_enElPlan) return _fueraDelPlan();
     return Scaffold(
       appBar: AppBar(
         title: const Text('Inteligencia de Negocio'),
         bottom: TabBar(
           controller: _tabController,
-          tabs: const [
-            Tab(icon: Icon(Icons.auto_awesome), text: 'Reportes IA'),
-            Tab(icon: Icon(Icons.analytics_outlined), text: 'Analítica ML'),
+          tabs: [
+            const Tab(icon: Icon(Icons.auto_awesome), text: 'Reportes IA'),
+            if (_conMl) const Tab(icon: Icon(Icons.analytics_outlined), text: 'Analítica ML'),
           ],
         ),
       ),
@@ -106,7 +112,29 @@ class _ReportesIaScreenState extends State<ReportesIaScreen> with SingleTickerPr
         controller: _tabController,
         children: [
           _vistaReportesIa(),
-          _vistaAnaliticaMl(),
+          if (_conMl) _vistaAnaliticaMl(),
+        ],
+      ),
+    );
+  }
+
+  Widget _fueraDelPlan() {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Inteligencia de Negocio')),
+      body: ListView(
+        padding: const EdgeInsets.fromLTRB(32, 64, 32, 32),
+        children: [
+          Icon(Icons.workspace_premium_outlined, size: 56, color: context.marca),
+          const SizedBox(height: 16),
+          Text('Disponible en el plan Profesional',
+              textAlign: TextAlign.center, style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: 8),
+          Text(
+            'Los reportes con IA y la analítica con Machine Learning no están incluidos en el plan de '
+            '${ApiService().tiendaNombre}. El administrador puede cambiar de plan desde la web, en "Mi plan".',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: Colors.grey.shade700),
+          ),
         ],
       ),
     );

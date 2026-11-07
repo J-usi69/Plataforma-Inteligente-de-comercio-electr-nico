@@ -82,7 +82,10 @@ class ApiService {
   List<String> get roles => ((currentUser?['roles'] as List?) ?? const []).map((r) => '$r').toList();
   bool get esPersonal => roles.any(const {'Cajero', 'Encargado', 'Administrador'}.contains);
   bool get puedeCobrarEnCaja => roles.any(const {'Cajero', 'Administrador'}.contains);
+  bool get esAdministrador => roles.contains('Administrador');
+  // Los mismos roles que el backend: conflictos y reportes con IA (encargado y administrador)
   bool get puedeResolverConflictos => roles.any(const {'Encargado', 'Administrador'}.contains);
+  bool get puedeVerReportes => puedeResolverConflictos;
 
   Map<String, String> get _headers {
     final map = <String, String>{
@@ -511,6 +514,12 @@ class ApiService {
     });
     return Map<String, dynamic>.from(res)['respuesta'] as String;
   }
+  // CU-14: lo que llegó de los dispositivos (el encargado ve su sucursal; el administrador, todas)
+  Future<List<Map<String, dynamic>>> getOperacionesSync({String? estado, int limite = 200}) async {
+    final res = await get('/api/v1/sync/operaciones?limite=$limite${estado == null ? '' : '&estado=$estado'}');
+    return [for (final o in res as List) Map<String, dynamic>.from(o as Map)];
+  }
+
   // CU-14: Resolver conflictos de sincronización
   Future<Map<String, dynamic>> resolverConflicto(
     String operacionId,
