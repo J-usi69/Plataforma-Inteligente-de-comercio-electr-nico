@@ -221,15 +221,39 @@ Por defecto apunta a `http://10.0.2.2:8000` (así el emulador de Android ve el b
 
 ### Credenciales de prueba
 
-Válidas contra la Supabase compartida. Úsalas contra `POST /api/v1/auth/login` (body `{"login": "...", "password": "..."}`) para obtener un token y probar los endpoints protegidos desde `/docs`, o directamente desde el login de la web/app móvil:
+Son cuentas reales de producción (la misma Supabase compartida), válidas en la web (`https://fashionstore-uagrm.up.railway.app`), en la app móvil y en el backend (`https://fashionstore-backend-production-4c32.up.railway.app/docs`).
+
+Cada empresa del SaaS tiene sus propias cuentas: la sesión vale solo en la empresa donde se inició. Para elegir la empresa:
+- **Web:** se entra por su dirección, `/t/<dirección>/login` (FashionStore también responde en `/login`).
+- **App móvil:** se escribe la dirección en el campo "Empresa" del login.
+- **API (`/docs`):** `POST /api/v1/auth/login` con body `{"login": "...", "password": "..."}` y la cabecera `X-Tienda: <dirección>`. Sin cabecera se usa FashionStore.
+
+#### Plataforma (superadmin)
+
+| Rol | Correo | Contraseña | Dónde entra | Para probar |
+|---|---|---|---|---|
+| Superadmin | `superadmin@fashionstore.com` | `1234567890` | Web → `/plataforma` (API: `POST /api/v1/plataforma/login`) | Es el único usuario de la plataforma y no pertenece a ninguna empresa. Ve todas las empresas del SaaS con su plan y estado, y las administra. |
+
+#### FashionStore — dirección `fashionstore`, plan Profesional
 
 | Rol | Correo | Contraseña | Para probar |
 |---|---|---|---|
-| Administrador | `admin@fashionstore.com` | `Admin123*` | Dashboard admin completo: roles/permisos, personal, sucursales, proveedores, catálogo maestro (categorías/tallas/colores/temporadas/colecciones), prendas y variantes. |
+| Administrador | `admin@fashionstore.com` | `Admin123*` | Dashboard admin completo: roles/permisos, personal, sucursales, proveedores, catálogo maestro (categorías/tallas/colores/temporadas/colecciones), prendas y variantes, reportes con IA, analítica ML y conflictos de sincronización (CU-14). |
 | Cliente | `cliente@fashionstore.com` | `Cliente123*` | Catálogo público, filtros por talla/color/temporada, reservar prenda en sucursal, ver/cancelar "Mis Reservas", vestidor virtual con IA, recomendaciones y chatbot con IA, notificaciones push (app móvil). |
 | Encargado | `encargado@fashionstore.com` | `Encargado123*` | Vinculado como personal de "Sucursal Central Equipetrol" (`id=1`). Gestiona las reservas recibidas por su sucursal en `/encargado`. |
 | Cajero | `cajero@fashionstore.com` | `Cajero123*` | Vinculado a la misma sucursal. Registra ventas presenciales y procesa el cobro en caja (efectivo/tarjeta/QR) en `/caja`. |
 | Proveedor | `proveedor@fashionstore.com` | `Proveedor123*` | Vinculado a "Proveedor Demo S.R.L.". Registra productos e informa disponibilidad en `/proveedor` (CU-33, CU-34); los productos quedan inactivos hasta que el Administrador los valida. |
+
+#### Moda Andina — dirección `moda-andina`, plan Básico
+
+El plan Básico incluye hasta 2 sucursales, productos, ventas, reservas, operación sin conexión y reportes. Las funciones de planes superiores (reportes con IA, asistente con IA, vestidor virtual y pago con QR) se ven bloqueadas, con el aviso para mejorar el plan.
+
+| Rol | Correo | Contraseña | Para probar |
+|---|---|---|---|
+| Administrador | `admin@modaandina.com` | `Admin123*` | Dashboard de su empresa, con los límites y bloqueos del plan Básico (`/admin/plan` muestra el plan y su uso). |
+| Encargado | `encargado@modaandina.com` | `Encargado123*` | Reservas e inventario de su sucursal en `/encargado`. |
+| Cajero | `cajero@modaandina.com` | `Cajero123*` | Ventas presenciales y cobro en `/caja`. |
+| Cliente | `cliente@modaandina.com` | `Cliente123*` | Catálogo de Moda Andina. No ve productos ni datos de FashionStore (aislamiento entre empresas). |
 
 ### Cómo probar el flujo completo (guía rápida para Jhonny)
 
