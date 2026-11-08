@@ -1,0 +1,73 @@
+<div class="card bitacora">
+  <form class="filtros" (ngSubmit)="buscar()">
+    <div class="form-group">
+      <label for="bit-desde">Desde</label>
+      <input id="bit-desde" name="desde" type="date" [(ngModel)]="desde" />
+    </div>
+    <div class="form-group">
+      <label for="bit-hasta">Hasta</label>
+      <input id="bit-hasta" name="hasta" type="date" [(ngModel)]="hasta" />
+    </div>
+    <div class="form-group">
+      <label for="bit-usuario">Usuario</label>
+      <input id="bit-usuario" name="usuario" [(ngModel)]="usuario" placeholder="correo o parte de él" />
+    </div>
+    <div class="form-group">
+      <label for="bit-accion">Acción</label>
+      <input id="bit-accion" name="accion" [(ngModel)]="accion" placeholder="p. ej. inicio de sesión, venta, respaldo" />
+    </div>
+    @if (conEmpresa()) {
+      <div class="form-group">
+        <label for="bit-empresa">Empresa</label>
+        <input id="bit-empresa" name="empresa" [(ngModel)]="empresa" placeholder="nombre o «Plataforma»" />
+      </div>
+    }
+    <div class="botones">
+      <button type="submit" class="btn btn-primary" [disabled]="!!ocupado()">{{ ocupado() === 'buscar' ? 'Buscando...' : 'Buscar' }}</button>
+      <button type="button" class="btn btn-secondary" [disabled]="!!ocupado()" (click)="limpiar()">Ver todo</button>
+    </div>
+  </form>
+
+  <div class="exportar">
+    <span>Exportar con estos filtros:</span>
+    <button type="button" class="btn btn-secondary btn-sm" [disabled]="!!ocupado()" (click)="exportar('excel')">Excel</button>
+    <button type="button" class="btn btn-secondary btn-sm" [disabled]="!!ocupado()" (click)="exportar('pdf')">PDF</button>
+    <button type="button" class="btn btn-secondary btn-sm" [disabled]="!!ocupado()" (click)="exportar('html')">HTML</button>
+  </div>
+
+  @if (error()) {
+    <div class="alert alert-danger">{{ error() }}</div>
+  }
+
+  @if (reporte(); as r) {
+    <p class="resumen">{{ r.narrativa }}</p>
+    <div class="table-responsive">
+      <table class="table">
+        <thead>
+          <tr>
+            @for (c of r.columnas; track c) {
+              <th>{{ c }}</th>
+            }
+          </tr>
+        </thead>
+        <tbody>
+          @for (fila of filasPagina(); track $index) {
+            <tr [class.alerta]="esAlerta(fila[columnaAccion()])">
+              @for (valor of fila; track $index; let j = $index) {
+                <td [class.ip]="r.columnas[j] === 'IP'" [class.fecha]="r.columnas[j] === 'Fecha'">{{ valor }}</td>
+              }
+            </tr>
+          } @empty {
+            <tr>
+              <td [attr.colspan]="r.columnas.length" class="vacio">No hay acciones registradas con estos filtros.</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+    @if (totalPaginas() > 1) {
+      <app-paginador [paginaActual]="pagina()" [totalPaginas]="totalPaginas()" (cambiarPagina)="pagina.set($event)"></app-paginador>
+    }
+  }
+  <p class="nota">La bitácora es de solo lectura: el sistema registra cada acción con la fecha y hora de Bolivia, el usuario, su rol y la IP del equipo, y nadie puede editarla ni borrarla.</p>
+</div>

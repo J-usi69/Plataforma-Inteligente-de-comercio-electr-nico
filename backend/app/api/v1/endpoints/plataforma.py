@@ -1,15 +1,16 @@
 """La plataforma SaaS: alta de tiendas (público), planes (público), webhook de Stripe y la
 administración de todas las tiendas y de los planes por el superadmin. Ninguna de estas rutas es
 de una tienda: usan la sesión de la plataforma."""
+from dataclasses import asdict
 from typing import List, Optional
 
 import stripe
-from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Request, Response, UploadFile, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_client_ip
+from app.api.deps import get_client_ip, registrar_bitacora
 from app.core.config import settings
 from app.core.limite_intentos import LimiteIntentos
 from app.core.security import create_access_token, decode_access_token, verify_password
@@ -21,6 +22,12 @@ from app.models.sucursal import Sucursal
 from app.models.tienda import MovimientoSuscripcion, Plan, Suscripcion, Tienda
 from app.models.venta import Venta
 from app.schemas.tienda import (
+    CatalogoReporteOut,
+    OpcionesReporteOut,
+    PedidoReporteIn,
+    ReporteIAPlataformaOut,
+    EnviarReporteIn,
+    IndicadoresPlataformaOut,
     LoginPlataformaIn,
     PlanAdminOut,
     PlanCreate,
@@ -29,10 +36,13 @@ from app.schemas.tienda import (
     RegistroTiendaIn,
     RegistroTiendaOut,
     RenovarIn,
+    ReportePlataformaOut,
+    RestauracionOut,
     TiendaAdminOut,
     TiendaAdminUpdate,
 )
-from app.services import suscripciones_service
+from app.services import plataforma_reportes_service, respaldo_service, suscripciones_service
+from app.services import reportes_personalizados as motor
 from app.services.tiendas_service import crear_tienda, validar_slug
 
 router = APIRouter()
@@ -51,6 +61,11 @@ def require_superadmin(token: Optional[str] = Depends(oauth2), db: Session = Dep
     if not usuario or usuario.tienda_id is not None or not usuario.es_superadmin or not usuario.estado:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Solo para administradores de la plataforma")
     return usuario
+
+
+def _registrar(db: Session, superadmin: Usuario, accion: str, request: Request) -> None:
+    """Bitácora de la plataforma (sin empresa): cada acción del superadmin con su IP."""
+    registrar_bitacora(db, superadmin.id, accion[:100], get_client_ip(request))
 
 
 def _tienda_o_404(db: Session, tienda_id: int) -> Tienda:
@@ -116,14 +131,18 @@ def registrar_tienda(datos: RegistroTiendaIn, request: Request, db: Session = De
 @router.post("/login")
 def login_plataforma(datos: LoginPlataformaIn, request: Request, db: Session = Depends(get_db_plataforma)):
     """Inicio de sesión del superadmin (cuentas sin tienda)."""
-    clave = f"{get_client_ip(request)}|{datos.correo.lower()}"
+    correo = datos.correo.strip().lower()
+    clave = f"{get_client_ip(request)}|{correo}"
     if intentos_superadmin.segundos_bloqueado(clave):
         raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail="Demasiados intentos fallidos. Probá más tarde.")
-    usuario = db.scalars(select(Usuario).where(Usuario.tienda_id.is_(None), Usuario.correo == datos.correo.lower())).first()
+    usuario = db.scalars(select(Usuario).where(Usuario.tienda_id.is_(None), Usuario.correo == correo)).first()
     if not usuario or not usuario.es_superadmin or not usuario.estado or not verify_password(datos.password, usuario.password_hash):
         intentos_superadmin.registrar_fallo(clave)
+        if usuario and usuario.es_superadmin:
+            _registrar(db, usuario, "Intento fallido de inicio de sesión en la plataforma", request)
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Credenciales incorrectas")
     intentos_superadmin.limpiar(clave)
+    _registrar(db, usuario, "Inicio de sesión en la plataforma", request)
     return {"access_token": create_access_token({"sub": str(usuario.id), "plataforma": True}), "token_type": "bearer"}
 
 
@@ -136,6 +155,7 @@ def listar_tiendas(db: Session = Depends(get_db_plataforma), _: Usuario = Depend
 @router.post("/tiendas", response_model=TiendaAdminOut, status_code=status.HTTP_201_CREATED)
 def alta_de_tienda(
     datos: RegistroTiendaIn,
+    request: Request,
     db: Session = Depends(get_db_plataforma),
     superadmin: Usuario = Depends(require_superadmin),
 ):
@@ -144,6 +164,7 @@ def alta_de_tienda(
         db, slug=datos.slug, nombre=datos.nombre_tienda, correo_admin=datos.correo,
         password_admin=datos.password, plan_codigo=datos.plan_codigo, origen="plataforma", usuario_id=superadmin.id,
     )
+    _registrar(db, superadmin, f"Alta de la empresa {tienda.nombre} ({tienda.slug}) con el plan {datos.plan_codigo}", request)
     return _tienda_admin_out(db, tienda)
 
 
@@ -151,6 +172,7 @@ def alta_de_tienda(
 def actualizar_tienda(
     tienda_id: int,
     datos: TiendaAdminUpdate,
+    request: Request,
     db: Session = Depends(get_db_plataforma),
     superadmin: Usuario = Depends(require_superadmin),
 ):
@@ -179,6 +201,8 @@ def actualizar_tienda(
         registrar("ajuste", f"Vencimiento corregido al {datos.fecha_vencimiento:%d/%m/%Y}")
     db.commit()
     olvidar_tienda(tienda.slug)
+    cambios = ", ".join(f"{campo}={valor}" for campo, valor in datos.model_dump(exclude_none=True).items())
+    _registrar(db, superadmin, f"Empresa {tienda.slug} modificada: {cambios}", request)
     return _tienda_admin_out(db, tienda)
 
 
@@ -186,6 +210,7 @@ def actualizar_tienda(
 def renovar_tienda(
     tienda_id: int,
     datos: RenovarIn,
+    request: Request,
     db: Session = Depends(get_db_plataforma),
     superadmin: Usuario = Depends(require_superadmin),
 ):
@@ -194,6 +219,7 @@ def renovar_tienda(
     suscripciones_service.renovar(db, tienda.id, datos.meses, origen="plataforma", usuario_id=superadmin.id)
     db.commit()
     olvidar_tienda(tienda.slug)
+    _registrar(db, superadmin, f"Renovación de la empresa {tienda.slug} por {datos.meses} mes(es)", request)
     return _tienda_admin_out(db, tienda)
 
 
@@ -222,7 +248,12 @@ def listar_planes_admin(db: Session = Depends(get_db_plataforma), _: Usuario = D
 
 
 @router.post("/planes", response_model=PlanAdminOut, status_code=status.HTTP_201_CREATED)
-def crear_plan(datos: PlanCreate, db: Session = Depends(get_db_plataforma), _: Usuario = Depends(require_superadmin)):
+def crear_plan(
+    datos: PlanCreate,
+    request: Request,
+    db: Session = Depends(get_db_plataforma),
+    superadmin: Usuario = Depends(require_superadmin),
+):
     """Plan nuevo (CU-02): queda activo y se ofrece desde ya en el alta de empresas y en "Mi plan"."""
     if db.scalars(select(Plan.id).where(Plan.codigo == datos.codigo)).first() is not None:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=f"Ya existe un plan con el código '{datos.codigo}'")
@@ -230,6 +261,7 @@ def crear_plan(datos: PlanCreate, db: Session = Depends(get_db_plataforma), _: U
     db.add(plan)
     db.commit()
     db.refresh(plan)
+    _registrar(db, superadmin, f"Plan creado: {plan.nombre} ({plan.codigo})", request)
     return _plan_admin_out(db, plan)
 
 
@@ -237,8 +269,9 @@ def crear_plan(datos: PlanCreate, db: Session = Depends(get_db_plataforma), _: U
 def configurar_plan(
     codigo: str,
     datos: PlanUpdate,
+    request: Request,
     db: Session = Depends(get_db_plataforma),
-    _: Usuario = Depends(require_superadmin),
+    superadmin: Usuario = Depends(require_superadmin),
 ):
     """Límites, precio y funciones de un plan (los valores del enunciado son los iniciales). Rige
     desde ya para todas las tiendas con ese plan; lo que ya tienen creado no se borra. Con
@@ -248,11 +281,17 @@ def configurar_plan(
         setattr(plan, campo, valor)
     db.commit()
     db.refresh(plan)
+    _registrar(db, superadmin, f"Plan {plan.codigo} configurado: {', '.join(datos.model_dump(exclude_unset=True))}", request)
     return _plan_admin_out(db, plan)
 
 
 @router.delete("/planes/{codigo}", status_code=status.HTTP_204_NO_CONTENT)
-def eliminar_plan(codigo: str, db: Session = Depends(get_db_plataforma), _: Usuario = Depends(require_superadmin)):
+def eliminar_plan(
+    codigo: str,
+    request: Request,
+    db: Session = Depends(get_db_plataforma),
+    superadmin: Usuario = Depends(require_superadmin),
+):
     """Solo se elimina un plan que nunca se contrató. Si alguna empresa lo tiene o lo tuvo (está en
     su historial), se rechaza y se ofrece desactivarlo (CU-02, flujo alternativo)."""
     plan = _plan_o_404(db, codigo)
@@ -264,11 +303,170 @@ def eliminar_plan(codigo: str, db: Session = Depends(get_db_plataforma), _: Usua
     else:
         db.delete(plan)
         db.commit()
+        _registrar(db, superadmin, f"Plan eliminado: {codigo}", request)
         return Response(status_code=status.HTTP_204_NO_CONTENT)
     raise HTTPException(
         status_code=status.HTTP_409_CONFLICT,
         detail=f"El plan {plan.nombre} {motivo} y no se puede eliminar. Desactivalo para que no se pueda contratar más.",
     )
+
+
+# --- Reportes e indicadores de la plataforma ---------------------------------------------------
+
+EMISOR_REPORTES = "Plataforma SaaS"
+PREFIJO_ARCHIVOS = "plataforma"
+
+
+@router.get("/indicadores", response_model=IndicadoresPlataformaOut)
+def indicadores_plataforma(db: Session = Depends(get_db_plataforma), _: Usuario = Depends(require_superadmin)):
+    """Tablero del superadmin: empresas vigentes, ingreso mensual por suscripciones, ingresos de
+    los últimos meses, empresas por plan, ventas de cada empresa y próximos vencimientos."""
+    return plataforma_reportes_service.indicadores(db)
+
+
+@router.get("/reportes", response_model=List[CatalogoReporteOut])
+def catalogo_reportes(_: Usuario = Depends(require_superadmin)):
+    """Reportes disponibles con sus columnas: la web arma con esto el constructor de reportes."""
+    return plataforma_reportes_service.catalogo()
+
+
+@router.post("/reportes/ia", response_model=ReporteIAPlataformaOut)
+def reporte_plataforma_ia(
+    datos: PedidoReporteIn,
+    db: Session = Depends(get_db_plataforma),
+    _: Usuario = Depends(require_superadmin),
+):
+    """Reporte por comando (escrito o por voz): la IA traduce el pedido a las opciones del
+    constructor (reporte, columnas, criterios, fechas y orden) y se genera como cualquier otro.
+    La IA nunca arma consultas: solo elige entre lo que el constructor ya permite."""
+    opciones = plataforma_reportes_service.interpretar(datos.pedido)
+    reporte = plataforma_reportes_service.generar(db, **opciones)
+    return ReporteIAPlataformaOut(
+        pedido=datos.pedido,
+        opciones=OpcionesReporteOut(**{**opciones, "criterios": [vars(c) for c in opciones["criterios"]]}),
+        reporte=ReportePlataformaOut(tipo=opciones["tipo"], **asdict(reporte)),
+    )
+
+
+@router.get("/reportes/{tipo}", response_model=ReportePlataformaOut)
+def reporte_plataforma(
+    tipo: str,
+    opciones: dict = Depends(motor.opciones_de_consulta),
+    db: Session = Depends(get_db_plataforma),
+    _: Usuario = Depends(require_superadmin),
+):
+    """Reporte personalizable de todas las empresas: columnas, criterios de selección, fechas y orden."""
+    return ReportePlataformaOut(tipo=tipo, **asdict(plataforma_reportes_service.generar(db, tipo, **opciones)))
+
+
+@router.get("/reportes/{tipo}/exportar")
+def exportar_reporte_plataforma(
+    tipo: str,
+    request: Request,
+    formato: str = Query(..., pattern="^(excel|pdf|html)$"),
+    opciones: dict = Depends(motor.opciones_de_consulta),
+    db: Session = Depends(get_db_plataforma),
+    superadmin: Usuario = Depends(require_superadmin),
+):
+    """El mismo reporte, con las mismas opciones, en Excel, PDF o HTML."""
+    reporte = plataforma_reportes_service.generar(db, tipo, **opciones)
+    _registrar(db, superadmin, f"Reporte exportado: {reporte.titulo} ({formato.upper()})", request)
+    return motor.descarga(reporte, formato, EMISOR_REPORTES, PREFIJO_ARCHIVOS, tipo)
+
+
+@router.post("/reportes/{tipo}/enviar")
+def enviar_reporte_plataforma(
+    tipo: str,
+    datos: EnviarReporteIn,
+    request: Request,
+    db: Session = Depends(get_db_plataforma),
+    superadmin: Usuario = Depends(require_superadmin),
+):
+    """Envía el reporte por correo: el HTML en el cuerpo y el archivo elegido adjunto."""
+    reporte = plataforma_reportes_service.generar(db, tipo, **motor.opciones_de_envio(datos))
+    motor.enviar_por_correo(reporte, datos.destinatario, datos.formato, EMISOR_REPORTES, PREFIJO_ARCHIVOS, tipo)
+    _registrar(db, superadmin, f"Reporte enviado por correo: {reporte.titulo} a {datos.destinatario}", request)
+    return {"enviado": True, "destinatario": datos.destinatario}
+
+
+# --- Respaldo y restauración (característica 6) -------------------------------------------------
+
+def _archivo_de_respaldo(contenido: bytes, nombre: str) -> Response:
+    return Response(
+        content=contenido, media_type="application/gzip",
+        headers={"Content-Disposition": f'attachment; filename="{nombre}"'},
+    )
+
+
+def _leer_subido(archivo: UploadFile) -> dict:
+    return respaldo_service.leer(archivo.file.read(respaldo_service.MAX_COMPRIMIDO + 1))
+
+
+def _fecha_del_respaldo(resultado: dict) -> str:
+    return (resultado.get("respaldo_del") or "")[:16].replace("T", " ")
+
+
+@router.get("/respaldo")
+def respaldo_del_sistema(
+    request: Request,
+    db: Session = Depends(get_db_plataforma),
+    superadmin: Usuario = Depends(require_superadmin),
+):
+    """Respaldo del sistema completo: todas las empresas, sus datos, la plataforma y la bitácora."""
+    contenido, resumen = respaldo_service.respaldar(db)
+    _registrar(db, superadmin, f"Respaldo del sistema completo descargado ({sum(resumen.values())} registros)", request)
+    return _archivo_de_respaldo(contenido, respaldo_service.nombre_archivo())
+
+
+@router.post("/respaldo/restaurar", response_model=RestauracionOut)
+def restaurar_sistema(
+    request: Request,
+    archivo: UploadFile = File(..., description="El .json.gz descargado con «Respaldo del sistema»"),
+    simular: bool = Form(False, description="true: verifica y muestra qué se restauraría, sin cambiar nada"),
+    db: Session = Depends(get_db_plataforma),
+    superadmin: Usuario = Depends(require_superadmin),
+):
+    """Vuelve todo el sistema al estado del respaldo, en una sola transacción. La bitácora se
+    conserva; las cuentas y empresas creadas después del respaldo quedan desactivadas/suspendidas."""
+    resultado = respaldo_service.restaurar(
+        db, _leer_subido(archivo), alcance="sistema", actor_id=superadmin.id, simular=simular,
+    )
+    if not simular:
+        for slug in db.scalars(select(Tienda.slug)).all():
+            olvidar_tienda(slug)
+        _registrar(db, superadmin, f"Sistema restaurado desde el respaldo del {_fecha_del_respaldo(resultado)} UTC", request)
+    return resultado
+
+
+@router.get("/tiendas/{tienda_id}/respaldo")
+def respaldo_de_empresa(
+    tienda_id: int,
+    request: Request,
+    db: Session = Depends(get_db_plataforma),
+    superadmin: Usuario = Depends(require_superadmin),
+):
+    """Respaldo de los datos de una empresa (el mismo que descarga su administrador)."""
+    tienda = _tienda_o_404(db, tienda_id)
+    contenido, resumen = respaldo_service.respaldar(db, tienda)
+    _registrar(db, superadmin, f"Respaldo de la empresa {tienda.slug} descargado ({sum(resumen.values())} registros)", request)
+    return _archivo_de_respaldo(contenido, respaldo_service.nombre_archivo(tienda))
+
+
+@router.post("/tiendas/{tienda_id}/respaldo/restaurar", response_model=RestauracionOut)
+def restaurar_empresa(
+    tienda_id: int,
+    request: Request,
+    archivo: UploadFile = File(..., description="El .json.gz del respaldo de esa empresa"),
+    simular: bool = Form(False),
+    db: Session = Depends(get_db_plataforma),
+    superadmin: Usuario = Depends(require_superadmin),
+):
+    """Vuelve los datos de una empresa al estado de su respaldo (su plan y suscripción no cambian)."""
+    tienda = _tienda_o_404(db, tienda_id)
+    resultado = respaldo_service.restaurar(db, _leer_subido(archivo), alcance="empresa", tienda_id=tienda.id, simular=simular)
+    if not simular:
+        _registrar(db, superadmin, f"Empresa {tienda.slug} restaurada desde el respaldo del {_fecha_del_respaldo(resultado)} UTC", request)
+    return resultado
 
 
 @router.post("/stripe/webhook")

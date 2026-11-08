@@ -1,0 +1,74 @@
+<div class="card respaldo">
+  <h4>{{ titulo() }}</h4>
+  @if (descripcion()) {
+    <p class="ayuda">{{ descripcion() }}</p>
+  }
+
+  <div class="pasos">
+    <section class="paso">
+      <h5>1. Descargar un respaldo</h5>
+      <p>
+        Un archivo <code>.json.gz</code> con
+        {{ alcance() === 'sistema' ? 'todas las empresas, sus datos, los planes, las suscripciones y la bitácora' : 'todos los datos de la empresa: catálogo, inventario, sucursales, personal, cuentas, roles, ventas, reservas y bitácora' }}.
+      </p>
+      <button type="button" class="btn btn-primary" [disabled]="!!ocupado()" (click)="descargar()">
+        {{ ocupado() === 'descargar' ? 'Generando...' : '⬇ Descargar respaldo' }}
+      </button>
+    </section>
+
+    <section class="paso">
+      <h5>2. Restaurar desde un respaldo</h5>
+      <p>Elegí el archivo y verificalo: se muestra qué se va a restaurar antes de cambiar nada.</p>
+      <div class="fila">
+        <input type="file" accept=".gz,application/gzip" (change)="elegir($event)" aria-label="Archivo de respaldo" [disabled]="!!ocupado()" />
+        <button type="button" class="btn btn-secondary" [disabled]="!archivo() || !!ocupado()" (click)="verificar()">
+          {{ ocupado() === 'verificar' ? 'Verificando...' : 'Verificar respaldo' }}
+        </button>
+      </div>
+
+      @if (vista(); as v) {
+        <div class="vista">
+          <p>
+            <strong>Respaldo del {{ fecha(v.respaldo_del) }}</strong>
+            @if (v.empresa) {
+              · {{ v.empresa }}
+            }
+            · {{ v.filas }} registros
+          </p>
+          <ul class="tablas">
+            @for (t of tablas(); track t.nombre) {
+              <li><span>{{ t.nombre }}</span><strong>{{ t.filas }}</strong></li>
+            }
+          </ul>
+          <ul class="avisos">
+            <li>Los datos actuales se reemplazan por los del respaldo, en una sola operación: si algo falla, no cambia nada.</li>
+            <li>La bitácora no se pierde: se conservan las acciones actuales y se registra la restauración.</li>
+            @if (v.usuarios_desactivados) {
+              <li class="atencion">{{ v.usuarios_desactivados }} cuenta(s) creadas después del respaldo quedarán desactivadas.</li>
+            }
+            @if (v.empresas_suspendidas) {
+              <li class="atencion">{{ v.empresas_suspendidas }} empresa(s) dadas de alta después del respaldo quedarán suspendidas.</li>
+            }
+            @if (alcance() === 'empresa') {
+              <li>El plan y la suscripción de la empresa no cambian.</li>
+            }
+          </ul>
+          <label class="confirmar">
+            <input type="checkbox" [(ngModel)]="confirmado" />
+            Entiendo que los datos actuales se reemplazan por los del respaldo.
+          </label>
+          <button type="button" class="btn btn-danger" [disabled]="!confirmado || !!ocupado()" (click)="restaurar()">
+            {{ ocupado() === 'restaurar' ? 'Restaurando...' : 'Restaurar ahora' }}
+          </button>
+        </div>
+      }
+    </section>
+  </div>
+
+  @if (error()) {
+    <div class="alert alert-danger">{{ error() }}</div>
+  }
+  @if (mensaje()) {
+    <div class="alert alert-success">{{ mensaje() }}</div>
+  }
+</div>

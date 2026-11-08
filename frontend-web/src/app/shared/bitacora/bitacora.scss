@@ -1,0 +1,68 @@
+.bitacora {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.filtros {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 170px), 1fr));
+  gap: 0.75rem;
+  align-items: end;
+
+  .form-group {
+    margin: 0;
+  }
+}
+
+.botones {
+  grid-column: 1 / -1;
+}
+
+.botones,
+.exportar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.exportar span {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.resumen {
+  margin: 0;
+  background: #eef2ff;
+  border-left: 4px solid var(--primary);
+  padding: 0.6rem 0.9rem;
+  border-radius: 6px;
+  font-size: 0.9rem;
+}
+
+td.fecha,
+td.ip {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+td.ip {
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 0.82rem;
+}
+
+tr.alerta td {
+  background: #fef2f2;
+}
+
+.vacio {
+  text-align: center;
+  color: #94a3b8;
+}
+
+.nota {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}

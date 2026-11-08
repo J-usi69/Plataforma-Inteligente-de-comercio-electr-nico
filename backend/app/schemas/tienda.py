@@ -1,5 +1,5 @@
-from datetime import datetime
-from typing import Optional
+from datetime import date, datetime
+from typing import Any, Optional
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, model_validator
 
@@ -168,7 +168,9 @@ class RegistroTiendaOut(BaseModel):
 
 
 class LoginPlataformaIn(BaseModel):
-    correo: EmailStr
+    # Sin validar el formato: alcanza con que exista la cuenta de la plataforma (p. ej. un dominio
+    # .local de pruebas). Si no existe o la contraseña no coincide, responde 401 igual que siempre.
+    correo: str = Field(..., min_length=3, max_length=120)
     password: str
 
 
@@ -194,3 +196,124 @@ class TiendaAdminUpdate(BaseModel):
     plan_codigo: Optional[str] = None
     estado_suscripcion: Optional[str] = Field(None, pattern=r"^(activa|cancelada)$")
     fecha_vencimiento: Optional[datetime] = None
+
+
+# --- Reportes e indicadores de la plataforma (superadmin) ---------------------------------------
+
+class ReportePlataformaOut(BaseModel):
+    """Un reporte de la plataforma listo para mostrar como tabla o exportar."""
+
+    tipo: str
+    titulo: str
+    columnas: list[str]
+    filas: list[list[Any]]
+    totales: Optional[dict[str, Any]] = None
+    narrativa: str
+    columnas_monto: list[str] = []
+    filtros: str = ""
+
+
+class CatalogoReporteOut(BaseModel):
+    """Un reporte disponible en el constructor: sus columnas y el orden por defecto."""
+
+    tipo: str
+    titulo: str
+    descripcion: str
+    columnas: list[str]
+    orden: str
+    descendente: bool
+    columnas_monto: list[str]
+
+
+class EnviarReporteIn(BaseModel):
+    """Enviar un reporte por correo con las mismas opciones con que se ve en pantalla."""
+
+    destinatario: EmailStr
+    formato: str = Field("pdf", pattern=r"^(excel|pdf|html)$")
+    desde: Optional[date] = None
+    hasta: Optional[date] = None
+    columnas: list[str] = []
+    criterios: list[str] = []  # columna|operador|valor
+    orden: Optional[str] = None
+    descendente: Optional[bool] = None
+
+
+class IngresoMesOut(BaseModel):
+    mes: str
+    etiqueta: str
+    monto: float
+
+
+class EmpresasPorPlanOut(BaseModel):
+    plan: str
+    cantidad: int
+    ingreso_mensual: float
+
+
+class VentasEmpresaOut(BaseModel):
+    empresa: str
+    ventas: int
+    total: float
+
+
+class VencimientoOut(BaseModel):
+    empresa: str
+    slug: str
+    vence: datetime
+    dias: int
+
+
+class IndicadoresPlataformaOut(BaseModel):
+    empresas: int
+    vigentes: int
+    suspendidas: int
+    sin_suscripcion_vigente: int
+    ingreso_mensual: float
+    ingresos_mes_actual: float
+    ingresos_por_mes: list[IngresoMesOut]
+    empresas_por_plan: list[EmpresasPorPlanOut]
+    ventas_por_empresa: list[VentasEmpresaOut]
+    proximos_vencimientos: list[VencimientoOut]
+
+
+class PedidoReporteIn(BaseModel):
+    """Pedido de reporte en lenguaje natural (escrito o dictado por voz)."""
+
+    pedido: str = Field(..., min_length=3, max_length=500)
+
+
+class CriterioOut(BaseModel):
+    columna: str
+    operador: str
+    valor: str
+
+
+class OpcionesReporteOut(BaseModel):
+    """Cómo interpretó la IA el pedido: la web lo carga en el constructor para ajustarlo."""
+
+    tipo: str
+    columnas: Optional[list[str]] = None
+    criterios: list[CriterioOut] = []
+    desde: Optional[date] = None
+    hasta: Optional[date] = None
+    orden: Optional[str] = None
+    descendente: Optional[bool] = None
+
+
+class ReporteIAPlataformaOut(BaseModel):
+    pedido: str
+    opciones: OpcionesReporteOut
+    reporte: ReportePlataformaOut
+
+
+class RestauracionOut(BaseModel):
+    """Qué se restauró (o se restauraría, si simulado) desde un respaldo."""
+
+    simulado: bool
+    alcance: str  # "empresa" o "sistema"
+    empresa: Optional[str] = None
+    respaldo_del: Optional[str] = None  # fecha en que se generó el respaldo (ISO, UTC)
+    tablas: dict[str, int]  # filas del respaldo por tabla
+    filas: int
+    usuarios_desactivados: int  # cuentas creadas después del respaldo
+    empresas_suspendidas: int  # empresas dadas de alta después del respaldo (solo sistema)

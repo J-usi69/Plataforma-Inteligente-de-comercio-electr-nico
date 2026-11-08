@@ -119,12 +119,28 @@ def test_cu30_reporte_ia_proveedor_caido_no_pide_reformular():
     token = _login_admin()
     headers = {"Authorization": f"Bearer {token}"}
 
-    with patch("app.api.v1.endpoints.ia.llamar_mistral", side_effect=IAServiceError("401 Unauthorized")):
+    with patch("app.api.v1.endpoints.ia.llamar_mistral", side_effect=IAServiceError("401 Unauthorized")), \
+            patch("app.api.v1.endpoints.ia.llamar_gemini_reportes", side_effect=IAServiceError("sin cuota")):
         res = client.post("/api/v1/ia/reportes", headers=headers, json={"prompt": "ventas del mes por sucursal"})
 
     assert res.status_code == 503, res.text
     assert "no está disponible" in res.json()["detail"]
     assert "Reformulala" not in res.json()["detail"]
+
+
+def test_cu30_si_mistral_falla_responde_gemini():
+    """Con la llave de Mistral vencida el reporte igual sale: lo interpreta Gemini (aunque devuelva
+    el JSON entre bloques de código)."""
+    token = _login_admin()
+    headers = {"Authorization": f"Bearer {token}"}
+    respuesta_gemini = '```json\n{"tipo": "ventas", "desde": null, "hasta": null, "sucursal_id": null}\n```'
+
+    with patch("app.api.v1.endpoints.ia.llamar_mistral", side_effect=IAServiceError("401 Unauthorized")), \
+            patch("app.api.v1.endpoints.ia.llamar_gemini_reportes", return_value=respuesta_gemini) as gemini:
+        res = client.post("/api/v1/ia/reportes", headers=headers, json={"prompt": "ventas por sucursal"})
+
+    assert res.status_code == 200, res.text
+    assert res.json()["tipo"] == "ventas" and gemini.called
 
 
 def test_cu30_reporte_ia_le_da_la_fecha_de_hoy_al_modelo():

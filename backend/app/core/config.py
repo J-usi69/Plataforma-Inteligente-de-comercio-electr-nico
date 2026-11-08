@@ -30,6 +30,15 @@ class Settings(BaseSettings):
     # Cobro de las suscripciones de las tiendas: "simulado" (el cambio de plan y la renovación se
     # aplican en el acto y quedan registrados como pago simulado) o "stripe" (Stripe Billing)
     cobro_suscripciones: str = "simulado"
+    # Envío de reportes por correo. En la nube va por la API HTTPS de Brevo (Railway bloquea el
+    # SMTP en los planes Trial y Hobby); SMTP queda para correr en local. Sin ninguno de los dos,
+    # el envío responde 503 con un aviso claro. El remitente debe estar verificado en Brevo.
+    brevo_api_key: str = ""
+    correo_remitente: str = ""
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_user: str = ""
+    smtp_password: str = ""
     # Mientras se paga con tarjeta o QR, las prendas quedan apartadas este tiempo
     minutos_apartado_pago: int = 15
     # Cada cuánto se devuelven al stock los apartados de pagos que no se completaron (0: nunca)
@@ -37,6 +46,8 @@ class Settings(BaseSettings):
     ai_api_key: str = ""
     gemini_api_key: str = ""
     gemini_model: str = "gemini-3.6-flash"
+    # Llave propia de Gemini para los reportes con IA (empresas y superadmin); sin ella se usa la general
+    gemini_api_key_reportes: str = ""
     groq_api_key: str = ""
     groq_model: str = "openai/gpt-oss-120b"
     mistral_api_key: str = ""

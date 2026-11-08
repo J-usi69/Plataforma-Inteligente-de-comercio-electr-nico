@@ -16,11 +16,11 @@
         <span>{{ tienda.nombre() }}</span>
         <span class="brand-tag" [class.brand-tag-off]="!sync.enLinea()">{{ sync.enLinea() ? 'Online' : 'Sin conexión' }}</span>
       </div>
-      <span style="font-size: 0.68rem; color: #64748b; font-weight: 500; letter-spacing: -0.01em;">Moda & Realidad Aumentada</span>
+      <span style="font-size: 0.68rem; color: #64748b; font-weight: 500; letter-spacing: -0.01em;">{{ enPlataforma() ? 'Plataforma SaaS' : 'Moda & Realidad Aumentada' }}</span>
     </div>
   </a>
 
-  <nav class="nav-links">
+  <nav class="nav-links" *ngIf="!enPlataforma()">
     <a routerLink="/catalogo" routerLinkActive="active">
       Catálogo
     </a>
@@ -75,6 +75,16 @@
     </a>
   </nav>
 
+  @if (enPlataforma()) {
+    <div class="user-badge">
+      @if (plataforma.conSesion()) {
+        <div class="user-info">
+          <span class="user-email">Superadmin</span>
+          <span class="role-chip">Plataforma</span>
+        </div>
+      }
+    </div>
+  } @else {
   <div class="user-badge">
     @if (instalable()) {
       <button type="button" class="btn btn-secondary btn-sm" (click)="instalar()" title="Instalar {{ tienda.nombre() }} en este dispositivo">
@@ -109,6 +119,7 @@
       </a>
     </ng-template>
   </div>
+  }
 </header>
 
 <!-- PWA: sin Internet se sigue trabajando con lo guardado; versión nueva lista para recargar -->
@@ -162,7 +173,7 @@
 </main>
 
 <!-- CU-29: Asistente conversacional, disponible incluso sin sesión iniciada; oculto para el personal (tienen sus propios paneles) y si el plan no lo incluye -->
-@if (!pantallaLimpia() && tienda.tiene('asistente_ia') && !authService.isAdmin() && !authService.isEncargado() && !authService.isCajero() && !authService.isProveedor()) {
+@if (!pantallaLimpia() && !enPlataforma() && tienda.tiene('asistente_ia') && !authService.isAdmin() && !authService.isEncargado() && !authService.isCajero() && !authService.isProveedor()) {
   <app-chat-widget></app-chat-widget>
 }
 

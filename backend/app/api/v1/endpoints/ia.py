@@ -15,7 +15,15 @@ from app.models.venta import DetalleVenta, Venta
 from app.schemas.catalogo import PrendaOut
 from app.schemas.ia import ChatRequest, ChatResponse, RecomendacionOut, ReporteIARequest, ReporteIAResponse
 from app.services import reportes_service
-from app.services.ia_service import IAServiceError, llamar_gemini, llamar_groq, llamar_mistral
+from app.services.ia_service import (
+    IAServiceError,
+    extraer_json,
+    interpretar_con_respaldo,
+    llamar_gemini,
+    llamar_gemini_reportes,
+    llamar_groq,
+    llamar_mistral,
+)
 from app.services.planes_service import exigir_funcion
 
 router = APIRouter()
@@ -211,18 +219,20 @@ def generar_reporte_ia(
         '"hasta": "YYYY-MM-DD"|null, "sucursal_id": entero|null}. Sin texto adicional.'
     )
     try:
-        respuesta = llamar_mistral(system_prompt=system_prompt, user_prompt=datos.prompt, max_tokens=200)
+        # Mistral y, si su llave no sirve o no responde, Gemini (los nombres se resuelven acá para
+        # que los tests puedan simular cada proveedor)
+        respuesta = interpretar_con_respaldo(system_prompt, datos.prompt, max_tokens=200, proveedores=(llamar_mistral, llamar_gemini_reportes))
     except IAServiceError:
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=_MENSAJE_IA_NO_DISPONIBLE)
     try:
-        parametros = json.loads(respuesta)
+        parametros = extraer_json(respuesta)
         tipo = parametros.get("tipo")
         if tipo not in _TIPOS_REPORTE_VALIDOS:
             raise ValueError("tipo de reporte no soportado")
         desde = date.fromisoformat(parametros["desde"]) if parametros.get("desde") else None
         hasta = date.fromisoformat(parametros["hasta"]) if parametros.get("hasta") else None
         sucursal_id = parametros.get("sucursal_id")
-    except (ValueError, TypeError, json.JSONDecodeError, KeyError):
+    except (ValueError, TypeError, AttributeError, json.JSONDecodeError, KeyError):
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=_MENSAJE_REPORTE_AMBIGUO)
 
     if tipo == "ventas":

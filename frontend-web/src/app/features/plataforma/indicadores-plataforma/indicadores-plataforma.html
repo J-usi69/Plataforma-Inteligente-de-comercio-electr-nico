@@ -1,0 +1,89 @@
+@if (cargando() && !datos()) {
+  <p class="vacio">Cargando indicadores...</p>
+} @else if (datos(); as d) {
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-data">
+        <span class="stat-value">USD {{ d.ingreso_mensual | number: '1.2-2' }}</span>
+        <span class="stat-label">Ingreso mensual recurrente</span>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-data">
+        <span class="stat-value">USD {{ d.ingresos_mes_actual | number: '1.2-2' }}</span>
+        <span class="stat-label">Cobrado este mes</span>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-data">
+        <span class="stat-value">{{ d.vigentes }} / {{ d.empresas }}</span>
+        <span class="stat-label">Empresas con suscripción vigente</span>
+      </div>
+    </div>
+    <div class="stat-card" [class.alerta]="d.suspendidas + d.sin_suscripcion_vigente > 0">
+      <div class="stat-data">
+        <span class="stat-value">{{ d.suspendidas }} · {{ d.sin_suscripcion_vigente }}</span>
+        <span class="stat-label">Suspendidas · sin suscripción vigente</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="graficos">
+    <section class="card">
+      <h4>Ingresos por suscripciones (últimos 6 meses)</h4>
+      <div class="columnas" role="img" aria-label="Ingresos por mes">
+        @for (m of d.ingresos_por_mes; track m.mes) {
+          <div class="columna">
+            <span class="valor">{{ m.monto ? ('USD ' + (m.monto | number: '1.0-0')) : '—' }}</span>
+            <div class="barra-vertical"><div [style.height.%]="altura(m.monto, maxIngresoMes())"></div></div>
+            <span class="etiqueta">{{ m.etiqueta }}</span>
+          </div>
+        }
+      </div>
+    </section>
+
+    <section class="card">
+      <h4>Empresas por plan</h4>
+      @for (p of d.empresas_por_plan; track p.plan) {
+        <div class="fila-barra">
+          <div class="leyenda">
+            <strong>{{ p.plan }}</strong>
+            <span>{{ p.cantidad }} {{ p.cantidad === 1 ? 'empresa' : 'empresas' }} · USD {{ p.ingreso_mensual | number: '1.2-2' }}/mes</span>
+          </div>
+          <div class="barra"><div class="plan" [style.width.%]="altura(p.cantidad, maxEmpresasPlan())"></div></div>
+        </div>
+      } @empty {
+        <p class="vacio">Todavía no hay empresas.</p>
+      }
+    </section>
+
+    <section class="card">
+      <h4>Ventas acumuladas por empresa</h4>
+      @for (v of d.ventas_por_empresa; track v.empresa) {
+        <div class="fila-barra">
+          <div class="leyenda">
+            <strong>{{ v.empresa }}</strong>
+            <span>Bs. {{ v.total | number: '1.2-2' }} · {{ v.ventas }} {{ v.ventas === 1 ? 'venta' : 'ventas' }}</span>
+          </div>
+          <div class="barra"><div class="ventas" [style.width.%]="altura(v.total, maxVentas())"></div></div>
+        </div>
+      } @empty {
+        <p class="vacio">Sin ventas registradas.</p>
+      }
+    </section>
+
+    <section class="card">
+      <h4>Suscripciones que vencen en los próximos 15 días</h4>
+      @for (p of d.proximos_vencimientos; track p.slug) {
+        <div class="vencimiento">
+          <span>{{ p.empresa }}</span>
+          <span class="badge" [class.badge-danger]="p.dias <= 3" [class.badge-warning]="p.dias > 3">
+            {{ p.dias === 0 ? 'vence hoy' : 'en ' + p.dias + (p.dias === 1 ? ' día' : ' días') }} · {{ p.vence | date: 'dd/MM/yyyy' }}
+          </span>
+        </div>
+      } @empty {
+        <p class="vacio">Ninguna suscripción vence en los próximos 15 días.</p>
+      }
+    </section>
+  </div>
+}

@@ -317,6 +317,7 @@ def generar_pdf_reporte(
     columnas: List[str],
     filas: List[List[Any]],
     narrativa_ia: Optional[str] = None,
+    etiqueta_narrativa: str = "Análisis Ejecutivo (IA)",
 ) -> bytes:
     """Construye dinámicamente un documento PDF profesional con membrete corporativo."""
     from reportlab.lib import colors
@@ -386,7 +387,7 @@ def generar_pdf_reporte(
     # Narrativa ejecutiva IA si está presente
     if narrativa_ia:
         bloque_ia = [
-            [Paragraph(f"<b>Análisis Ejecutivo (IA):</b> {narrativa_ia}", style_narrativa)]
+            [Paragraph(f"<b>{etiqueta_narrativa}:</b> {narrativa_ia}", style_narrativa)]
         ]
         t_ia = Table(bloque_ia, colWidths=[540])
         t_ia.setStyle(TableStyle([

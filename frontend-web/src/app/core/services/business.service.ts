@@ -36,11 +36,18 @@ import {
   OperacionSyncAdmin,
   RendimientoCategoria,
 } from '../models/user.model';
+import { FuenteReportes, FuenteRespaldo, reportesHttp, respaldoHttp } from './fuentes';
 
 @Injectable({ providedIn: 'root' })
 export class BusinessService {
   private readonly http = inject(HttpClient);
   private readonly apiBase = '/api/v1';
+
+  /** Reportes personalizables de la empresa (la bitácora, solo para el administrador). */
+  readonly reportesPersonalizados: FuenteReportes = reportesHttp(this.http, `${this.apiBase}/reportes/personalizados`);
+
+  /** Respaldo y restauración de los datos de la empresa (solo el administrador). */
+  readonly respaldo: FuenteRespaldo = respaldoHttp(this.http, `${this.apiBase}/respaldo`);
 
   // --- CU-04: Roles y Permisos ---
   getRoles(): Observable<Rol[]> {

@@ -2,7 +2,6 @@ import { CommonModule } from '@angular/common';
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import {
-  Bitacora,
   Categoria,
   Ciudad,
   Coleccion,
@@ -28,12 +27,19 @@ import {
 import { AuthService } from '../../../core/services/auth.service';
 import { BusinessService } from '../../../core/services/business.service';
 import { TiendaService } from '../../../core/services/tienda.service';
+import { Bitacora as BitacoraVista } from '../../../shared/bitacora/bitacora';
 import { Paginador } from '../../../shared/paginador/paginador';
+import { ReportesPersonalizados } from '../../../shared/reportes-personalizados/reportes-personalizados';
+import { Respaldo } from '../../../shared/respaldo/respaldo';
+
+type PestanaAdmin =
+  | 'roles' | 'personal' | 'sucursales' | 'proveedores' | 'temporadas' | 'prendas' | 'catalogo-maestro' | 'reportes'
+  | 'reportes-personalizados' | 'conflictos' | 'analitica-ml' | 'bitacora' | 'respaldo';
 
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [CommonModule, FormsModule, Paginador],
+  imports: [CommonModule, FormsModule, Paginador, ReportesPersonalizados, BitacoraVista, Respaldo],
   templateUrl: './dashboard.html',
   styles: [`
     .admin-hero {
@@ -171,10 +177,19 @@ import { Paginador } from '../../../shared/paginador/paginador';
 })
 export class Dashboard implements OnInit {
   private readonly business = inject(BusinessService);
+  /** Reportes personalizables, bitácora y respaldo de la empresa (características 5, 3 y 6). */
+  readonly reportesEmpresa = this.business.reportesPersonalizados;
+  readonly respaldoEmpresa = this.business.respaldo;
+  readonly ejemplosReportes = [
+    'Ventas de este mes por sucursal',
+    'Prendas más vendidas de octubre',
+    'Prendas sin stock o bajo el mínimo',
+    'Reservas canceladas de esta semana',
+  ];
   readonly authService = inject(AuthService);
   readonly tienda = inject(TiendaService);
 
-  activeTab = signal<'roles' | 'personal' | 'sucursales' | 'proveedores' | 'temporadas' | 'prendas' | 'catalogo-maestro' | 'reportes' | 'conflictos' | 'analitica-ml' | 'bitacora'>('roles');
+  activeTab = signal<PestanaAdmin>('roles');
   isLoading = signal(false);
   filtroTexto = signal('');
   alertMessage = signal<{ type: 'success' | 'danger'; text: string } | null>(null);
@@ -196,7 +211,6 @@ export class Dashboard implements OnInit {
   colores = signal<Color[]>([]);
   variantesPrendaActual = signal<VariantePrenda[]>([]);
   prendaSeleccionadaVariantes = signal<Prenda | null>(null);
-  bitacora = signal<Bitacora[]>([]);
   dashboardReporte = signal<DashboardReporte | null>(null);
   reporteVentas = signal<VentaPorSucursal[]>([]);
   reportePrendas = signal<PrendaVendida[]>([]);
@@ -340,7 +354,6 @@ export class Dashboard implements OnInit {
   paginaPrendas = signal(1);
   paginaTemporadas = signal(1);
   paginaColecciones = signal(1);
-  paginaBitacora = signal(1);
   paginaInventarioGlobal = signal(1);
   paginaReporteVentas = signal(1);
   paginaReportePrendas = signal(1);
@@ -359,7 +372,6 @@ export class Dashboard implements OnInit {
   prendasPagina = computed(() => this.paginar(this.prendasFiltradas(), this.paginaPrendas()));
   temporadasPagina = computed(() => this.paginar(this.temporadasFiltradas(), this.paginaTemporadas()));
   coleccionesAdminPagina = computed(() => this.paginar(this.coleccionesAdminFiltradas(), this.paginaColecciones()));
-  bitacoraPagina = computed(() => this.paginar(this.bitacora(), this.paginaBitacora()));
   inventarioGlobalPagina = computed(() => this.paginar(this.inventarioGlobal(), this.paginaInventarioGlobal()));
   reporteVentasPagina = computed(() => this.paginar(this.reporteVentas(), this.paginaReporteVentas()));
   reportePrendasPagina = computed(() => this.paginar(this.reportePrendas(), this.paginaReportePrendas()));
@@ -382,7 +394,7 @@ export class Dashboard implements OnInit {
     this.cambiarTab(this.activeTab());
   }
 
-  cambiarTab(tab: 'roles' | 'personal' | 'sucursales' | 'proveedores' | 'temporadas' | 'prendas' | 'catalogo-maestro' | 'reportes' | 'conflictos' | 'analitica-ml' | 'bitacora'): void {
+  cambiarTab(tab: PestanaAdmin): void {
     this.activeTab.set(tab);
     this.alertMessage.set(null);
     this.filtroTexto.set('');
@@ -394,7 +406,6 @@ export class Dashboard implements OnInit {
     this.paginaPrendas.set(1);
     this.paginaTemporadas.set(1);
     this.paginaColecciones.set(1);
-    this.paginaBitacora.set(1);
 
     if (tab === 'roles') {
       this.business.getRoles().subscribe({
@@ -445,11 +456,9 @@ export class Dashboard implements OnInit {
       // Sin la función en el plan la pestaña muestra el aviso de bloqueo: no hay nada que pedir
       if (this.tienda.tiene('reportes_ia')) this.cargarAnaliticaML();
       else this.isLoading.set(false);
-    } else if (tab === 'bitacora') {
-      this.business.getBitacora().subscribe({
-        next: (data) => { this.bitacora.set(data); this.isLoading.set(false); },
-        error: () => this.isLoading.set(false),
-      });
+    } else if (tab === 'bitacora' || tab === 'reportes-personalizados' || tab === 'respaldo') {
+      // Cada uno carga lo suyo (bitácora, constructor de reportes, respaldo)
+      this.isLoading.set(false);
     }
   }
 

@@ -2,7 +2,8 @@ import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { Observable, firstValueFrom, tap } from 'rxjs';
 import { Usuario } from '../models/user.model';
-import { NuevoPlan, Plan, PlanAdmin, RegistroTienda, TiendaAdmin } from '../models/tienda.model';
+import { IndicadoresPlataforma, NuevoPlan, Plan, PlanAdmin, RegistroTienda, TiendaAdmin } from '../models/tienda.model';
+import { FuenteReportes, FuenteRespaldo, reportesHttp, respaldoHttp } from './fuentes';
 import { claveDeEmpresa } from './tienda.service';
 
 const CLAVE_TOKEN = 'fs_plataforma_token';
@@ -97,5 +98,20 @@ export class PlataformaService {
   /** Solo se elimina un plan que nunca se contrató; si no, 409 y se ofrece desactivarlo. */
   eliminarPlan(codigo: string): Observable<void> {
     return this.http.delete<void>(`${this.base}/planes/${codigo}`);
+  }
+
+  // --- Reportes e indicadores ---
+  indicadores(): Observable<IndicadoresPlataforma> {
+    return this.http.get<IndicadoresPlataforma>(`${this.base}/indicadores`);
+  }
+
+  /** Reportes personalizables de todas las empresas (incluida la bitácora de la plataforma). */
+  readonly reportes: FuenteReportes = reportesHttp(this.http, `${this.base}/reportes`);
+
+  // --- Respaldo y restauración ---
+  readonly respaldoSistema: FuenteRespaldo = respaldoHttp(this.http, `${this.base}/respaldo`);
+
+  respaldoDeEmpresa(tiendaId: number): FuenteRespaldo {
+    return respaldoHttp(this.http, `${this.base}/tiendas/${tiendaId}/respaldo`);
   }
 }

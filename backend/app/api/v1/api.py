@@ -13,6 +13,7 @@ from app.api.v1.endpoints import (
     proveedores,
     reportes,
     reservas,
+    respaldo,
     roles,
     sincronizacion,
     sucursales,
@@ -55,6 +56,8 @@ api_router.include_router(
     sincronizacion.router, prefix="/sync", tags=["Operación sin conexión y sincronización (PWA y móvil)"],
     dependencies=[*operaciones, Depends(exigir_funcion("operacion_offline"))],
 )
+# Descargar el respaldo se puede siempre (los datos son de la empresa); restaurar, con la suscripción vigente
+api_router.include_router(respaldo.router, prefix="/respaldo", tags=["Respaldo y restauración (característica 6)"], dependencies=operaciones)
 api_router.include_router(notificaciones.router, prefix="/notificaciones", tags=["Notificaciones Push"])
 api_router.include_router(tienda.router, prefix="/tienda", tags=["SaaS: marca y plan de la tienda"])
 api_router.include_router(plataforma.router, prefix="/plataforma", tags=["SaaS: plataforma (alta de tiendas, superadmin)"])

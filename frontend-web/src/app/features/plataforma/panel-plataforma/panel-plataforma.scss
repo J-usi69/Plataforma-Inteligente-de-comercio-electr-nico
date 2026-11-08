@@ -153,3 +153,40 @@ td select {
     gap: 0.4rem;
   }
 }
+
+.encabezado-seccion {
+  margin-bottom: 1rem;
+
+  h3 {
+    margin: 0 0 0.25rem;
+  }
+
+  p {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: 0.88rem;
+  }
+}
+
+.respaldo-empresa {
+  margin: 1.25rem 0 1rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+
+  label {
+    font-weight: 600;
+  }
+
+  select {
+    flex: 1 1 260px;
+    min-width: 0;
+    min-height: 42px;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    font: inherit;
+    background: #fff;
+  }
+}

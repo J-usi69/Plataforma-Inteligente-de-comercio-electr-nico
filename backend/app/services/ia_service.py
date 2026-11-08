@@ -90,16 +90,52 @@ def llamar_mistral(system_prompt: str, user_prompt: str, max_tokens: int = 500) 
     )
 
 
-def llamar_gemini(system_prompt: str, user_prompt: str, max_tokens: int = 500) -> str:
+def interpretar_con_respaldo(system_prompt: str, user_prompt: str, max_tokens: int = 300, proveedores=None) -> str:
+    """Reportes con IA: prueba los proveedores en orden (Mistral y, si no está configurado o falla,
+    Gemini) y devuelve la primera respuesta. Solo si fallan todos se lanza IAServiceError."""
+    errores = []
+    for proveedor in proveedores or (llamar_mistral, llamar_gemini_reportes):
+        try:
+            return proveedor(system_prompt=system_prompt, user_prompt=user_prompt, max_tokens=max_tokens)
+        except IAServiceError as exc:
+            errores.append(str(exc)[:200])
+    raise IAServiceError("Ningún proveedor de IA respondió: " + " | ".join(errores))
+
+
+def extraer_json(texto: str):
+    """El JSON de la respuesta del modelo, aunque venga entre ```json ... ``` o con texto alrededor."""
+    import json
+
+    limpio = texto.strip()
+    if limpio.startswith("```"):
+        limpio = limpio.strip("`")
+        limpio = limpio[4:] if limpio.lower().startswith("json") else limpio
+    try:
+        return json.loads(limpio)
+    except json.JSONDecodeError:
+        inicio, fin = limpio.find("{"), limpio.rfind("}")
+        if inicio == -1 or fin <= inicio:
+            raise
+        return json.loads(limpio[inicio:fin + 1])
+
+
+def llamar_gemini_reportes(system_prompt: str, user_prompt: str, max_tokens: int = 500) -> str:
+    """Reportes con IA: Gemini con su propia llave (GEMINI_API_KEY_REPORTES), para no gastar la
+    cuota de las recomendaciones del catálogo; sin ella se usa la llave general."""
+    return llamar_gemini(system_prompt, user_prompt, max_tokens, api_key=settings.gemini_api_key_reportes or settings.gemini_api_key)
+
+
+def llamar_gemini(system_prompt: str, user_prompt: str, max_tokens: int = 500, api_key: str | None = None) -> str:
     """CU-28: recomendaciones de prendas. Es el de mayor volumen de llamadas."""
-    if not settings.gemini_api_key:
+    api_key = api_key or settings.gemini_api_key
+    if not api_key:
         raise IAServiceError("El servicio de IA (Gemini) no está configurado")
 
     url = f"https://generativelanguage.googleapis.com/v1beta/models/{settings.gemini_model}:generateContent"
     try:
         respuesta = httpx.post(
             url,
-            params={"key": settings.gemini_api_key},
+            params={"key": api_key},
             headers={"content-type": "application/json"},
             json={
                 "system_instruction": {"parts": [{"text": system_prompt}]},

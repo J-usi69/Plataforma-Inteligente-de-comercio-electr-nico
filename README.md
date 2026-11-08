@@ -232,13 +232,13 @@ Cada empresa del SaaS tiene sus propias cuentas: la sesión vale solo en la empr
 
 | Rol | Correo | Contraseña | Dónde entra | Para probar |
 |---|---|---|---|---|
-| Superadmin | `superadmin@fashionstore.com` | `1234567890` | Web → `/plataforma` (API: `POST /api/v1/plataforma/login`) | Es el único usuario de la plataforma y no pertenece a ninguna empresa. Ve todas las empresas del SaaS con su plan y estado, y las administra. |
+| Superadmin | `superadmin@fashionstore.com` | `1234567890` | Web → `/plataforma` (API: `POST /api/v1/plataforma/login`) | Es el único usuario de la plataforma y no pertenece a ninguna empresa. Indicadores de la plataforma (ingresos por suscripciones, empresas por plan, ventas por empresa, vencimientos), administración de empresas y planes, reportes personalizables de todas las empresas (columnas, criterios, fechas y orden; también pedidos con palabras o por voz, que interpreta la IA; exportación a Excel, PDF, HTML o por correo), bitácora de toda la plataforma (cada acción de cada usuario de todas las empresas, con fecha y hora, rol e IP) y respaldo/restauración del sistema completo o de una empresa. |
 
 #### FashionStore — dirección `fashionstore`, plan Profesional
 
 | Rol | Correo | Contraseña | Para probar |
 |---|---|---|---|
-| Administrador | `admin@fashionstore.com` | `Admin123*` | Dashboard admin completo: roles/permisos, personal, sucursales, proveedores, catálogo maestro (categorías/tallas/colores/temporadas/colecciones), prendas y variantes, reportes con IA, analítica ML y conflictos de sincronización (CU-14). |
+| Administrador | `admin@fashionstore.com` | `Admin123*` | Dashboard admin completo: roles/permisos, personal, sucursales, proveedores, catálogo maestro (categorías/tallas/colores/temporadas/colecciones), prendas y variantes, reportes con IA, reportes personalizados (columnas, criterios, orden, exportación; con palabras o voz en el plan Profesional), bitácora de la empresa, respaldo/restauración de los datos de la empresa, analítica ML y conflictos de sincronización (CU-14). |
 | Cliente | `cliente@fashionstore.com` | `Cliente123*` | Catálogo público, filtros por talla/color/temporada, reservar prenda en sucursal, ver/cancelar "Mis Reservas", vestidor virtual con IA, recomendaciones y chatbot con IA, notificaciones push (app móvil). |
 | Encargado | `encargado@fashionstore.com` | `Encargado123*` | Vinculado como personal de "Sucursal Central Equipetrol" (`id=1`). Gestiona las reservas recibidas por su sucursal en `/encargado`. |
 | Cajero | `cajero@fashionstore.com` | `Cajero123*` | Vinculado a la misma sucursal. Registra ventas presenciales y procesa el cobro en caja (efectivo/tarjeta/QR) en `/caja`. |
@@ -246,7 +246,7 @@ Cada empresa del SaaS tiene sus propias cuentas: la sesión vale solo en la empr
 
 #### Moda Andina — dirección `moda-andina`, plan Básico
 
-El plan Básico incluye hasta 2 sucursales, productos, ventas, reservas, operación sin conexión y reportes. Las funciones de planes superiores (reportes con IA, asistente con IA, vestidor virtual y pago con QR) se ven bloqueadas, con el aviso para mejorar el plan.
+El plan Básico permite hasta 2 sucursales e incluye productos, ventas, reservas, operación sin conexión, reportes, asistente con IA, vestidor virtual y pago con QR. Lo único que no incluye es la IA generativa de reportes (reportes con IA, pedir reportes personalizados con palabras o voz, y analítica ML): eso se ve bloqueado, con el aviso para mejorar el plan. El constructor de reportes personalizados, la bitácora y el respaldo sí están.
 
 | Rol | Correo | Contraseña | Para probar |
 |---|---|---|---|

@@ -3,7 +3,11 @@ import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { FUNCIONES_PLAN, FuncionesPlan, NuevoPlan, PlanAdmin, TiendaAdmin } from '../../../core/models/tienda.model';
 import { AltaEmpresa, PlataformaService } from '../../../core/services/plataforma.service';
+import { IndicadoresPlataforma } from '../indicadores-plataforma/indicadores-plataforma';
 import { aDireccion } from '../registro-tienda/registro-tienda';
+import { Bitacora } from '../../../shared/bitacora/bitacora';
+import { ReportesPersonalizados } from '../../../shared/reportes-personalizados/reportes-personalizados';
+import { Respaldo } from '../../../shared/respaldo/respaldo';
 
 const ALTA_VACIA: AltaEmpresa = { nombre_tienda: '', slug: '', correo: '', password: '', plan_codigo: 'basico' };
 
@@ -15,12 +19,14 @@ function planVacio(): NuevoPlan {
   };
 }
 
-/** Superadmin de la plataforma: todas las empresas con su plan y su suscripción, y la
- * configuración de los planes (los límites del enunciado son los valores iniciales). */
+/** Superadmin de la plataforma: indicadores, todas las empresas con su plan y su suscripción, la
+ * configuración de los planes (los límites del enunciado son los valores iniciales), los reportes
+ * personalizables de todas las empresas, la bitácora de toda la plataforma y el respaldo del sistema
+ * completo o de cada empresa. */
 @Component({
   selector: 'app-panel-plataforma',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, IndicadoresPlataforma, ReportesPersonalizados, Bitacora, Respaldo],
   templateUrl: './panel-plataforma.html',
   styleUrl: './panel-plataforma.scss',
 })
@@ -32,7 +38,20 @@ export class PanelPlataforma implements OnInit {
   readonly planes = signal<PlanAdmin[]>([]);
   /** Los que se pueden contratar: los únicos que se ofrecen al dar de alta o cambiar de plan. */
   readonly planesActivos = computed(() => this.planes().filter((p) => p.estado));
-  readonly pestana = signal<'empresas' | 'planes'>('empresas');
+  readonly pestana = signal<'indicadores' | 'empresas' | 'planes' | 'reportes' | 'bitacora' | 'respaldo'>('indicadores');
+  readonly ejemplosReportes = [
+    'Ingresos de este mes por plan',
+    'Empresas del plan Básico que vencen pronto',
+    '¿Qué empresas están cerca del límite de su plan?',
+    'Inicios de sesión fallidos de esta semana',
+  ];
+  /** Empresa elegida en la pestaña Respaldo (su fuente se memoriza: una nueva por cada cambio). */
+  readonly empresaRespaldo = signal<number | null>(null);
+  readonly respaldoEmpresa = computed(() => {
+    const id = this.empresaRespaldo();
+    return id === null ? null : this.plataforma.respaldoDeEmpresa(id);
+  });
+  readonly tiendaRespaldo = computed(() => this.tiendas().find((t) => t.id === this.empresaRespaldo()) ?? null);
   readonly mensaje = signal<string | null>(null);
   readonly error = signal<string | null>(null);
   readonly ocupado = signal<string | null>(null);
@@ -251,6 +270,11 @@ export class PanelPlataforma implements OnInit {
       },
       error: (err) => this.fallo(err),
     });
+  }
+
+  /** Errores de las pestañas Indicadores y Reportes (sesión vencida u otros). */
+  alFallar(err: { status?: number; error?: { detail?: unknown } }): void {
+    this.fallo(err);
   }
 
   private fallo(err: { status?: number; error?: { detail?: unknown } }): void {

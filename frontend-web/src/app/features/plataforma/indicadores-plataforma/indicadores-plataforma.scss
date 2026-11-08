@@ -1,0 +1,120 @@
+.stat-card.alerta .stat-value {
+  color: #dc2626;
+}
+
+.graficos {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr));
+  gap: 1.25rem;
+  margin-top: 1.5rem;
+
+  h4 {
+    margin: 0 0 1rem;
+  }
+}
+
+.columnas {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.75rem;
+  height: 220px;
+}
+
+.columna {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  height: 100%;
+  gap: 0.35rem;
+  min-width: 0;
+
+  .valor {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    white-space: nowrap;
+  }
+
+  .etiqueta {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #334155;
+    white-space: nowrap;
+  }
+}
+
+.barra-vertical {
+  flex: 1;
+  width: 100%;
+  max-width: 56px;
+  display: flex;
+  align-items: flex-end;
+  background: #f1f5f9;
+  border-radius: 8px 8px 0 0;
+  overflow: hidden;
+
+  div {
+    width: 100%;
+    background: linear-gradient(180deg, #6366f1, #4f46e5);
+    border-radius: 8px 8px 0 0;
+    transition: height 0.4s ease;
+  }
+}
+
+.fila-barra {
+  margin-bottom: 0.85rem;
+
+  .leyenda {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.75rem;
+    font-size: 0.85rem;
+    margin-bottom: 0.3rem;
+    flex-wrap: wrap;
+
+    span {
+      color: var(--text-muted);
+    }
+  }
+}
+
+.barra {
+  background: #f1f5f9;
+  border-radius: 6px;
+  height: 10px;
+  overflow: hidden;
+
+  div {
+    height: 100%;
+    transition: width 0.4s ease;
+  }
+
+  .plan {
+    background: #4f46e5;
+  }
+
+  .ventas {
+    background: #db2777;
+  }
+}
+
+.vencimiento {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.9rem;
+
+  &:last-child {
+    border-bottom: 0;
+  }
+}
+
+.vacio {
+  color: #94a3b8;
+  font-size: 0.85rem;
+  text-align: center;
+  padding: 1rem 0;
+}

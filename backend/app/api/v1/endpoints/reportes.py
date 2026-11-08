@@ -1,10 +1,11 @@
+from dataclasses import asdict
 from datetime import date
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_db, require_roles
+from app.api.deps import get_client_ip, get_db, get_user_roles, registrar_bitacora, require_roles
 from app.models.seguridad import Usuario
 from app.models.tienda import Tienda
 from app.schemas.reporte import (
@@ -17,7 +18,16 @@ from app.schemas.reporte import (
     RendimientoCategoriaOut,
     VentaPorSucursalOut,
 )
-from app.services import ml_analytics_service, reportes_service
+from app.schemas.tienda import (
+    CatalogoReporteOut,
+    EnviarReporteIn,
+    OpcionesReporteOut,
+    PedidoReporteIn,
+    ReporteIAPlataformaOut,
+    ReportePlataformaOut,
+)
+from app.services import empresa_reportes_service, ml_analytics_service, reportes_service
+from app.services import reportes_personalizados as motor
 from app.services.planes_service import exigir_funcion
 
 router = APIRouter()
@@ -243,3 +253,90 @@ def exportar_reporte_pdf(
         media_type="application/pdf",
         headers={"Content-Disposition": f'attachment; filename="reporte_{datos.tipo}.pdf"'},
     )
+
+
+# =====================================================================
+# REPORTES PERSONALIZABLES (característica 5): columnas, criterios, orden,
+# exportación a Excel, PDF y HTML, envío por correo y pedido con IA o voz
+# =====================================================================
+PREFIJO_ARCHIVOS = "reporte"
+
+
+def _nombre_empresa(db: Session, usuario: Usuario) -> str:
+    tienda = db.get(Tienda, usuario.tienda_id) if usuario.tienda_id else None
+    return tienda.nombre if tienda else "FashionStore"
+
+
+@router.get("/personalizados", response_model=List[CatalogoReporteOut])
+def catalogo_personalizado(
+    db: Session = Depends(get_db),
+    current_user: Usuario = Depends(require_roles(_ROLES_REPORTES)),
+):
+    """Reportes que puede armar el usuario con sus columnas (la bitácora, solo el administrador)."""
+    return empresa_reportes_service.catalogo(get_user_roles(current_user.id, db))
+
+
+@router.post(
+    "/personalizados/ia",
+    response_model=ReporteIAPlataformaOut,
+    dependencies=[Depends(exigir_funcion("reportes_ia"))],
+)
+def reporte_personalizado_ia(
+    datos: PedidoReporteIn,
+    db: Session = Depends(get_db),
+    current_user: Usuario = Depends(require_roles(_ROLES_REPORTES)),
+):
+    """Reporte por comando (escrito o por voz): la IA traduce el pedido a las opciones del
+    constructor y se genera como cualquier otro. Plan Profesional."""
+    roles = get_user_roles(current_user.id, db)
+    opciones = empresa_reportes_service.interpretar(roles, datos.pedido)
+    reporte = empresa_reportes_service.generar(db, roles, **opciones)
+    return ReporteIAPlataformaOut(
+        pedido=datos.pedido,
+        opciones=OpcionesReporteOut(**{**opciones, "criterios": [vars(c) for c in opciones["criterios"]]}),
+        reporte=ReportePlataformaOut(tipo=opciones["tipo"], **asdict(reporte)),
+    )
+
+
+@router.get("/personalizados/{tipo}", response_model=ReportePlataformaOut)
+def reporte_personalizado(
+    tipo: str,
+    opciones: dict = Depends(motor.opciones_de_consulta),
+    db: Session = Depends(get_db),
+    current_user: Usuario = Depends(require_roles(_ROLES_REPORTES)),
+):
+    """El reporte con las columnas, criterios, fechas y orden elegidos."""
+    reporte = empresa_reportes_service.generar(db, get_user_roles(current_user.id, db), tipo, **opciones)
+    return ReportePlataformaOut(tipo=tipo, **asdict(reporte))
+
+
+@router.get("/personalizados/{tipo}/exportar")
+def exportar_reporte_personalizado(
+    tipo: str,
+    request: Request,
+    formato: str = Query(..., pattern="^(excel|pdf|html)$"),
+    opciones: dict = Depends(motor.opciones_de_consulta),
+    db: Session = Depends(get_db),
+    current_user: Usuario = Depends(require_roles(_ROLES_REPORTES)),
+):
+    """El mismo reporte, con las mismas opciones, en Excel, PDF o HTML."""
+    reporte = empresa_reportes_service.generar(db, get_user_roles(current_user.id, db), tipo, **opciones)
+    registrar_bitacora(db, current_user.id, f"Reporte exportado: {reporte.titulo} ({formato.upper()})", get_client_ip(request))
+    return motor.descarga(reporte, formato, _nombre_empresa(db, current_user), PREFIJO_ARCHIVOS, tipo)
+
+
+@router.post("/personalizados/{tipo}/enviar")
+def enviar_reporte_personalizado(
+    tipo: str,
+    datos: EnviarReporteIn,
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: Usuario = Depends(require_roles(_ROLES_REPORTES)),
+):
+    """Envía el reporte por correo: el HTML en el cuerpo y el archivo elegido adjunto."""
+    reporte = empresa_reportes_service.generar(db, get_user_roles(current_user.id, db), tipo, **motor.opciones_de_envio(datos))
+    motor.enviar_por_correo(reporte, datos.destinatario, datos.formato, _nombre_empresa(db, current_user), PREFIJO_ARCHIVOS, tipo)
+    registrar_bitacora(
+        db, current_user.id, f"Reporte enviado por correo: {reporte.titulo} a {datos.destinatario}"[:100], get_client_ip(request),
+    )
+    return {"enviado": True, "destinatario": datos.destinatario}

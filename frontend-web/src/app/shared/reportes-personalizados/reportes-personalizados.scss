@@ -1,0 +1,285 @@
+.constructor {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.paso h4 {
+  margin: 0 0 0.6rem;
+
+  small {
+    font-weight: 400;
+    color: var(--text-muted);
+  }
+}
+
+.tipos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+
+  button {
+    padding: 0.5rem 0.9rem;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: #fff;
+    font: inherit;
+    font-size: 0.88rem;
+    cursor: pointer;
+    min-height: 40px;
+
+    &.activo {
+      background: var(--primary);
+      border-color: var(--primary);
+      color: #fff;
+      font-weight: 600;
+    }
+  }
+}
+
+.ayuda {
+  margin: 0.6rem 0 0;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.columnas {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 230px), 1fr));
+  gap: 0.4rem;
+
+  li {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.35rem 0.6rem;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: #f8fafc;
+
+    &.apagada {
+      opacity: 0.55;
+    }
+
+    label {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: 0.88rem;
+      cursor: pointer;
+    }
+  }
+}
+
+.flechas button {
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: #fff;
+  cursor: pointer;
+
+  &:disabled {
+    opacity: 0.35;
+    cursor: default;
+  }
+}
+
+.fila-filtros {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 190px), 1fr));
+  gap: 0.75rem;
+}
+
+.criterios {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+/* Mismo aspecto que los campos de .form-group, para los que van en fila */
+.criterio select,
+.criterio input,
+.correo select,
+.correo input {
+  padding: 0.6rem 0.9rem;
+  min-height: 42px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 0.9rem;
+  font-family: inherit;
+  color: var(--text-main);
+  background-color: #ffffff;
+  outline: none;
+  transition: all 0.2s ease;
+
+  &:focus {
+    border-color: var(--border-focus);
+    box-shadow: 0 0 0 4px var(--primary-glow);
+  }
+
+  &::placeholder {
+    color: var(--text-sub);
+  }
+}
+
+.criterio {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  width: 100%;
+
+  select,
+  input {
+    flex: 1 1 160px;
+    min-width: 0;
+  }
+}
+
+.acciones-reporte,
+.correo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.correo input {
+  flex: 1 1 220px;
+}
+
+.separador {
+  margin-left: 0.5rem;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.resultado {
+  margin-top: 1.25rem;
+
+  h3 {
+    margin: 0 0 0.25rem;
+  }
+
+  .filtros {
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    margin: 0 0 0.75rem;
+  }
+
+  .narrativa {
+    background: #eef2ff;
+    border-left: 4px solid var(--primary);
+    padding: 0.6rem 0.9rem;
+    border-radius: 6px;
+    font-size: 0.9rem;
+  }
+
+  td.num {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+
+  tfoot td {
+    font-weight: 700;
+    background: #e2e8f0;
+  }
+
+  .vacio {
+    text-align: center;
+    color: #94a3b8;
+  }
+}
+
+.pedido-ia {
+  margin-bottom: 1.25rem;
+  background: linear-gradient(135deg, #eef2ff, #fdf2f8);
+
+  h4 {
+    margin: 0 0 0.25rem;
+  }
+
+  .ayuda {
+    margin: 0 0 0.75rem;
+  }
+}
+
+.fila-pedido {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+
+  input {
+    flex: 1 1 280px;
+    min-width: 0;
+    padding: 0.7rem 1rem;
+    min-height: 44px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    font: inherit;
+    font-size: 0.95rem;
+    background: #fff;
+    outline: none;
+
+    &:focus {
+      border-color: var(--border-focus);
+      box-shadow: 0 0 0 4px var(--primary-glow);
+    }
+  }
+
+  .microfono {
+    min-width: 48px;
+    min-height: 44px;
+    font-size: 1.1rem;
+
+    &.escuchando {
+      border-color: #dc2626;
+      animation: latido 1s ease-in-out infinite;
+    }
+  }
+}
+
+@keyframes latido {
+  50% {
+    box-shadow: 0 0 0 6px rgba(220, 38, 38, 0.2);
+  }
+}
+
+.ejemplos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 0.75rem;
+
+  button {
+    border: 1px dashed #a5b4fc;
+    background: #fff;
+    color: #4338ca;
+    border-radius: 999px;
+    padding: 0.35rem 0.8rem;
+    font: inherit;
+    font-size: 0.8rem;
+    cursor: pointer;
+    min-height: 34px;
+  }
+}
+
+.interpretacion {
+  margin: 0.75rem 0 0;
+  font-size: 0.8rem;
+  color: #4338ca;
+}
+
+.sin-ia {
+  background: #f8fafc;
+
+  .ayuda {
+    margin: 0;
+  }
+}

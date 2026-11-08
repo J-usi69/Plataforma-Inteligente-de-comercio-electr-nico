@@ -1,0 +1,181 @@
+@if (iaDisponible()) {
+<div class="card pedido-ia">
+  <h4>✨ Pedí tu reporte con tus palabras</h4>
+  <p class="ayuda">Escribilo o dictalo con el micrófono: la IA arma el reporte con el constructor de abajo, donde lo podés ajustar y exportar.</p>
+  <form class="fila-pedido" (ngSubmit)="pedirConIA()">
+    <input name="pedido" [(ngModel)]="pedido" [placeholder]="'Ej.: ' + (ejemplos()[0] ?? 'ventas de este mes')" aria-label="Pedido de reporte" maxlength="500" />
+    <button type="button" class="btn btn-secondary microfono" [class.escuchando]="dictando()" [disabled]="!!ocupado()" (click)="dictar()"
+      [attr.aria-label]="dictando() ? 'Escuchando' : 'Dictar por voz'" [title]="dictando() ? 'Escuchando' : 'Dictar por voz'">
+      {{ dictando() ? '🔴' : '🎤' }}
+    </button>
+    <button type="submit" class="btn btn-primary" [disabled]="!!ocupado()">{{ ocupado() === 'ia' ? 'Interpretando...' : 'Generar con IA' }}</button>
+  </form>
+  <div class="ejemplos">
+    @for (e of ejemplos(); track e) {
+      <button type="button" [disabled]="!!ocupado()" (click)="pedirConIA(e)">{{ e }}</button>
+    }
+  </div>
+  @if (interpretacion()) {
+    <p class="interpretacion">{{ interpretacion() }}</p>
+  }
+</div>
+} @else if (avisoSinIA()) {
+<div class="card pedido-ia sin-ia">
+  <h4>✨ Pedí tu reporte con tus palabras</h4>
+  <p class="ayuda">{{ avisoSinIA() }}</p>
+</div>
+}
+
+<div class="constructor card">
+  <div class="paso">
+    <h4>1. Reporte</h4>
+    <div class="tipos" role="radiogroup" aria-label="Tipo de reporte">
+      @for (r of catalogo(); track r.tipo) {
+        <button type="button" role="radio" [attr.aria-checked]="tipo() === r.tipo" [class.activo]="tipo() === r.tipo" (click)="elegirTipo(r.tipo)">
+          {{ r.titulo }}
+        </button>
+      }
+    </div>
+    @if (definicion(); as d) {
+      <p class="ayuda">{{ d.descripcion }}</p>
+    }
+  </div>
+
+  <div class="paso">
+    <h4>2. Columnas <small>(marcá las que querés ver y ordenalas con las flechas)</small></h4>
+    <ul class="columnas">
+      @for (c of columnas(); track c.nombre; let i = $index; let primero = $first; let ultimo = $last) {
+        <li [class.apagada]="!c.elegida">
+          <label><input type="checkbox" [checked]="c.elegida" (change)="alternarColumna(i)" /> {{ c.nombre }}</label>
+          <span class="flechas">
+            <button type="button" [disabled]="primero" (click)="moverColumna(i, -1)" [attr.aria-label]="'Subir ' + c.nombre">↑</button>
+            <button type="button" [disabled]="ultimo" (click)="moverColumna(i, 1)" [attr.aria-label]="'Bajar ' + c.nombre">↓</button>
+          </span>
+        </li>
+      }
+    </ul>
+  </div>
+
+  <div class="paso">
+    <h4>3. Filtros</h4>
+    <div class="fila-filtros">
+      <div class="form-group">
+        <label for="rep-desde">Desde</label>
+        <input id="rep-desde" type="date" [(ngModel)]="desde" />
+      </div>
+      <div class="form-group">
+        <label for="rep-hasta">Hasta</label>
+        <input id="rep-hasta" type="date" [(ngModel)]="hasta" />
+      </div>
+      <div class="form-group">
+        <label for="rep-orden">Ordenar por</label>
+        <select id="rep-orden" [(ngModel)]="orden">
+          @for (c of definicion()?.columnas ?? []; track c) {
+            <option [value]="c">{{ c }}</option>
+          }
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="rep-sentido">Sentido</label>
+        <select id="rep-sentido" [(ngModel)]="descendente">
+          <option [ngValue]="false">Ascendente (A→Z, menor a mayor)</option>
+          <option [ngValue]="true">Descendente (Z→A, mayor a menor)</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="criterios">
+      @for (c of criterios; track $index; let i = $index) {
+        <div class="criterio">
+          <select [(ngModel)]="c.columna" [attr.aria-label]="'Columna del criterio ' + (i + 1)">
+            @for (col of definicion()?.columnas ?? []; track col) {
+              <option [value]="col">{{ col }}</option>
+            }
+          </select>
+          <select [(ngModel)]="c.operador" [attr.aria-label]="'Operador del criterio ' + (i + 1)">
+            @for (o of operadores; track o.clave) {
+              <option [value]="o.clave">{{ o.nombre }}</option>
+            }
+          </select>
+          <input [(ngModel)]="c.valor" placeholder="Valor" [attr.aria-label]="'Valor del criterio ' + (i + 1)" />
+          <button type="button" class="btn btn-secondary btn-sm" (click)="quitarCriterio(i)" aria-label="Quitar criterio">✕</button>
+        </div>
+      }
+      <button type="button" class="btn btn-secondary btn-sm" (click)="agregarCriterio()">+ Agregar criterio de selección</button>
+    </div>
+  </div>
+
+  <div class="acciones-reporte">
+    <button type="button" class="btn btn-primary" [disabled]="!!ocupado()" (click)="generar()">
+      {{ ocupado() === 'generar' ? 'Generando...' : 'Generar reporte' }}
+    </button>
+    <span class="separador">Exportar:</span>
+    <button type="button" class="btn btn-secondary btn-sm" [disabled]="!!ocupado()" (click)="exportar('excel')">Excel</button>
+    <button type="button" class="btn btn-secondary btn-sm" [disabled]="!!ocupado()" (click)="exportar('pdf')">PDF</button>
+    <button type="button" class="btn btn-secondary btn-sm" [disabled]="!!ocupado()" (click)="exportar('html')">HTML</button>
+  </div>
+
+  <div class="correo">
+    <input type="email" [(ngModel)]="destinatario" placeholder="correo@destino.com" aria-label="Enviar el reporte a" />
+    <select [(ngModel)]="formatoCorreo" aria-label="Formato del adjunto">
+      <option value="pdf">Adjunto PDF</option>
+      <option value="excel">Adjunto Excel</option>
+      <option value="html">Adjunto HTML</option>
+    </select>
+    <button type="button" class="btn btn-secondary btn-sm" [disabled]="!!ocupado()" (click)="enviar()">
+      {{ ocupado() === 'correo' ? 'Enviando...' : 'Enviar por correo' }}
+    </button>
+  </div>
+
+  @if (error()) {
+    <div class="alert alert-danger">{{ error() }}</div>
+  }
+  @if (mensaje()) {
+    <div class="alert alert-success">{{ mensaje() }}</div>
+  }
+</div>
+
+@if (reporte(); as r) {
+  <div class="card resultado">
+    <h3>{{ r.titulo }}</h3>
+    <p class="filtros">{{ r.filtros }}</p>
+    <p class="narrativa">{{ r.narrativa }}</p>
+    <div class="table-responsive">
+      <table class="table">
+        <thead>
+          <tr>
+            @for (c of r.columnas; track c) {
+              <th>{{ c }}</th>
+            }
+          </tr>
+        </thead>
+        <tbody>
+          @for (fila of r.filas; track $index) {
+            <tr>
+              @for (valor of fila; track $index; let j = $index) {
+                <td [class.num]="esNumero(valor)">
+                  {{ esMonto(r.columnas[j]) && esNumero(valor) ? ($any(valor) | number: '1.2-2') : valor }}
+                </td>
+              }
+            </tr>
+          } @empty {
+            <tr>
+              <td [attr.colspan]="r.columnas.length" class="vacio">Ningún registro cumple los filtros.</td>
+            </tr>
+          }
+        </tbody>
+        @if (r.totales; as t) {
+          <tfoot>
+            <tr>
+              @for (c of r.columnas; track c) {
+                <td [class.num]="esNumero(t[c] ?? null)">
+                  {{ esMonto(c) && esNumero(t[c] ?? null) ? ($any(t[c]) | number: '1.2-2') : (t[c] ?? '') }}
+                </td>
+              }
+            </tr>
+          </tfoot>
+        }
+      </table>
+    </div>
+  </div>
+}

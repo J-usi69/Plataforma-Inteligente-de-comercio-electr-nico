@@ -7,6 +7,7 @@ import { filter, map } from 'rxjs';
 import { SincronizacionService } from './core/offline/sincronizacion.service';
 import { AuthService } from './core/services/auth.service';
 import { CartService } from './core/services/cart.service';
+import { PlataformaService } from './core/services/plataforma.service';
 import { TiendaService } from './core/services/tienda.service';
 import { ChatWidget } from './features/asistente/chat-widget/chat-widget';
 import { ColaSincronizacion } from './shared/cola-sincronizacion/cola-sincronizacion';
@@ -29,6 +30,7 @@ export class App {
   readonly cartService = inject(CartService);
   readonly tienda = inject(TiendaService);
   readonly sync = inject(SincronizacionService);
+  readonly plataforma = inject(PlataformaService);
   private readonly router = inject(Router);
   /** El Service Worker bajó una versión nueva de la web: se ofrece recargar (sin cortar una venta en curso). */
   readonly versionNueva = signal(false);
@@ -79,6 +81,16 @@ export class App {
       map(() => this.router.url.startsWith('/probador-ar'))
     ),
     { initialValue: window.location.pathname.startsWith('/probador-ar') }
+  );
+
+  // La administración de la plataforma no es de ninguna empresa: sin el menú de la tienda, sin
+  // "Iniciar sesión" de la tienda y sin el chat (el panel tiene su propio ingreso del superadmin)
+  readonly enPlataforma = toSignal(
+    this.router.events.pipe(
+      filter((e) => e instanceof NavigationEnd),
+      map(() => this.router.url.startsWith('/plataforma'))
+    ),
+    { initialValue: window.location.pathname.startsWith('/plataforma') }
   );
 
   onLogout(): void {

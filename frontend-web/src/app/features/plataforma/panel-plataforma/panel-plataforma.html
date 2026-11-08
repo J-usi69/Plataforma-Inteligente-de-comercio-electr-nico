@@ -3,7 +3,7 @@
     <div>
       <span class="etiqueta-seccion">Plataforma SaaS</span>
       <h2>Administración de FashionStore</h2>
-      <p>Empresas suscritas, sus planes y suscripciones, y la configuración de los planes.</p>
+      <p>Indicadores de la plataforma, empresas suscritas con sus planes y suscripciones, configuración de los planes, reportes, bitácora y respaldo.</p>
     </div>
     @if (plataforma.conSesion()) {
       <button class="btn btn-secondary btn-sm" (click)="salir()">Cerrar sesión</button>
@@ -31,6 +31,7 @@
       <button class="btn btn-primary" type="submit">Entrar</button>
     </form>
   } @else {
+    @if (pestana() === 'empresas' || pestana() === 'planes') {
     <div class="stats-grid">
       <div class="stat-card">
         <div class="stat-data">
@@ -53,13 +54,63 @@
         </div>
       }
     </div>
+    }
 
     <div class="pestanas" role="tablist">
+      <button role="tab" [class.activa]="pestana() === 'indicadores'" (click)="pestana.set('indicadores')">Indicadores</button>
       <button role="tab" [class.activa]="pestana() === 'empresas'" (click)="pestana.set('empresas')">Empresas</button>
       <button role="tab" [class.activa]="pestana() === 'planes'" (click)="pestana.set('planes')">Planes</button>
+      <button role="tab" [class.activa]="pestana() === 'reportes'" (click)="pestana.set('reportes')">Reportes</button>
+      <button role="tab" [class.activa]="pestana() === 'bitacora'" (click)="pestana.set('bitacora')">Bitácora</button>
+      <button role="tab" [class.activa]="pestana() === 'respaldo'" (click)="pestana.set('respaldo')">Respaldo</button>
     </div>
 
-    @if (pestana() === 'empresas') {
+    @if (pestana() === 'indicadores') {
+      <app-indicadores-plataforma (fallo)="alFallar($event)"></app-indicadores-plataforma>
+    } @else if (pestana() === 'reportes') {
+      <app-reportes-personalizados
+        [fuente]="plataforma.reportes"
+        [ejemplos]="ejemplosReportes"
+        prefijoArchivos="plataforma"
+        (fallo)="alFallar($event)"
+      ></app-reportes-personalizados>
+    } @else if (pestana() === 'bitacora') {
+      <div class="encabezado-seccion">
+        <h3>Bitácora de la plataforma</h3>
+        <p>Cada acción de cada usuario de todas las empresas y de la plataforma, con fecha y hora, rol e IP.</p>
+      </div>
+      <app-bitacora [fuente]="plataforma.reportes" [conEmpresa]="true" prefijoArchivos="plataforma" (fallo)="alFallar($event)"></app-bitacora>
+    } @else if (pestana() === 'respaldo') {
+      <app-respaldo
+        [fuente]="plataforma.respaldoSistema"
+        alcance="sistema"
+        prefijoArchivo="sistema"
+        titulo="Respaldo del sistema completo"
+        descripcion="Todas las empresas, sus datos, los planes, las suscripciones y la bitácora. Restaurar vuelve todo el sistema al momento del respaldo."
+        (fallo)="alFallar($event)"
+        (restaurado)="cargar()"
+      ></app-respaldo>
+      <div class="card respaldo-empresa">
+        <label for="empresa-respaldo">Respaldo de una empresa</label>
+        <select id="empresa-respaldo" [ngModel]="empresaRespaldo()" (ngModelChange)="empresaRespaldo.set($event)">
+          <option [ngValue]="null">Elegí una empresa...</option>
+          @for (t of tiendas(); track t.id) {
+            <option [ngValue]="t.id">{{ t.nombre }} ({{ t.slug }})</option>
+          }
+        </select>
+      </div>
+      @if (respaldoEmpresa(); as fuente) {
+        <app-respaldo
+          [fuente]="fuente"
+          alcance="empresa"
+          [prefijoArchivo]="tiendaRespaldo()?.slug ?? 'empresa'"
+          [titulo]="'Respaldo de ' + (tiendaRespaldo()?.nombre ?? 'la empresa')"
+          descripcion="Los mismos datos que descarga el administrador de la empresa. Su plan y su suscripción no cambian al restaurar."
+          (fallo)="alFallar($event)"
+          (restaurado)="cargar()"
+        ></app-respaldo>
+      }
+    } @else if (pestana() === 'empresas') {
       <div class="acciones">
         <button class="btn btn-primary btn-sm" (click)="mostrarAlta = !mostrarAlta">
           {{ mostrarAlta ? 'Cerrar' : '+ Registrar empresa' }}
