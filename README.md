@@ -4,6 +4,8 @@ Plataforma inteligente de comercio electrónico para una cadena de tiendas de ro
 
 Trabajo del **Primer Examen Parcial — Sistemas de Información 2** (Grupo 13, UAGRM). El enunciado completo, los casos de uso (CU-01 a CU-34) y el análisis de paquetes están en `docs/` — léelo antes de tocar código, ahí está el detalle de cada flujo.
 
+**Para probar el sistema:** [credenciales](#credenciales-de-prueba), [qué hace cada rol en la web y en la app](#guía-de-uso-por-rol) y [cómo probarlo](#cómo-probar).
+
 ## Stack
 
 | Capa | Tecnología |
@@ -13,7 +15,7 @@ Trabajo del **Primer Examen Parcial — Sistemas de Información 2** (Grupo 13, 
 | Móvil | Flutter/Dart |
 | Base de datos | PostgreSQL, alojada en **Supabase** (compartida por todo el equipo) |
 | Infraestructura local | Docker (backend + frontend, conectados directo a Supabase) |
-| Despliegue final | Google Cloud Platform (Cloud Run, Cloud SQL, Cloud Storage) |
+| Despliegue | Railway (backend y web; se despliega solo con cada push a `main`) y Supabase (base de datos) |
 
 ## Estado actual del proyecto
 
@@ -62,21 +64,15 @@ Las tres integraciones son HTTP directo (`httpx`) contra la API de cada proveedo
 
 **El chatbot es la única función de IA que también funciona sin haber iniciado sesión** (recomendaciones y reportes sí necesitan estar logueado) — así un visitante puede preguntar sobre tallas, disponibilidad o el proceso de reserva antes de crear una cuenta. El asistente recibe el historial de la conversación en cada mensaje (no tiene memoria del lado del servidor) y su prompt está anclado a datos reales del negocio (moneda en Bolivianos, reserva gratuita) para no inventar precios ni políticas que no existen.
 
-### Flujo actual por rol de usuario
+### Flujo por rol de usuario
 
-El sistema diferencia el rol en el login y cada uno tiene su propia pantalla.
-
-- **Administrador** (`admin@fashionstore.com`): al loguearse entra directo al **Dashboard admin** (`/admin`) — ahí gestiona roles y permisos, personal, sucursales, proveedores, todo el catálogo maestro (categorías, tallas, colores, temporadas, colecciones, prendas y variantes), el dashboard de indicadores, el inventario global de todas las sucursales (filtrable por ciudad/categoría) y los reportes (predefinidos, descargables en CSV, o generados con IA en lenguaje natural).
-- **Cliente** (`cliente@fashionstore.com`): al loguearse cae en el **catálogo público** (`/catalogo`, misma pantalla que ve un visitante sin cuenta) y desde ahí puede filtrar prendas, tocar cualquier tarjeta de producto para ver su detalle completo, reservar una variante en la sucursal con stock disponible, ver/cancelar sus reservas (`/reservas`), comprar desde el carrito con pago por pasarela digital (Stripe, modo test), consultar su historial de compras (`/mis-compras`), ver un carrusel de "Recomendado para ti" (IA), chatear con el asistente virtual y usar el vestidor virtual con IA (**solo disponible en la app móvil por ahora**, no en la web). En la app móvil además recibe notificaciones push sobre sus reservas y compras.
-- **Encargado** (`encargado@fashionstore.com`, vinculado como personal de la Sucursal Central Equipetrol): tiene su propia pantalla (`/encargado`) con dos vistas — **Reservas**: ver las entrantes de su sucursal, confirmar que apartó las prendas ("Apartar Prendas"), confirmar la recepción del cliente ("Atender Cliente") o marcarla como no presentada ("No se presentó"), cada una de estas tres acciones le manda un push al celular del Cliente; **Inventario de mi Sucursal**: registrar ingresos, devoluciones, mermas o ajustes manuales sobre el stock de sus propias variantes.
-- **Cajero** (`cajero@fashionstore.com`, misma sucursal): tiene su propia pantalla de caja (`/caja`) para cargar una reserva ya atendida o agregar prendas de mostrador, cobrar la venta y emitir el comprobante.
-- **Proveedor** (`proveedor@fashionstore.com`, vinculado a "Proveedor Demo S.R.L."): tiene su propia pantalla (`/proveedor`) para registrar sus propios productos (quedan inactivos hasta que el Administrador los valida y reactiva — eso dispara un push a todos los Clientes) e informar disponibilidad futura de stock (dispara un push a los Administradores).
+Qué hace cada rol, en la web y en la app, y cómo probarlo: ver la [Guía de uso por rol](#guía-de-uso-por-rol).
 
 ### Frontend web (Angular)
 Login/registro funcionales contra la API real, interceptor de autenticación JWT, dashboard administrativo con listados (roles, personal, sucursales, proveedores, catálogo, reportes/dashboard), panel propio de Proveedor, asistente conversacional flotante (disponible sin sesión iniciada), catálogo con tarjetas de producto clickeables, servicios `AuthService`/`ApiService`/`BusinessService`.
 
 ### App móvil (Flutter)
-Login/registro/perfil funcionales contra la API real, listado de sucursales, catálogo de prendas con filtros por talla/color y tarjetas de producto clickeables (abren el detalle completo: categoría, descripción, variantes, accesos directos a 3D RA/Reservar/Comprar), reserva de variante en sucursal (`/reservar`) y gestión de "Mis Reservas" (`/reservas`), vestidor virtual con IA (`/vestidor-ar` — cámara + Replicate, único lugar donde el CU-14 está integrado por ahora), carrusel de recomendaciones y pantalla de chat con el asistente (`/asistente`, funciona sin sesión iniciada), y notificaciones push nativas vía Firebase Cloud Messaging (se registra el token del dispositivo al iniciar sesión).
+Login/registro/perfil funcionales contra la API real, listado de sucursales, catálogo de prendas con filtros por talla/color y tarjetas de producto clickeables (abren el detalle completo: categoría, descripción, variantes, accesos directos a 3D RA/Reservar/Comprar), reserva de variante en sucursal (`/reservar`) y gestión de "Mis Reservas" (`/reservas`), vestidor virtual (`/vestidor-ar`, con IA generativa o AR en vivo; la web también lo tiene), carrusel de recomendaciones y pantalla de chat con el asistente (`/asistente`, funciona sin sesión iniciada), y notificaciones push nativas vía Firebase Cloud Messaging (se registra el token del dispositivo al iniciar sesión).
 
 ### Diagramas y documentación
 - `docs/diseno_logico.md` — diseño lógico de las 25 tablas en formato visual (header + PK + FKs).
@@ -255,16 +251,233 @@ El plan Básico permite hasta 2 sucursales e incluye productos, ventas, reservas
 | Cajero | `cajero@modaandina.com` | `Cajero123*` | Ventas presenciales y cobro en `/caja`. |
 | Cliente | `cliente@modaandina.com` | `Cliente123*` | Catálogo de Moda Andina. No ve productos ni datos de FashionStore (aislamiento entre empresas). |
 
-### Cómo probar el flujo completo (guía rápida para Jhonny)
+## Guía de uso por rol
 
-1. `git pull` sobre `main`, luego `docker compose up -d --build` (ver sección 2 más arriba). Backend en `http://localhost:8000`, web en `http://localhost:4200`, ambos contra la Supabase compartida — no necesitas tocar nada de datos, ya está todo sembrado.
-2. **Como Cliente** (`cliente@fashionstore.com` / `Cliente123*`):
-   - En la web, entra al catálogo (ya hay 5 prendas de ejemplo con imagen, una por categoría) y prueba los filtros de categoría/talla/color.
-   - Abre una prenda → botón **"Reservar para probar en sucursal"** → elige variante (talla/color) → elige sucursal (te muestra el stock disponible real) → confirma. Luego revisa **"Mis Reservas"** y prueba cancelarla.
-   - El mismo flujo de catálogo + reserva funciona igual en la app móvil (Flutter), con el botón **"Reservar"** en cada tarjeta.
-3. **Vestidor virtual con IA (CU-14) — solo disponible en la app móvil por ahora**, no en la web (la web solo muestra un aviso). Desde el catálogo en Flutter, botón **"Probar con RA"** → toma una foto con la cámara → el backend llama a Replicate (modelo `prunaai/p-image-try-on`) y devuelve la imagen generada. **Importante:** cada integrante necesita su propio `REPLICATE_API_TOKEN` en su `.env` local (ver sección 1) y crédito cargado en su cuenta de Replicate (https://replicate.com/account/billing) — sin crédito, el job falla con "Insufficient credit" (no es un bug, es facturación).
-4. **Como Administrador**, revisa el módulo de Roles y Permisos (`admin@fashionstore.com`) — el modal de edición de rol ahora se ve bien alineado (checkboxes + descripción de cada permiso).
-5. Si necesitas resetear o agregar más datos de catálogo para tus propias pruebas, hazlo con `INSERT`/`UPDATE` normales sobre `prenda`, `variante_prenda` e `inventario_sucursal` (o pídeme que te pase el script) — evita usar el Postgres local para esto porque entonces no lo ves reflejado en la web/app que sí apunta a Supabase.
+Qué hace cada rol, en qué pantalla y cómo se usa, en la web y en la app móvil. Las contraseñas están en [Credenciales de prueba](#credenciales-de-prueba) y los recorridos para comprobar cada función, en [Cómo probar](#cómo-probar).
+
+### Cómo entrar
+
+| | Web | App móvil |
+|---|---|---|
+| Dónde | https://fashionstore-uagrm.up.railway.app. En Chrome o Edge aparece el botón **Instalar app** para usarla como aplicación | APK compilada contra el backend de Railway (ver [App móvil](#5-app-móvil)) |
+| Elegir la empresa | Entrar por `/t/<dirección>/login`, por ejemplo `/t/moda-andina/login`. FashionStore también responde en `/login` | Escribir la dirección (`fashionstore` o `moda-andina`) en el campo **Empresa** del login |
+| Superadmin | `/plataforma` | No está en la app |
+| Crear una empresa nueva | `/crear-tienda` | No está en la app |
+
+Al iniciar sesión en la web, cada rol cae en su pantalla: el Administrador en `/admin`, el Encargado en `/encargado`, el Cajero en `/caja`, el Proveedor en `/proveedor` y el Cliente en el catálogo. En la app todos empiezan en el catálogo, y el menú (☰) muestra solo las opciones de su rol.
+
+### Resumen
+
+| Rol | Web | App móvil |
+|---|---|---|
+| Visitante (sin cuenta) | Catálogo, detalle de prendas y asistente con IA | Catálogo, sucursales y asistente con IA |
+| Cliente | Catálogo, vestidor virtual, reservas, carrito y pago, mis compras, recomendaciones y asistente | Lo mismo, más notificaciones push y reservas sin conexión |
+| Cajero | Caja: ventas en tienda, cobro, comprobante y cambio de prendas | Venta de contado con o sin conexión, y operaciones pendientes |
+| Encargado | Reservas e inventario de su sucursal | Conflictos de sincronización, reportes con IA y operaciones pendientes |
+| Administrador | Panel de la empresa (13 pestañas) y **Mi plan** | Venta de contado, conflictos, reportes con IA y analítica ML |
+| Proveedor | Sus productos y la disponibilidad que informa | No está en la app |
+| Superadmin | Panel de la plataforma: indicadores, empresas, planes, reportes, bitácora y respaldo | No está en la app |
+
+### Cliente
+
+**Web**
+1. **Catálogo** (`/catalogo`): filtrar por categoría, colección, temporada, talla y color. Al tocar una prenda se abre su detalle, con las variantes (talla y color) y el stock.
+2. **Vestidor virtual**: en el detalle de la prenda, botón **Vestidor Virtual**. Tiene dos modos:
+   - *IA generativa*: se saca una foto con la cámara (o se sube una) y la IA devuelve una imagen de la persona con la prenda puesta. Tarda unos segundos. Usa Replicate: el backend necesita `REPLICATE_API_TOKEN` y crédito cargado en esa cuenta (sin crédito responde "Insufficient credit") y la prenda tiene que tener foto.
+   - *AR en vivo*: la cámara sigue el cuerpo y dibuja la prenda encima en tiempo real.
+3. **Reservar para probar en sucursal**: elegir la variante y la sucursal, donde se ve el stock real de cada una. La reserva es gratis y queda *pendiente* hasta que el encargado aparta las prendas.
+4. **Mis Reservas** (`/reservas`): ver el estado de cada reserva y cancelar las que siguen pendientes. Al cancelar, el stock vuelve a la sucursal.
+5. **Carrito** (`/carrito`): pagar con tarjeta (Stripe) o con QR (Libélula). Mientras se paga, las prendas quedan apartadas 15 minutos.
+6. **Mis Compras** (`/mis-compras`): historial de compras y comprobante en PDF.
+7. **Recomendado para ti**: prendas que sugiere la IA según lo que el cliente compró y reservó.
+8. **Asistente** (botón flotante): responde sobre tallas, stock y cómo reservar. Funciona también sin cuenta.
+
+**App móvil:** lo mismo (catálogo, vestidor con los dos modos, reservar, mis reservas, carrito, mis compras y asistente), más:
+- **Notificaciones push** cuando cambia el estado de una reserva o se aprueba un pago.
+- **Sin conexión:** el catálogo guardado se sigue viendo, y una reserva hecha sin Internet queda en **Operaciones pendientes** hasta que vuelve la conexión, que la envía sola.
+
+### Cajero
+
+**Web: caja** (`/caja`)
+1. Armar la venta de una de dos formas:
+   - **Cargar desde reserva atendida**: trae las prendas de una reserva que el encargado ya marcó como atendida.
+   - **Agregar prenda de mostrador**: elegir la prenda, la talla y el color.
+2. **Cobrar** en efectivo (calcula el cambio), con tarjeta POS o con QR (Libélula): el cliente escanea el QR desde la pantalla de la caja.
+3. Se emite el **comprobante**, para imprimir o descargar en PDF.
+4. **Cambio de prenda**: elegir la venta, lo que el cliente devuelve y lo que se lleva. Se acepta hasta 7 días después de la compra y solo por prendas de igual o mayor valor; la diferencia se cobra en efectivo.
+
+Sin conexión, la caja sigue funcionando, pero solo cobra en efectivo. La venta queda en la cola de la barra superior y se envía sola cuando vuelve Internet.
+
+**App móvil**
+- **Venta de contado**: buscar la prenda por nombre o código de barras, elegir el cliente (o "cliente ocasional"), cobrar en efectivo y emitir un comprobante provisional. Funciona con o sin conexión.
+- **Operaciones pendientes**: cada operación registrada en el teléfono, con su estado: *registrada* (solo en el teléfono), *enviada*, *confirmada*, *rechazada* o *conflicto*.
+
+### Encargado
+
+**Web** (`/encargado`)
+- **Reservas** de su sucursal, filtradas por estado:
+  1. **Apartar prendas**: confirma que separó las prendas (de *pendiente* a *confirmada*).
+  2. **Atender cliente (vestidor)**: el cliente llegó a probarse (de *confirmada* a *atendida*). Desde ahí el cajero la puede cobrar.
+  3. **No se presentó**: cierra la reserva y devuelve las prendas al stock.
+
+  Cada paso le avisa al cliente con una notificación push.
+- **Inventario de mi sucursal**: registrar ingresos, devoluciones, mermas y ajustes. No deja sacar más de lo que hay.
+
+**App móvil**
+- **Conflictos de sincronización**: decidir qué hacer con una operación sin conexión que chocó con el stock central (ver la pestaña *Resolución de Conflictos* del [Administrador](#administrador)).
+- **Reportes e IA**: pedir un reporte con palabras, por ejemplo "ventas por sucursal de este mes". Requiere el plan Profesional.
+- **Operaciones pendientes**.
+
+### Administrador
+
+**Web: panel de la empresa** (`/admin`)
+
+| Pestaña | Qué se hace |
+|---|---|
+| Roles y Permisos | Crear roles y marcar qué permisos tiene cada uno |
+| Personal | Dar de alta cajeros y encargados, y asignarles una sucursal |
+| Sucursales | Sucursales y ciudades. El plan limita cuántas sucursales se pueden tener |
+| Proveedores | Registrar proveedores y ver la disponibilidad que informan |
+| Catálogo de Prendas | Prendas con foto, variantes por talla y color (con código de barras), alta y baja. Aquí se activan los productos que registra un proveedor |
+| Catálogo Maestro | Categorías, tallas y colores |
+| Temporadas | Temporadas y colecciones |
+| Reportes | Indicadores, inventario global, reportes fijos (ventas por sucursal, prendas más vendidas, ventas por categoría y quiebres de stock) en CSV, y un análisis con IA pedido por texto o por voz (plan Profesional) |
+| Reportes personalizados | 7 reportes: ventas, prendas vendidas, existencias, reservas, personal, movimientos de inventario y bitácora. Se eligen las columnas y su orden, los criterios, las fechas y el orden de las filas, y se exporta a Excel, PDF o HTML, o se envía por correo. En el plan Profesional también se piden con palabras o por voz |
+| Bitácora de Auditoría | Cada acción hecha en la empresa, con fecha y hora de Bolivia, usuario, rol e IP. Se filtra por fecha, usuario y acción, y se exporta. Los intentos fallidos aparecen resaltados |
+| Respaldo | Descargar un respaldo de los datos de la empresa y restaurarlo. **Verificar respaldo** muestra qué se restauraría sin cambiar nada |
+| Resolución de Conflictos | Operaciones sin conexión que chocaron con el stock central. Hay tres decisiones: **aceptar con ajuste** (registra la venta y el faltante en el kardex), **reasignar** a otra sucursal con stock o **anular** |
+| Analítica Machine Learning | Predicción de la demanda de las próximas semanas (regresión Ridge, con sus métricas R² y MAE) y segmentación de clientes con K-Means. Plan Profesional |
+
+**Mi plan** (`/admin/plan`, botón arriba a la derecha del panel): plan actual, uso de los cupos, cambio de plan, renovación por 1, 3, 6 o 12 meses (el cobro es simulado) e historial de la suscripción.
+
+**App móvil:** venta de contado, conflictos de sincronización y **Reportes e IA**, que además del reporte con palabras muestra la analítica ML.
+
+### Proveedor
+
+**Web** (`/proveedor`)
+- **Registrar producto**: el producto queda inactivo hasta que el administrador lo revisa y lo activa en *Catálogo de Prendas*. Al activarlo, los clientes reciben un aviso push.
+- **Informar disponibilidad**: cuántas unidades podrá entregar y desde cuándo. Avisa por push a los administradores. Debajo queda el historial de lo informado.
+
+### Superadmin
+
+**Web: panel de la plataforma** (`/plataforma`). El superadmin no pertenece a ninguna empresa: administra el servicio.
+
+| Pestaña | Qué se hace |
+|---|---|
+| Indicadores | Ingresos por suscripciones de los últimos 6 meses, empresas por plan, ventas por empresa y próximos vencimientos |
+| Empresas | Dar de alta una empresa con su administrador y su plan, cambiarle el plan, renovarla por 1 mes, cancelar o reactivar la suscripción, y suspender o reactivar la empresa |
+| Planes | Crear planes y configurar el precio, los cupos (sucursales, prendas y personal) y las funciones incluidas |
+| Reportes | Reportes personalizados de toda la plataforma (empresas, ingresos, uso de los planes, ventas, historial de suscripciones y bitácora), también pedidos con palabras o por voz |
+| Bitácora | Las acciones de todas las empresas y las del propio superadmin |
+| Respaldo | Respaldo y restauración del sistema completo o de una sola empresa |
+
+### Empresa nueva (alta pública)
+
+En `/crear-tienda` cualquiera puede contratar el servicio: completa el nombre de la empresa, la dirección (queda en `/t/<dirección>`), el correo y la contraseña del administrador, y elige el plan. Después, ese administrador entra por `/t/<dirección>/login` y arma su tienda desde cero.
+
+### Planes
+
+| | Básico | Profesional |
+|---|---|---|
+| Sucursales | Hasta 2 | Hasta 10 |
+| Productos, ventas, reservas, operación sin conexión, reportes fijos y personalizados, bitácora, respaldo, asistente, vestidor virtual y pago con QR | Sí | Sí |
+| Análisis con IA, reportes personalizados pedidos con palabras o voz, y analítica ML | No: se ve bloqueado, con el aviso para mejorar el plan | Sí |
+
+Los cupos y las funciones de cada plan se cambian desde el panel del superadmin. Si la suscripción vence o se cancela, la empresa queda **en modo consulta**: se puede ver todo pero no registrar nada, y el administrador ve el aviso para renovar.
+
+## Cómo probar
+
+### Recorridos manuales
+
+Se pueden hacer en la web desplegada o en local. Conviene tener dos ventanas (una normal y una de incógnito) para usar dos roles a la vez.
+
+**1. De la reserva a la caja**
+1. Cliente (web o app): reservar una prenda en *Sucursal Central Equipetrol*.
+2. Encargado (`/encargado`): la reserva aparece *pendiente*. Tocar **Apartar prendas** y después **Atender cliente**.
+3. Cajero (`/caja`): **Cargar desde reserva atendida**, cobrar en efectivo y emitir el comprobante.
+4. Cliente: la compra aparece en **Mis Compras**, con su PDF.
+
+Resultado esperado: al reservar, el stock pasa de disponible a reservado, y al vender se descuenta. Si el cliente tiene la app abierta y el backend tiene configurado Firebase, cada paso del encargado le llega como notificación push.
+
+**2. Compra online**
+1. Cliente: agregar prendas al carrito y elegir **QR (Libélula)**.
+2. En modo de prueba aparece el botón **Simular pago (modo de prueba)**, que confirma el pago como si se hubiera escaneado el QR.
+3. Se emite el comprobante y la compra queda en **Mis Compras**.
+
+Con tarjeta, si el backend tiene configurado Stripe, se usa la tarjeta de prueba `4242 4242 4242 4242` con cualquier fecha futura y cualquier CVC.
+
+**3. Venta sin conexión en la web**
+1. Entrar como cajero en la web desplegada, con Internet, para que se descarguen los datos.
+2. Cortar la conexión (apagar el WiFi, o en DevTools → Network → Offline). Aparece el aviso **Sin conexión**, pero la caja sigue funcionando.
+3. Hacer una venta en efectivo: el indicador de la cola, en la barra superior, muestra una operación pendiente.
+4. Recargar la página sin conexión: la venta sigue en la cola.
+5. Volver a conectar: la venta se envía sola y pasa a *confirmada*.
+
+Con `ng serve` esto no funciona, porque el service worker solo existe en la compilación de producción: hay que probarlo en la web desplegada o con `ng build`.
+
+**4. Venta sin conexión en la app**
+1. Entrar como cajero, con conexión, al menos una vez.
+2. Activar el modo avión, abrir el menú → **Venta de contado** y vender en efectivo.
+3. **Operaciones pendientes** muestra la venta como *registrada*. Cerrar la app y abrirla de nuevo: sigue ahí.
+4. Quitar el modo avión: la venta pasa sola a *confirmada*.
+
+**5. Conflicto de stock**
+1. Encargado: en **Inventario de mi sucursal**, dejar una variante con 1 unidad.
+2. Teléfono A, como cajero y sin conexión: vender esa unidad.
+3. Mientras tanto, desde la web con conexión, vender la misma unidad.
+4. Reconectar el teléfono A: su venta queda en *conflicto*.
+5. Decidir el conflicto: el administrador desde la web (**Resolución de Conflictos**), o el encargado o el administrador desde la app (**Conflictos de sincronización**). Se puede aceptar con ajuste, reasignar o anular, y la decisión queda en la bitácora.
+
+**6. Cambio de prenda**
+1. Cajero: **Cambio de prenda** y elegir una venta reciente.
+2. Devolver una prenda y llevarse otra de igual o mayor valor: se acepta y se cobra la diferencia.
+3. Intentar llevarse una de menor valor: se rechaza.
+
+**7. Reportes con IA y por voz**
+1. Administrador de FashionStore (plan Profesional) → **Reportes personalizados**: escribir "prendas sin stock", o tocar el micrófono y decirlo (funciona en Chrome y Edge).
+2. Se arma el reporte con sus columnas y criterios, y se exporta a Excel o PDF.
+3. Un pedido que no tiene que ver con los datos (por ejemplo, "¿quién gana el mundial?") responde con ejemplos de lo que sí se puede pedir.
+4. Administrador de Moda Andina (plan Básico): la misma pestaña muestra el aviso del plan en lugar del pedido con IA, pero el constructor funciona.
+
+**8. Aislamiento entre empresas**
+- `cliente@modaandina.com` solo ve el catálogo de Moda Andina.
+- Las cuentas de una empresa no sirven en otra: `admin@fashionstore.com` no puede iniciar sesión en `/t/moda-andina/login`.
+
+**9. Bitácora**
+1. Intentar entrar con una contraseña equivocada.
+2. Administrador → **Bitácora de Auditoría**: aparece el intento fallido, resaltado, con la hora y la IP.
+3. Superadmin → **Bitácora**: aparecen las acciones de todas las empresas.
+
+**10. Respaldo**
+1. Administrador → **Respaldo** → **Descargar respaldo**.
+2. Elegir ese archivo y tocar **Verificar respaldo**: muestra cuántos registros de cada tabla se restaurarían, sin cambiar nada.
+3. La restauración real reemplaza los datos: hacerla solo en una empresa de prueba.
+
+**11. Planes y suscripción**
+1. Superadmin → **Empresas**: dar de alta una empresa con el plan Básico.
+2. Entrar como su administrador y crear sucursales: la tercera se rechaza por el cupo del plan.
+3. Superadmin: pasarla al plan Profesional. Ahora sí se puede crear.
+4. Superadmin: cancelar la suscripción. La empresa queda en modo consulta: ve todo, pero no puede registrar nada. Reactivarla al terminar.
+
+### Tests automáticos
+
+| Parte | Comando | Qué cubre |
+|---|---|---|
+| Backend (pytest) | Ver abajo | Login y permisos, aislamiento entre empresas (RLS), planes y cupos, sincronización sin conexión (idempotencia, conflictos y cambios), concurrencia de stock, pago con QR, reportes, bitácora y respaldo |
+| Web (Vitest) | `cd frontend-web && npm test -- --watch=false` | Servicios de la cola sin conexión y de la empresa, login, catálogo, reservas, carrito, pago con QR, panel de administración, reportes personalizados, bitácora y respaldo |
+| App (flutter test) | `cd mobile-app && flutter test` | Cola sin conexión, conflictos, mis compras y robustez de la venta |
+
+El backend se prueba contra un Postgres local desechable, **nunca con el `DATABASE_URL` del `.env`**, que apunta a la base real:
+
+```bash
+docker run -d --name fs-pg-pruebas -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=fashionstore -p 54329:5432 postgres:16-alpine
+cd backend
+export DATABASE_URL=postgresql://postgres:postgres@localhost:54329/fashionstore   # en PowerShell: $env:DATABASE_URL="..."
+python preparar_bd_pruebas.py   # crea el esquema y los datos semilla; se niega a correr contra una base que no sea local
+python -m pytest -q
+```
+
+GitHub Actions (`.github/workflows/ci.yml`) corre los tests del backend y de la web, y compila la web, en cada push a `main` o `Antonio`.
 
 ## Base de datos compartida — cosas a tener en cuenta
 
